@@ -104,7 +104,7 @@ Not integrated: Uber Eats, DoorDash, Toast, Square, Apple Health, Google Health 
 - Modifier deltas are additive and independent, and orders are one meal only (no sides, fees or tips).
 - The ±10 % calorie rule, the protein-as-minimum rule and the ranking weights are prototype design choices, not validated thresholds.
 - Research data is per-device localStorage, so export after each session.
-- **GitHub Pages deep links:** a first visit straight to a deep URL (e.g. an `/experiment?...` link) is served through Pages' `404.html` SPA fallback. The app renders normally, but the HTTP status is 404. After the first visit the service worker serves the app shell directly. The root URL always returns 200.
+- **GitHub Pages deep links:** the build ships real `index.html` copies for the entry routes (`/macrotable`, `/baseline`, `/research`, `/experiment`, `/demo`, `/privacy`, `/welcome`). Opening them directly returns HTTP 200 after one 301 redirect that adds a trailing slash, which the app then removes. Other deep URLs (e.g. `/macrotable/results`) still load through the `404.html` SPA fallback on a first visit: the app renders normally, but the HTTP status is 404. After the first visit the service worker serves the app shell directly.
 - The PWA offline cache is best-effort and not guaranteed like a production app.
 - Real iPhone Safari / Android Chrome behaviour is **NOT TESTED ON REAL DEVICE** by the build agent. See [docs/DEMO.md](docs/DEMO.md#real-device-checklist).
 

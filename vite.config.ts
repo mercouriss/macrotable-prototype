@@ -1,4 +1,4 @@
-import { copyFileSync } from "node:fs";
+import { copyFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
@@ -11,14 +11,27 @@ import { VitePWA } from "vite-plugin-pwa";
  */
 const base = process.env.VITE_BASE ?? "/";
 
-/** Static hosts without rewrites (GitHub Pages) serve 404.html for deep links → hand them the SPA. */
+/**
+ * Static hosts without rewrites (GitHub Pages):
+ *  - 404.html = the SPA, so any deep link still renders (with HTTP 404 on first load);
+ *  - real <route>/index.html copies for the top-level entry points people open directly
+ *    (participant links, /demo, /research…) so those return HTTP 200. Pages redirects
+ *    /experiment → /experiment/ (query kept); the app strips the trailing slash.
+ */
+const ENTRY_ROUTES = ["macrotable", "baseline", "research", "experiment", "demo", "privacy", "welcome"];
+
 function spaFallback(): Plugin {
   return {
-    name: "spa-404-fallback",
+    name: "spa-static-fallbacks",
     apply: "build",
     closeBundle() {
       const dist = resolve(__dirname, "dist");
-      copyFileSync(resolve(dist, "index.html"), resolve(dist, "404.html"));
+      const index = resolve(dist, "index.html");
+      copyFileSync(index, resolve(dist, "404.html"));
+      for (const r of ENTRY_ROUTES) {
+        mkdirSync(resolve(dist, r), { recursive: true });
+        copyFileSync(index, resolve(dist, r, "index.html"));
+      }
     },
   };
 }

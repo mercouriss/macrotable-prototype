@@ -87,5 +87,5 @@ Per condition, over completed trials: completed/started, median time, mean and m
 - Mock restaurant data is fictional, and target deviation uses modelled nutrition, not measured food.
 - The baseline shows menu nutrition by default. Decide and freeze this toggle before the main study.
 - Onboarding is skipped for trials. Treatment participants see the product without an explanation, which is deliberate for comparability.
-- Deep links are served through GitHub Pages' `404.html` on first load (the app renders normally).
+- Assignment links return HTTP 200 (a real `/experiment/index.html` exists). Pages adds a trailing slash via a 301 redirect that keeps the query string, and the app strips the slash before reading the parameters.
 - Real-device behaviour must be piloted (see DEMO.md → real-device checklist).

@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AppFrame, DemoReset } from "./components/AppFrame";
 import { BaselineBrowse, BaselineDone, BaselineMeal, BaselineRestaurant, BaselineReview, BaselineStart } from "./baseline/Baseline";
 import { Orders, Profile } from "./screens/Account";
@@ -21,6 +21,12 @@ import { Search } from "./screens/Search";
 import { Success, Ticket } from "./screens/Success";
 
 export function App() {
+  const { pathname, search, hash } = useLocation();
+  // Static hosting adds a trailing slash (/experiment → /experiment/). Normalise it before any
+  // route or query handling runs, so assignment links keep their ?scenario= parameter intact.
+  if (pathname.length > 1 && pathname.endsWith("/")) {
+    return <Navigate to={`${pathname.replace(/\/+$/, "")}${search}${hash}`} replace />;
+  }
   return (
     <Routes>
       <Route element={<AppFrame />}>
