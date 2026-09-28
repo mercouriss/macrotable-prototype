@@ -1,49 +1,14 @@
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { Icon } from "../components/Icon";
+import { useNavigate, useParams } from "react-router-dom";
+import { AskAgentButton } from "../components/AskAgentButton";
 import { Plate } from "../components/Plate";
 import { approx, ProvenanceBadge } from "../components/ProvenanceBadge";
-import { DeliveryTime, LEVEL_META, RestaurantBadge } from "../components/RestaurantBadge";
+import { DeliveryTime, RestaurantBadge } from "../components/RestaurantBadge";
 import { Screen } from "../components/Screen";
 import { useSheet } from "../components/Sheet";
-import { Button, Card, Eyebrow } from "../components/ui";
-import { getRestaurant, RESTAURANTS } from "../data/restaurants";
+import { Button, Eyebrow } from "../components/ui";
+import { getRestaurant } from "../data/restaurants";
 import { euro } from "../lib/format";
 import { NotFound } from "./NotFound";
-
-export function Discover() {
-  return (
-    <Screen nav>
-      <h1 className="pt-6 font-display text-[27px] font-semibold tracking-[-0.02em]">Discover</h1>
-      <p className="mt-1 text-[14px] text-ink-3">Restaurants near you (simulated).</p>
-      <ul className="mt-5 mb-6 space-y-3">
-        {RESTAURANTS.map((r) => (
-          <li key={r.id}>
-            <Link to={`/macrotable/discover/${r.id}`} className="block">
-              <Card className="flex items-center gap-4 p-4 transition-colors hover:bg-sunken/40">
-                <div className="flex -space-x-5">
-                  {r.meals.slice(0, 2).map((m) => (
-                    <Plate key={m.id} palette={m.palette} size={48} />
-                  ))}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[16.5px] font-semibold tracking-tight">{r.name}</p>
-                  <p className="text-[13px] text-ink-3">
-                    {r.cuisine} · {r.meals.length} dishes
-                  </p>
-                  <div className="mt-1.5 flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1 text-[12px] font-medium text-ink-2">{LEVEL_META[r.integrationLevel].short}</span>
-                    <DeliveryTime restaurant={r} />
-                  </div>
-                </div>
-                <Icon name="chevronRight" size={18} className="text-ink-3" />
-              </Card>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </Screen>
-  );
-}
 
 export function RestaurantPage() {
   const { restaurantId } = useParams();
@@ -54,13 +19,14 @@ export function RestaurantPage() {
   return (
     <Screen
       title={r.name}
-      back="/macrotable/discover"
+      back="/macrotable/explore"
       footer={
-        <Button
-          onClick={() => navigate(`/macrotable/preferences?scope=${r.id}`)}
-        >
-          Find what fits my macros here
-        </Button>
+        <div className="space-y-2">
+          <AskAgentButton context={{ kind: "restaurant", id: r.id, entry: "restaurant" }} variant="primary" label={`Ask MacroAgent about ${r.name}`} />
+          <Button variant="ghost" onClick={() => navigate(`/macrotable/preferences?scope=${r.id}`)}>
+            Guided search here
+          </Button>
+        </div>
       }
     >
       <div className="pt-2">

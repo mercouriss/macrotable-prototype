@@ -1,4 +1,5 @@
 import { Navigate, useNavigate } from "react-router-dom";
+import { AskAgentButton } from "../components/AskAgentButton";
 import { Icon } from "../components/Icon";
 import { MacroSummary } from "../components/MacroSummary";
 import { Screen } from "../components/Screen";
@@ -57,8 +58,9 @@ export function Home() {
       </button>
 
       <div className="mt-6 space-y-2.5">
-        <Button onClick={() => navigate("/macrotable/preferences")} className="min-h-14 text-[16px]">
-          Find me a meal
+        <AskAgentButton variant="primary" label="Ask MacroAgent" className="min-h-14 text-[16px]" />
+        <Button variant="secondary" onClick={() => navigate("/macrotable/preferences")}>
+          Find me a meal (guided)
         </Button>
         <div className="grid grid-cols-2 gap-2.5">
           <Button variant="secondary" icon="camera" onClick={() => scan("menu")}>

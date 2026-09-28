@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { AskAgentButton } from "../components/AskAgentButton";
 import { Icon } from "../components/Icon";
 import { LEVEL_META } from "../components/RestaurantBadge";
 import { Screen } from "../components/Screen";
@@ -48,8 +49,8 @@ export function RestaurantEntry() {
       back="/macrotable"
       footer={
         <div className="space-y-2">
-          <Button onClick={() => navigate(`/macrotable/preferences?scope=${r.id}`)}>Find what fits my macros</Button>
-          <Button variant="ghost" onClick={() => navigate(`/macrotable/discover/${r.id}`)}>
+          <AskAgentButton context={{ kind: "restaurant", id: r.id, entry: "qr" }} variant="primary" label="Open MacroAgent here" />
+          <Button variant="ghost" onClick={() => navigate(`/macrotable/explore/${r.id}`)}>
             View full menu
           </Button>
         </div>

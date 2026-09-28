@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { AskAgentButton } from "../components/AskAgentButton";
 import { Icon } from "../components/Icon";
 import { NutritionComparison } from "../components/NutritionComparison";
 import { Plate } from "../components/Plate";
@@ -174,9 +175,12 @@ export function MealDetail() {
         <Explanation config={config} target={target} />
       </section>
 
+      <div className="mt-5">
+        <AskAgentButton context={{ kind: "meal", id: meal.id, entry: "meal" }} label="Ask MacroAgent about this meal" />
+      </div>
       <button
         onClick={() => openProvenance(meal.provenance, restaurant.name)}
-        className="mt-5 mb-6 inline-flex min-h-11 items-center gap-1.5 text-[14px] font-semibold text-brand hover:underline"
+        className="mt-3 mb-6 inline-flex min-h-11 items-center gap-1.5 text-[14px] font-semibold text-brand hover:underline"
       >
         <Icon name="info" size={16} />
         How was this calculated?

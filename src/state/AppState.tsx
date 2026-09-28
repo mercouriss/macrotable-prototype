@@ -17,6 +17,10 @@ export interface MealSelection {
 export interface Settings {
   baselineShowNutrition: boolean;
   onboardingDone: boolean;
+  /** "auto" = live model via proxy when configured (offline fallback); "offline" = deterministic demo agent only. */
+  agentMode: "auto" | "offline";
+  /** The user acknowledged that live-agent messages are sent to Google Gemini. */
+  agentDisclosureSeen: boolean;
 }
 
 interface PersistedState {
@@ -50,13 +54,14 @@ interface AppStateValue extends PersistedState {
   abortExperiment: () => void;
   /** Research logging — a no-op outside an assigned trial (demo mode never logs). */
   log: (event: string, extra?: Partial<Pick<ExperimentEvent, "mealId" | "configurationId" | "detail">>) => void;
-  placeOrder: (mode?: ServiceMode) => PlaceOrderResult | null;
+  /** Places the current selection, or `selection` when given (the agent approves a specific draft). */
+  placeOrder: (mode?: ServiceMode, selection?: MealSelection) => PlaceOrderResult | null;
   /** Demo lock: Scenario A, canonical data, no selection. Refused during a research trial. */
   resetDemo: () => boolean;
 }
 
 const Ctx = createContext<AppStateValue | null>(null);
-const DEFAULT_SETTINGS: Settings = { baselineShowNutrition: true, onboardingDone: false };
+const DEFAULT_SETTINGS: Settings = { baselineShowNutrition: true, onboardingDone: false, agentMode: "auto", agentDisclosureSeen: false };
 
 function initialFor(id: ScenarioId): PersistedState {
   const s = SCENARIOS[id];
@@ -119,8 +124,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     commit({ ...initialFor(s.scenarioId), lock: null });
   }, []);
 
-  const placeOrder = useCallback((mode: ServiceMode = "pickup"): PlaceOrderResult | null => {
-    const s = stateRef.current;
+  const placeOrder = useCallback((mode: ServiceMode = "pickup", explicit?: MealSelection): PlaceOrderResult | null => {
+    const s = explicit ? { ...stateRef.current, selection: explicit } : stateRef.current;
     if (!s.selection) return null;
     const found = getMeal(s.selection.mealId);
     if (!found || !found.meal.nutrition || !isSelectionSupported(found.meal, s.selection.selections)) return null;

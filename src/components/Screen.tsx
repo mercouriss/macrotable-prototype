@@ -63,15 +63,16 @@ export function Screen({
 
 const TABS: { to: string; label: string; icon: IconName; end?: boolean }[] = [
   { to: "/macrotable", label: "Home", icon: "home", end: true },
-  { to: "/macrotable/discover", label: "Discover", icon: "compass" },
-  { to: "/macrotable/orders", label: "Orders", icon: "receipt" },
+  { to: "/macrotable/explore", label: "Explore", icon: "map" },
+  { to: "/macrotable/agent", label: "Agent", icon: "chat" },
+  { to: "/macrotable/scan", label: "Scan", icon: "camera" },
   { to: "/macrotable/profile", label: "Profile", icon: "user" },
 ];
 
 export function BottomNavigation() {
   return (
     <nav aria-label="Main" className="shrink-0 border-t border-line-2 bg-surface/95 pb-[max(6px,env(safe-area-inset-bottom))] backdrop-blur">
-      <ul className="grid grid-cols-4">
+      <ul className="grid grid-cols-5">
         {TABS.map((t) => (
           <li key={t.to}>
             <NavLink

@@ -14,8 +14,7 @@ export function Orders() {
   // Demo orders only — participant orders belong to the research dashboard.
   const orders = [...getOrders()].filter((o) => o.mode === "macrotable" && !o.sessionId).reverse();
   return (
-    <Screen nav>
-      <h1 className="pt-6 font-display text-[27px] font-semibold tracking-[-0.02em]">Orders</h1>
+    <Screen nav title="Your orders" back="/macrotable/profile">
       {orders.length === 0 ? (
         <div className="flex flex-col items-center pt-20 text-center">
           <span className="grid h-14 w-14 place-items-center rounded-2xl bg-sunken text-ink-3">
@@ -88,10 +87,12 @@ export function Profile() {
       </Card>
       <Card className="mt-3 divide-y divide-line-2 overflow-hidden">
         {row("/macrotable/preferences", "sliders", "Preferences")}
+        {row("/macrotable/orders", "receipt", "Your orders")}
         {row("/privacy", "lock", "Privacy & prototype notice")}
         {!lock && row("/research", "flask", "Research dashboard", `Demo scenario: ${SCENARIOS[scenarioId].label}`)}
         {!lock && row("/baseline", "compass", "Conventional ordering (baseline)")}
       </Card>
+      {!lock && <AgentModeToggle />}
       {!lock && (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <Button
@@ -126,5 +127,26 @@ export function Profile() {
         vary with actual preparation.
       </p>
     </Screen>
+  );
+}
+
+/** Live model (when a proxy is configured, with offline fallback) or the deterministic offline agent only. */
+export function AgentModeToggle() {
+  const { settings, setSettings } = useAppState();
+  return (
+    <Card className="mt-3 p-4">
+      <label className="flex items-center justify-between gap-3 text-[14px]">
+        <span>
+          <span className="block font-medium">Offline demo agent only</span>
+          <span className="block text-[12px] text-ink-3">For demos without Wi-Fi. Off = live Gemini when available, offline fallback otherwise.</span>
+        </span>
+        <input
+          type="checkbox"
+          className="h-5 w-5 accent-[var(--color-brand)]"
+          checked={settings.agentMode === "offline"}
+          onChange={(e) => setSettings({ agentMode: e.target.checked ? "offline" : "auto" })}
+        />
+      </label>
+    </Card>
   );
 }

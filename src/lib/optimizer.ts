@@ -339,3 +339,100 @@ export function explainConfiguration(c: Configuration, target: UserTarget): Expl
   };
   return { meets, misses, tradeoffs, confidence };
 }
+
+// ─── Constrained optimisation (agent requests like "less rice") ───────────
+
+/** A user request about one modifier group, interpreted by the agent, resolved deterministically. */
+export interface Adjustment {
+  /** Group name or id as the user said it, e.g. "rice", "sauce", "chicken". */
+  group: string;
+  request: "less" | "more" | "none" | "exact";
+  /** For "exact": the option label, e.g. "Half" or "+50 g". */
+  option?: string;
+}
+
+export type AdjustmentResolution =
+  | { ok: true; groupId: string; groupName: string; allowed: string[] }
+  | { ok: false; reason: string };
+
+const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9+]/g, "");
+const GROUP_SYNONYMS: Record<string, string[]> = {
+  protein: ["chicken", "salmon", "tofu", "halloumi", "meat", "protein", "fish"],
+  rice: ["rice", "grains", "carbs", "quinoa", "freekeh"],
+  sauce: ["sauce", "dressing", "tahini", "hummus"],
+  veg: ["veg", "vegetables", "veggies", "greens", "salad"],
+};
+
+/** Resolve one adjustment against a meal's modifier groups. Never invents options: only supported ones are allowed. */
+export function resolveAdjustment(meal: Meal, restaurant: Restaurant, adj: Adjustment): AdjustmentResolution {
+  const q = norm(adj.group);
+  let group = meal.modifierGroups.find((g) => norm(g.id) === q || norm(g.name) === q);
+  if (!group) group = meal.modifierGroups.find((g) => norm(g.name).includes(q) || q.includes(norm(g.name)));
+  if (!group) {
+    const family = Object.values(GROUP_SYNONYMS).find((words) => words.some((w) => q.includes(w)));
+    if (family) group = meal.modifierGroups.find((g) => family.some((w) => norm(g.name).includes(w) || norm(g.id).includes(w)));
+  }
+  if (!group) {
+    const names = meal.modifierGroups.map((g) => g.name.toLowerCase());
+    return {
+      ok: false,
+      reason: names.length
+        ? `${meal.name} at ${restaurant.name} has no "${adj.group}" option. Adjustable parts: ${names.join(", ")}.`
+        : `${restaurant.name} doesn't offer any modifications on ${meal.name}.`,
+    };
+  }
+  const supported = group.options.filter((o) => o.supported);
+  const def = group.options.find((o) => o.id === group!.defaultOptionId)!;
+  let allowed = supported;
+  if (adj.request === "less") allowed = supported.filter((o) => o.nutritionDelta.calories < def.nutritionDelta.calories);
+  if (adj.request === "more") allowed = supported.filter((o) => o.nutritionDelta.calories > def.nutritionDelta.calories);
+  if (adj.request === "none") allowed = supported.filter((o) => norm(o.label) === "none");
+  if (adj.request === "exact") {
+    const want = norm(adj.option ?? "");
+    allowed = supported.filter((o) => norm(o.label) === want || norm(o.label).includes(want));
+  }
+  if (!allowed.length) {
+    const notOffered = group.options.filter((o) => !o.supported).map((o) => o.label.toLowerCase());
+    const wording = { less: "a smaller", more: "a larger", none: "a no-", exact: `"${adj.option}"` }[adj.request];
+    return {
+      ok: false,
+      reason:
+        `${restaurant.name} doesn't offer ${wording} ${group.name.toLowerCase()} option on ${meal.name}. ` +
+        `Supported ${group.name.toLowerCase()} options: ${supported.map((o) => o.label).join(", ")}.` +
+        (notOffered.length ? ` Not offered: ${notOffered.join(", ")}.` : ""),
+    };
+  }
+  return { ok: true, groupId: group.id, groupName: group.name, allowed: allowed.map((o) => o.id) };
+}
+
+export interface ConstrainedResult {
+  best?: ScoredConfiguration;
+  alternatives: ScoredConfiguration[];
+  rejected: string[];
+  withinBudget: number;
+}
+
+/**
+ * optimizeMeal with the user's adjustments applied as hard filters on the
+ * enumeration of supported configurations. Same scoring, budget rule and ranking.
+ */
+export function optimizeMealConstrained(
+  meal: Meal,
+  restaurant: Restaurant,
+  target: UserTarget,
+  prefs: Preferences,
+  adjustments: Adjustment[] = [],
+): ConstrainedResult {
+  const rejected: string[] = [];
+  const allowedByGroup: Record<string, string[]> = {};
+  for (const adj of adjustments) {
+    const r = resolveAdjustment(meal, restaurant, adj);
+    if (r.ok) allowedByGroup[r.groupId] = r.allowed;
+    else rejected.push(r.reason);
+  }
+  const all = enumerateConfigurations(meal)
+    .filter((sel) => Object.entries(allowedByGroup).every(([g, ids]) => ids.includes(sel[g])))
+    .map((s) => scoreConfiguration(meal, restaurant, s, target, prefs));
+  const feasible = all.filter((c) => withinBudget(c.price, target)).sort((a, b) => compareConfigs(a, b, target.priority));
+  return { best: feasible[0], alternatives: feasible.slice(1, 3), rejected, withinBudget: feasible.length };
+}

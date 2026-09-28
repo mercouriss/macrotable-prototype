@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Icon } from "../components/Icon";
 import { QRCode } from "../components/QRCode";
 import { Screen } from "../components/Screen";
+import { AgentModeToggle } from "./Account";
 import { Button, Card, Eyebrow } from "../components/ui";
 import { getMeal, RESTAURANTS } from "../data/restaurants";
 import { SCENARIO_IDS, SCENARIOS } from "../data/scenarios";
@@ -115,6 +116,10 @@ export function Research() {
         </div>
         <p className="mt-1.5 text-[12px] text-ink-3">
           {SCENARIOS[scenarioId].summary} · also via <code>?scenario=B</code> on any page, or <Link className="underline" to="/demo">/demo</Link> to reset.
+        </p>
+        <AgentModeToggle />
+        <p className="mt-1.5 px-1 text-[12px] text-ink-3">
+          Live proxy: {import.meta.env.VITE_AGENT_PROXY_URL ? import.meta.env.VITE_AGENT_PROXY_URL : "not configured (offline demo agent only)"}
         </p>
         <Card className="mt-3 p-4">
           <label className="flex items-center justify-between gap-3 text-[14px]">

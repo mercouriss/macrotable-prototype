@@ -1,9 +1,11 @@
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { AppFrame, DemoReset } from "./components/AppFrame";
 import { BaselineBrowse, BaselineDone, BaselineMeal, BaselineRestaurant, BaselineReview, BaselineStart } from "./baseline/Baseline";
 import { Orders, Profile } from "./screens/Account";
 import { Configure } from "./screens/Configure";
-import { Discover, RestaurantPage } from "./screens/Discover";
+import { RestaurantPage } from "./screens/RestaurantPage";
+import { Agent } from "./screens/Agent";
+import { Explore } from "./screens/Explore";
 import { Experiment, ExperimentDone } from "./screens/Experiment";
 import { Onboarding } from "./screens/Onboarding";
 import { Privacy } from "./screens/Privacy";
@@ -45,8 +47,12 @@ export function App() {
           <Route path="success/:orderNumber" element={<Success />} />
           <Route path="ticket/:orderNumber" element={<Ticket />} />
           <Route path="scan" element={<Scan />} />
-          <Route path="discover" element={<Discover />} />
-          <Route path="discover/:restaurantId" element={<RestaurantPage />} />
+          <Route path="agent" element={<Agent />} />
+          <Route path="explore" element={<Explore />} />
+          <Route path="explore/:restaurantId" element={<RestaurantPage />} />
+          {/* V2 URLs */}
+          <Route path="discover" element={<Navigate to="/macrotable/explore" replace />} />
+          <Route path="discover/:restaurantId" element={<LegacyDiscover />} />
           <Route path="orders" element={<Orders />} />
           <Route path="profile" element={<Profile />} />
         </Route>
@@ -75,4 +81,9 @@ export function App() {
       </Route>
     </Routes>
   );
+}
+
+function LegacyDiscover() {
+  const { restaurantId } = useParams();
+  return <Navigate to={`/macrotable/explore/${restaurantId ?? ""}`} replace />;
 }

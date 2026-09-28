@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Icon } from "../components/Icon";
-import { LEVEL_META } from "../components/RestaurantBadge";
 import { Screen } from "../components/Screen";
 import { Button, Callout, Card, Eyebrow } from "../components/ui";
 import { decodeQR, decodeQRFromFile, frameImageData, useCamera, type CameraStatus } from "../components/useCamera";
 import { RESTAURANTS } from "../data/restaurants";
+import { useAgent } from "../agent/agentState";
+import { PROXY_URL } from "../agent/gemini";
+import { AskAgentButton } from "../components/AskAgentButton";
+import { deleteScan, listScans, newScanRecord, saveScan, updateScanStatus, type ScanRecord } from "../scan/imageStore";
+import { extractMenuFromImage, simulatedExtraction } from "../scan/menuExtraction";
 import { CAMERA_PROBLEM_TEXT, parseRestaurantQR, type CameraProblem } from "../lib/camera";
 import { useAppState } from "../state/AppState";
 
@@ -19,7 +23,8 @@ const isProblem = (s: CameraStatus): s is CameraProblem => PROBLEMS.includes(s);
  */
 export function Scan() {
   const [params] = useSearchParams();
-  const type = params.get("type") === "menu" ? "menu" : "qr";
+  const raw = params.get("type");
+  const type = raw === "menu" ? "menu" : raw === "qr" ? "qr" : null;
   const location = useLocation();
   const navigate = useNavigate();
   const [autoStart] = useState(() => (location.state as { userTap?: boolean } | null)?.userTap === true);
@@ -29,7 +34,89 @@ export function Scan() {
     if (location.state) navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
   }, [location, navigate]);
 
+  if (!type) return <ScanHub />;
   return type === "menu" ? <MenuScan key="menu" autoStart={autoStart} /> : <QrScan key="qr" autoStart={autoStart} />;
+}
+
+/** Scan tab: choose menu photo or restaurant QR (the camera opens only after the tap), plus the current temporary scan. */
+function ScanHub() {
+  const navigate = useNavigate();
+  const { log } = useAppState();
+  const agent = useAgent();
+  const [scan, setScan] = useState<ScanRecord | null>(null);
+  const [thumb, setThumb] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    void listScans().then((all) => live && setScan(all[0] ?? null));
+    return () => {
+      live = false;
+    };
+  }, []);
+  useEffect(() => {
+    if (!scan) return setThumb(null);
+    const u = URL.createObjectURL(scan.imageBlob);
+    setThumb(u);
+    return () => URL.revokeObjectURL(u);
+  }, [scan]);
+  const go = (type: "menu" | "qr") => {
+    log(type === "menu" ? "scan_menu_opened" : "scan_qr_opened");
+    navigate(`/macrotable/scan?type=${type}`, { state: { userTap: true } });
+  };
+  return (
+    <Screen nav>
+      <h1 className="pt-6 font-display text-[27px] font-semibold tracking-[-0.02em]">Scan</h1>
+      <p className="mt-1 text-[14px] text-ink-3">The camera opens only after you tap.</p>
+      <div className="mt-5 grid gap-3">
+        {(
+          [
+            ["menu", "camera", "Scan a menu", "Photograph a paper menu. MacroAgent reads it and finds what fits — lower confidence, nothing verified."],
+            ["qr", "qr", "Scan a restaurant QR", "At a MacroTable restaurant: loads its verified menu and opens MacroAgent there."],
+          ] as const
+        ).map(([t, icon, title, body]) => (
+          <button key={t} onClick={() => go(t)} className="flex items-start gap-4 rounded-[22px] border border-line-2 bg-surface p-5 text-left shadow-card hover:bg-sunken/40">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-brand-soft text-brand">
+              <Icon name={icon} size={22} />
+            </span>
+            <span>
+              <span className="block text-[16px] font-semibold">{title}</span>
+              <span className="mt-0.5 block text-[13px] leading-snug text-ink-3">{body}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+      {(scan || agent.state.scannedMenu) && (
+        <Card className="mt-5 mb-6 p-4">
+          <Eyebrow>Current menu scan</Eyebrow>
+          <div className="mt-2 flex items-center gap-3">
+            {thumb && <img src={thumb} alt="Your menu photo (stored on this device)" className="h-14 w-14 rounded-xl object-cover" />}
+            <div className="min-w-0 flex-1 text-[13px] text-ink-2">
+              <p className="font-medium text-ink">{agent.state.scannedMenu?.restaurantName ?? "Menu photo"}</p>
+              {scan && <p>Stored on this device · deleted automatically at {new Date(scan.expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>}
+            </div>
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {agent.state.scannedMenu ? (
+              <AskAgentButton context={{ kind: "scan", entry: "scan-tab" }} label="Ask Agent" />
+            ) : (
+              <span />
+            )}
+            <Button
+              variant="secondary"
+              icon="trash"
+              onClick={async () => {
+                if (scan) await deleteScan(scan.scanSessionId);
+                agent.setScannedMenu(null);
+                setScan(null);
+                log("scan_deleted");
+              }}
+            >
+              Delete scan
+            </Button>
+          </div>
+        </Card>
+      )}
+    </Screen>
+  );
 }
 
 // ─── Shared camera UI ─────────────────────────────────────────────────────
@@ -130,71 +217,96 @@ function StartControls({
 
 // ─── Menu scan ────────────────────────────────────────────────────────────
 
-type MenuPhase = "camera" | "captured" | "analyzing" | "result";
+type MenuPhase = "camera" | "captured" | "consent" | "analyzing" | "error";
 
 function MenuScan({ autoStart }: { autoStart: boolean }) {
   const cam = useCamera();
   const navigate = useNavigate();
-  const { log } = useAppState();
+  const { log, settings } = useAppState();
+  const agent = useAgent();
   const [phase, setPhase] = useState<MenuPhase>("camera");
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
-  const [match, setMatch] = useState("localgrill");
+  const [record, setRecord] = useState<ScanRecord | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const live = !!PROXY_URL && settings.agentMode !== "offline";
 
   useEffect(() => {
     if (autoStart) void cam.start();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Photos live only in memory as object URLs; release them when replaced or on leave.
+  // Photos live only as in-memory object URLs + IndexedDB (TTL); release the URL when replaced or on leave.
   useEffect(() => () => void (photoUrl && URL.revokeObjectURL(photoUrl)), [photoUrl]);
 
-  const acceptPhoto = (blob: Blob, source: "camera" | "upload") => {
+  const acceptPhoto = async (blob: Blob, source: "camera" | "upload") => {
     cam.stop();
+    const rec = newScanRecord(blob);
+    await saveScan(rec);
+    setRecord(rec);
     setPhotoUrl(URL.createObjectURL(blob));
     setPhase("captured");
     log("menu_photo_taken", { detail: { source } });
   };
-  const upload = useUpload((f) => acceptPhoto(f, "upload"));
+  const upload = useUpload((f) => void acceptPhoto(f, "upload"));
 
   const shutter = async () => {
     const blob = await cam.capture();
-    if (blob) acceptPhoto(blob, "camera");
+    if (blob) await acceptPhoto(blob, "camera");
   };
 
-  const analyze = () => {
-    setPhase("analyzing");
-    setTimeout(() => setPhase("result"), 1400);
-  };
-
-  const retake = () => {
+  const retake = async () => {
+    if (record) await deleteScan(record.scanSessionId);
+    setRecord(null);
     setPhotoUrl(null);
     setPhase("camera");
     void cam.start();
   };
 
-  const restaurant = RESTAURANTS.find((r) => r.id === match)!;
+  const analyze = async (useLive: boolean) => {
+    if (!record) return;
+    setPhase("analyzing");
+    setError(null);
+    await updateScanStatus(record.scanSessionId, "analyzing");
+    try {
+      const menu = useLive ? await extractMenuFromImage(record.imageBlob, record.scanSessionId) : simulatedExtraction(record.scanSessionId);
+      if (useLive) log("scan_image_sent_to_model", { detail: { items: menu.items.length } });
+      await updateScanStatus(record.scanSessionId, "extracted");
+      agent.setScannedMenu(menu);
+      navigate("/macrotable/agent", { replace: true, state: { agentContext: { kind: "scan", entry: "menu-scan" } } });
+    } catch (e) {
+      await updateScanStatus(record.scanSessionId, "failed");
+      setError((e as Error).message);
+      setPhase("error");
+      log("scan_extraction_failed");
+    }
+  };
 
   return (
     <Screen
       title="Scan menu"
-      back="/macrotable"
+      back="/macrotable/scan"
       footer={
         phase === "captured" ? (
           <div className="grid grid-cols-2 gap-2.5">
             <Button variant="secondary" icon="refresh" onClick={retake}>
               Retake
             </Button>
-            <Button onClick={analyze}>Analyze menu</Button>
+            <Button onClick={() => (live ? setPhase("consent") : void analyze(false))}>Analyze menu</Button>
           </div>
-        ) : phase === "result" ? (
-          <Button
-            onClick={() => {
-              log("menu_matched", { detail: { restaurantId: match } });
-              navigate(`/macrotable/preferences?scope=${match}`);
-            }}
-          >
-            Find what fits my macros
-          </Button>
+        ) : phase === "consent" ? (
+          <div className="space-y-2">
+            <Button onClick={() => void analyze(true)}>Send photo to Gemini</Button>
+            <Button variant="ghost" onClick={() => void analyze(false)}>
+              Use offline sample instead
+            </Button>
+          </div>
+        ) : phase === "error" ? (
+          <div className="space-y-2">
+            <Button onClick={() => void analyze(false)}>Continue with offline sample</Button>
+            <Button variant="ghost" onClick={retake}>
+              Retake photo
+            </Button>
+          </div>
         ) : undefined
       }
     >
@@ -241,48 +353,40 @@ function MenuScan({ autoStart }: { autoStart: boolean }) {
       {phase !== "camera" && photoUrl && (
         <div className="pt-1 pb-6">
           <div className="relative overflow-hidden rounded-[24px] bg-sunken">
-            <img src={photoUrl} alt="Your menu photo" className={`max-h-[46dvh] w-full object-contain ${phase === "analyzing" ? "opacity-60" : ""}`} />
+            <img src={photoUrl} alt="Your menu photo" className={`max-h-[42dvh] w-full object-contain ${phase === "analyzing" ? "opacity-60" : ""}`} />
             {phase === "analyzing" && (
               <div className="absolute inset-x-6 top-6 h-0.5 animate-scan rounded-full bg-brand shadow-[0_0_12px_2px_rgb(30_107_82/0.5)]" />
             )}
           </div>
           <p className="mt-2 flex items-center gap-1.5 text-[12.5px] text-ink-3">
-            <Icon name="lock" size={14} /> {PHOTO_NOTE}
+            <Icon name="lock" size={14} /> Stored only on this device, deleted automatically after 30 minutes.
           </p>
 
+          {phase === "captured" && !live && (
+            <div className="mt-4">
+              <Callout tone="info" title="Offline demo mode">
+                No live vision model is connected, so "Analyze" shows a <strong>sample</strong> extraction — it is not read from your photo.
+              </Callout>
+            </div>
+          )}
+          {phase === "consent" && (
+            <div className="mt-4">
+              <Callout tone="estimated" title="Send this photo to Google Gemini?" icon="info">
+                To read the menu, the photo is sent once via MacroTable's proxy to Google's Gemini model. MacroTable doesn't store it; on
+                Gemini's free tier Google may use submitted content to improve its products. Avoid photos with people or personal details.
+              </Callout>
+            </div>
+          )}
           {phase === "analyzing" && (
             <p className="mt-5 text-[15px] font-medium" aria-live="polite">
-              Prototype analysis — matching this image to our demo menu dataset…
+              Reading the menu…
             </p>
           )}
-
-          {phase === "result" && (
-            <div className="mt-5 animate-rise" aria-live="polite">
-              <Card className="p-5">
-                <Eyebrow>Matched to demo menu</Eyebrow>
-                <p className="mt-1 font-display text-[24px] font-semibold tracking-tight">{restaurant.name}</p>
-                <p className="text-[13.5px] text-ink-2">
-                  {restaurant.cuisine} · {LEVEL_META[restaurant.integrationLevel].short}
-                </p>
-                <p className="mt-3 text-[13px] leading-snug text-ink-3">
-                  Simulated match: this prototype doesn't read text from your photo. It connects the scan to one of the three demo menus.
-                </p>
-              </Card>
-              <fieldset className="mt-4">
-                <legend className="mb-2 text-[13px] font-medium text-ink-2">Wrong menu? Choose the demo menu</legend>
-                <div className="grid gap-2">
-                  {RESTAURANTS.map((r) => (
-                    <label
-                      key={r.id}
-                      className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-2xl border px-4 ${match === r.id ? "border-ink bg-surface" : "border-line bg-surface"}`}
-                    >
-                      <input type="radio" name="menu-match" value={r.id} checked={match === r.id} onChange={() => setMatch(r.id)} className="h-4 w-4 accent-[var(--color-ink)]" />
-                      <span className="flex-1 text-[14.5px] font-medium">{r.name}</span>
-                      <span className="text-[12px] text-ink-3">{LEVEL_META[r.integrationLevel].short}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
+          {phase === "error" && (
+            <div className="mt-4">
+              <Callout tone="warn" title="Couldn't read the menu">
+                The live model didn't return a usable menu ({error}). You can continue with the offline sample or retake the photo.
+              </Callout>
             </div>
           )}
         </div>
@@ -310,7 +414,8 @@ function QrScan({ autoStart }: { autoStart: boolean }) {
     cam.stop();
     const parsed = parseRestaurantQR(text, RESTAURANTS.map((r) => r.id));
     log("qr_scanned", { detail: { source, known: parsed.kind === "restaurant" } });
-    if (parsed.kind === "restaurant") navigate(`/r/${parsed.restaurantId}`, { replace: true });
+    if (parsed.kind === "restaurant")
+      navigate("/macrotable/agent", { replace: true, state: { agentContext: { kind: "restaurant", id: parsed.restaurantId, entry: "qr" } } });
     else setUnknown(parsed.text);
   };
 
@@ -361,7 +466,7 @@ function QrScan({ autoStart }: { autoStart: boolean }) {
           <span className="grid h-12 w-12 place-items-center rounded-2xl bg-estimated-soft text-estimated" aria-hidden="true">
             <Icon name="qr" size={24} />
           </span>
-          <h2 className="mt-4 font-display text-[24px] font-semibold tracking-tight">No MacroTable data for this code</h2>
+          <h2 className="mt-4 font-display text-[24px] font-semibold tracking-tight">MacroTable doesn't have verified menu data here.</h2>
           <p className="mt-2 text-[14.5px] leading-relaxed text-ink-2">
             This QR code isn't linked to a restaurant with structured menu data, so MacroTable can't read dishes or supported
             modifications from it.

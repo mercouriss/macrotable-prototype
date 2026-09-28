@@ -116,3 +116,29 @@
     transition-duration: 1ms !important;
   }
 }
+
+/* Leaflet map pins (HTML set by Leaflet divIcon, so plain CSS). */
+.mt-pin {
+  display: inline-block;
+  transform: translate(-6px, -8px);
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: 600 11.5px/1.2 var(--font-sans);
+  white-space: nowrap;
+  box-shadow: var(--shadow-card), 0 0 0 1px rgb(22 24 28 / 0.08);
+}
+.mt-pin[data-level="3"]::before { content: "✓ "; color: var(--color-verified); }
+.mt-pin-active { background: var(--color-ink); color: #fff; }
+.mt-pin-active[data-level="3"]::before { color: #9fe0c4; }
+.mt-you {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: #2a6fdb;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 6px rgb(42 111 219 / 0.18);
+}
+.leaflet-container { font-family: var(--font-sans); background: #eef0ea; }

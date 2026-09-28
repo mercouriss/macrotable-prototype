@@ -25,7 +25,7 @@ function spaFallback(): Plugin {
     name: "spa-static-fallbacks",
     apply: "build",
     closeBundle() {
-      const dist = resolve(__dirname, "dist");
+      const dist = resolve(import.meta.dirname, "dist");
       const index = resolve(dist, "index.html");
       copyFileSync(index, resolve(dist, "404.html"));
       for (const r of ENTRY_ROUTES) {
