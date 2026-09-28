@@ -8,15 +8,23 @@ const SECTIONS: [string, string][] = [
   ],
   [
     "Simulated restaurants and nutrition",
-    "All restaurants, dishes, prices and nutrition values are fictional demo data. VERIFIED, OFFICIAL and ESTIMATED describe where data would come from in a real product — not guaranteed accuracy. Nutrition information may vary with actual preparation.",
+    "All restaurants, dishes, prices and nutrition values are fictional demo data. VERIFIED, OFFICIAL, MENU-READ, ESTIMATED and INSUFFICIENT describe where the data comes from, not guaranteed accuracy. Nutrition information may vary with actual preparation.",
   ],
   [
-    "Camera",
-    "The camera is only switched on after you tap Scan menu or Scan QR, and it's switched off when you leave the scan screen. Your photo stays on this device in this prototype — it's never uploaded. Menu analysis is simulated: the app matches your scan to one of three demo menus and does not read text from the image.",
+    "MacroAgent (AI assistant)",
+    "When the live assistant is available, what you type is sent through MacroTable's proxy to Google's Gemini model to understand your request. On Gemini's free tier, Google may use submitted content to improve its products, so please don't share personal information. The AI never calculates nutrition or prices; MacroTable's own code does, using only options the restaurant supports. If the live model is unavailable, an offline demo agent answers instead, and it's labelled as such.",
+  ],
+  [
+    "Camera and menu photos",
+    "The camera switches on only after you tap Scan menu or Scan QR, and switches off when you leave the scan screen. A menu photo is stored only on this device, for at most 30 minutes, and you can delete it at any time. It's sent to Gemini only if you tap \"Send photo to Gemini\". Without that, or offline, the app shows a clearly labelled sample instead of reading your photo. QR codes are decoded on the device.",
+  ],
+  [
+    "Map",
+    "The Explore map loads map images from OpenStreetMap's servers, which see your IP address like any website. The restaurants and their locations are fictional, and your real location is never used.",
   ],
   [
     "Anonymous study logging",
-    "Only during a study task started from a researcher's link, the app records an anonymous participant code (like P001), the task you were given, your taps in the app (e.g. meals viewed, options changed) and the meal you ordered. It never asks for your name, email, phone or student number. Data stays in this browser until the researcher exports it, and is deleted if site data is cleared.",
+    "Only during a study task started from a researcher's link, the app records an anonymous participant code (like P001), the task you were given, your taps in the app (e.g. meals viewed, options changed), how many messages you sent to MacroAgent and which tools it used (never what you wrote), and the meal you ordered. It never asks for your name, email, phone or student number. Data stays in this browser until the researcher exports it, and is deleted if site data is cleared.",
   ],
   [
     "Not a medical tool",

@@ -1,4 +1,4 @@
-# MacroTable — mobile research prototype
+# MacroTable — V3 research prototype
 
 > **MacroTable is a university research prototype. Restaurant integrations, nutrition values, health synchronization, commerce actions and orders are simulated unless explicitly stated otherwise.**
 
@@ -9,23 +9,31 @@ Team 44 · Information Strategy
 
 ## Concept
 
-MacroTable is a nutrition-aware food-commerce agent. You give it your remaining calories and macros, a budget and your preferences. It searches restaurant meals and **uses only the modifications each restaurant supports**. It then picks the best feasible configuration, explains the choice and where its nutrition data comes from, and asks for your approval. Finally it turns the decision into a restaurant-readable kitchen order.
+MacroTable is a nutrition-aware food-commerce **agent**. **MacroAgent** understands what you want and gathers context: your remaining macros, budget and preferences, the restaurant you're at, and a scanned menu. It then invokes deterministic tools, explains the trade-offs and data confidence, and prepares an **in-store or pickup** order that you approve.
 
-> **AI interprets. Optimization calculates. Restaurant constraints determine what can actually be made.**
+> **LLM interprets and orchestrates. Deterministic code calculates. Structured restaurant data defines what is possible. The user approves.**
 
-The research question the prototype exists to test:
+```
+TRIGGER (ask / scan / choose store) → GATHER CONTEXT → REASON + PLAN (choose tools)
+→ ACT (find store, load menu, optimise, configure, draft order) → VERIFY (constraints, provenance, numbers) → HANDOFF (your approval)
+```
 
-> *Does MacroTable help users select a feasible restaurant order that better fits their nutritional objective than conventional ordering?*
+## What's new in V3
 
-## Status
-
-V2 is a controlled research prototype, not a product. It has three operating modes:
-
-| Mode | Entry | Behaviour |
-|---|---|---|
-| **Demo** | `/demo` (or just open the app) | Scenario A, canonical data, presenter panel on wide screens, **nothing is logged** |
-| **Participant** | `/experiment?participant=P001&condition=baseline&scenario=A` | Neutral instructions → **Begin** starts timing → assigned condition/scenario locked → neutral completion screen |
-| **Researcher** | `/research` | Create participant links (copy / share / QR), inspect sessions and summaries, export CSV/JSON, clear local data |
+- **Agent tab** (`Home | Explore | Agent | Scan | Profile`), plus contextual **Ask MacroAgent** buttons on Home, Explore, restaurant, meal, QR and menu-scan screens. All of them open the same persistent agent session.
+- **Tools** (`src/agent/tools.ts`): `getUserContext`, `listNearbyStores`, `getMenu`, `optimizeMeal`, `explainProvenance`, `analyzeMenuImage`, `prepareOrder`.
+  - Requests like *"less rice"* become structured adjustments. They are resolved only against **restaurant-supported** options, and refused with an explanation otherwise.
+- **Engines:**
+  - **Gemini** (live) through a secure **Cloudflare Worker proxy** ([proxy/README.md](proxy/README.md)).
+  - An **offline MockAgent** that calls the same tools. It takes over automatically, and says so, when the live model is missing or fails.
+- **VERIFY:** cards and numbers always come from tool results. Any number in the model's text that no tool produced is flagged.
+- **Explore map:** Leaflet with OpenStreetMap tiles (attributed). All three restaurants and their pins are **fictional demo stores** near a Rotterdam campus (`src/data/geo.ts`). An illustrated map replaces the tiles when they fail or you're offline.
+- **Scan:**
+  - Known restaurant QR → the agent opens with that restaurant's verified menu.
+  - Unknown QR → "MacroTable doesn't have verified menu data here" plus *Scan menu instead*.
+  - **Menu photo** → stored only on the device (IndexedDB, 30-minute TTL, *Delete scan*) → sent to Gemini **only after explicit consent** → validated structured extraction → the same optimizer → MacroAgent.
+- **Provenance scale:** VERIFIED · OFFICIAL · MENU-READ · ESTIMATED · INSUFFICIENT.
+- **Ordering scope:** in-store or pickup only (pickup code, kitchen ticket). Non-integrated restaurants and scanned menus get a counter hand-off. No delivery, no payments.
 
 ## Install, run, test, build
 
@@ -35,83 +43,58 @@ Requires Node 20+ (CI uses Node 24).
 npm install
 npm run dev          # http://localhost:5173
 npm run typecheck
-npm test             # Vitest — 48 tests
-npm run build        # production build into dist/ (base "/")
-npm run preview      # serve the production build
+npm test             # Vitest — optimizer, research, agent tools/loop, proxy, scans, camera
+npm run build
 ```
 
-To build for GitHub Pages locally: `VITE_BASE=/macrotable-prototype/ npm run build`. See `.env.example`.
+- **Live agent locally:** set `VITE_AGENT_PROXY_URL` in `.env.local` (see `.env.example`). Without it the app uses the offline demo agent.
+- **Live agent in production:** deploy the proxy ([proxy/README.md](proxy/README.md)) and set the repo variable `AGENT_PROXY_URL`. CI reads it at build time.
 
-CI (`.github/workflows/ci.yml`) runs `npm ci → typecheck → test → build` on every push and PR. On `main` it then deploys `dist/` to GitHub Pages. No linter is configured.
+CI (`.github/workflows/ci.yml`): `npm ci → typecheck → test → build → deploy to GitHub Pages` on every push to `main`.
 
 ## Routes
 
 | Route | Purpose |
 |---|---|
-| `/` → `/macrotable` | Treatment app (Home). First visit shows a 3-screen onboarding (`/welcome`) |
-| `/macrotable/preferences` | Budget, diet, priority, preferences, validated editable targets, **Reset demo values** |
-| `/macrotable/results` | Best option per restaurant, ranked by fit |
-| `/macrotable/meal/:id` | "Why this meal": target vs order, **Meets / Trade-offs / Confidence** |
-| `/macrotable/configure/:id` | Original → MacroTable version; supported modifiers only |
-| `/macrotable/review` | Approval (nothing is ordered without it) |
-| `/macrotable/success/:n`, `/macrotable/ticket/:n` | Simulated order + kitchen ticket |
-| `/macrotable/failure` | No exact match / budget failure / diet failure |
-| `/macrotable/scan?type=menu\|qr` | Camera: menu photo or table QR |
-| `/r/:restaurantId` | Table-QR landing (demo QR codes encode this URL) |
-| `/macrotable/discover`, `/orders`, `/profile` | Browse restaurants, demo orders, profile/share/reset |
-| `/baseline` | Conventional ordering (unrecorded preview unless started from an experiment link) |
+| `/macrotable` | Home (first visit shows onboarding) |
+| `/macrotable/agent` | **MacroAgent** workspace |
+| `/macrotable/explore`, `/macrotable/explore/:id` | Map, store cards, restaurant menu |
+| `/macrotable/scan` | Scan hub → `?type=menu` (photo) / `?type=qr` |
+| `/r/:restaurantId` | Table-QR landing page (opened by the phone's own camera) |
+| `/macrotable/preferences → search → results → meal → configure → review` | Guided (V2) flow, still available |
+| `/macrotable/success/:n`, `/macrotable/ticket/:n` | Pickup/in-store confirmation and kitchen ticket |
+| `/macrotable/profile`, `/macrotable/orders` | Profile, agent mode, your orders |
+| `/baseline` | Conventional ordering (control) |
 | `/experiment?participant=&condition=&scenario=` | Participant assignment link |
-| `/experiment/done` | Neutral completion screen |
 | `/research` | Researcher dashboard |
-| `/demo` | Demo lock: reset to Scenario A, canonical data |
-| `/privacy` | Prototype privacy notice |
+| `/demo` · `/privacy` | Demo reset · prototype privacy notice |
 
-`?scenario=A|B|C|D` on any demo-mode URL switches scenario. It is ignored during a participant trial.
+## Camera, HTTPS and privacy
 
-## Camera and HTTPS
+- The camera starts **only after a tap**, prefers the rear camera and never uses audio. Tracks stop on capture, cancel, leaving the screen or backgrounding. Denied, unavailable, busy, HTTPS-only and unsupported states each show a message, and **Upload photo** is always available.
+- Menu photos are kept in IndexedDB for at most 30 minutes and can be deleted any time. They're never included in research exports and never committed.
+- A menu photo is sent to Gemini only after the user taps **Send photo to Gemini**, with disclosure. The offline sample is labelled *"not read from your photo"*.
+- Live chat text goes to Gemini via the proxy. **On Gemini's free tier Google may use submitted content to improve its products**, and the Agent tab and privacy notice say so. Research logs record message counts and tool names, **never message text**.
+- Map tiles load from OpenStreetMap. The app never uses your real location.
 
-- The camera is requested **only after a tap** on *Scan menu*, *Scan QR* or *Open camera*. Opening a scan URL directly does not start it.
-- The rear camera is preferred (`facingMode: { ideal: "environment" }`) and audio is never requested. All tracks are stopped on capture, cancel, leaving the screen, or when the app is backgrounded.
-- There are clear states for permission denied, no camera, camera busy, insecure page (HTTP) and unsupported browser. Every state offers **Upload photo** (`<input type="file" accept="image/*">`).
-- Browsers only allow the camera on **HTTPS** (or `localhost`). Use the public `https://` URL on phones.
-- Photos stay in memory as `blob:` URLs on the device and are **never uploaded**.
-- **Menu analysis is simulated:** "Prototype analysis — matching this image to our demo menu dataset." No OCR or AI reads the photo, and the user can correct the matched demo menu.
-- **QR decoding is real** (jsQR, lazy-loaded). Known demo codes open `/r/<restaurant>`. Unknown codes say there is no structured data and offer estimated mode. Printable demo QR codes are on `/research`.
+## Research
 
-## Research workflow (summary)
-
-1. On `/research`, enter an anonymous code (suggested `P001`, `P002`, …), pick a condition and scenario, then **Copy / Share / QR**, or **Start on this device**.
-2. The participant reads neutral instructions and taps **Begin**. Timing starts then.
-3. The condition and scenario are locked. The presenter panel, demo reset and research dashboard are hidden, and the other condition is unreachable.
-4. The order confirmation ends the trial and shows a neutral "Task complete" screen that doesn't reveal the best answer.
-5. Back on `/research`, review sessions and summaries, then **Export CSV** and **Export JSON** after every session.
-
-Full protocol: [docs/EXPERIMENT.md](docs/EXPERIMENT.md).
-
-## Storage and export limits
-
-Research data lives **only in this browser's localStorage on this device**, with an in-memory fallback if storage is blocked. It is lost if site data is cleared, and it isn't shared across devices or browsers. **Export after every session.** *Clear local research data* deletes sessions and simulated orders after a confirmation. It never touches app code or mock data, and it is separate from **Reset demo**, which only resets the UI to Scenario A and never deletes research data. Exports contain the anonymous code, condition, scenario, timings, configuration, nutrition, price and outcome flags. They contain no photos, names or device identifiers.
+The V2 study infrastructure is unchanged and now agent-aware: participant links, condition lock, a neutral end screen, the dashboard and CSV/JSON export with `agent_messages`, `agent_tool_calls`, `agent_provider` and `agent_fallbacks` columns. **V3 changes the treatment, so V2 pilot observations must not be combined with V3 data.** See [docs/EXPERIMENT.md](docs/EXPERIMENT.md) and [docs/study/](docs/study/README.md).
 
 ## What is simulated
 
-Restaurants, menus, recipes, prices, nutrition values and provenance labels are all fictional. The same goes for restaurant integrations (levels 1–3), order sending, kitchen tickets, hand-off, checkout and payment (nothing is ever charged), delivery times and "closest", the "logged today" macros, and menu-photo recognition. Real: browser camera access, QR decoding, the deterministic optimizer, local research logging and exports, and the PWA install/offline cache.
+Restaurants, menus, recipes, prices, nutrition and locations are fictional, as are the restaurant integrations (levels 1–3). Also simulated: order sending, kitchen tickets, pickup codes, payments (none), the "logged today" macros, and the offline sample menu extraction.
 
-Not integrated: Uber Eats, DoorDash, Toast, Square, Apple Health, Google Health Connect, maps, geolocation, accounts, payments, LLM APIs, analytics, and any backend.
+**Real:** the camera, QR decoding, the deterministic optimizer and tools, the Gemini call via the proxy (once deployed), OpenStreetMap tiles, IndexedDB scan storage, local research logging and exports, and the PWA.
 
 ## Known limitations
 
-- Nutrition data is invented. It is internally consistent but not measured. VERIFIED describes the data source, not guaranteed accuracy.
-- Modifier deltas are additive and independent, and orders are one meal only (no sides, fees or tips).
-- The ±10 % calorie rule, the protein-as-minimum rule and the ranking weights are prototype design choices, not validated thresholds.
-- Research data is per-device localStorage, so export after each session.
-- **GitHub Pages deep links:** the build ships real `index.html` copies for the entry routes (`/macrotable`, `/baseline`, `/research`, `/experiment`, `/demo`, `/privacy`, `/welcome`). Opening them directly returns HTTP 200 after one 301 redirect that adds a trailing slash, which the app then removes. Other deep URLs (e.g. `/macrotable/results`) still load through the `404.html` SPA fallback on a first visit: the app renders normally, but the HTTP status is 404. After the first visit the service worker serves the app shell directly.
-- The PWA offline cache is best-effort and not guaranteed like a production app.
-- Real iPhone Safari / Android Chrome behaviour is **NOT TESTED ON REAL DEVICE** by the build agent. See [docs/DEMO.md](docs/DEMO.md#real-device-checklist).
+- **The live agent needs the proxy deployed with your Gemini key.** Until then every agent reply comes from the offline demo agent, which is honestly labelled but only understands common intents and quick replies.
+- The Gemini integration is tested against the documented API shapes (mocked). It hasn't been exercised against the live API from this build environment.
+- Scanned-menu dishes can't be modified, because printed extras have no nutrition data. Estimates for them are AI-inferred and labelled ESTIMATED.
+- Nutrition data is invented, and modifier deltas are additive. The ±10 % calorie rule and ranking weights are prototype choices.
+- Research data is per-device localStorage, so export after each session. See [docs/DEMO.md](docs/DEMO.md#real-device-checklist) for real-device status.
 
 ## Documentation
 
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): layers, real vs simulated
-- [docs/EXPERIMENT.md](docs/EXPERIMENT.md): study design, participant links, logging, export
-- [docs/DATA_MODEL.md](docs/DATA_MODEL.md): restaurants, meals, modifiers, provenance, sessions, events
-- [docs/DEMO.md](docs/DEMO.md): Demo Day script, recovery, real-device checklist
-- [docs/study/](docs/study/README.md): pilot and main-study pack (smoke test, counterbalanced links, questionnaire, observation sheet, issue log, freeze record, analysis script)
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/EXPERIMENT.md](docs/EXPERIMENT.md) · [docs/DATA_MODEL.md](docs/DATA_MODEL.md) · [docs/DEMO.md](docs/DEMO.md) · [docs/study/](docs/study/README.md) · [proxy/README.md](proxy/README.md)

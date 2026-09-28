@@ -1,5 +1,41 @@
 # Architecture
 
+## V3: agent layer
+
+```
+User message / scan / store choice
+      ↓
+MacroAgent orchestrator (src/agent/orchestrator.ts)
+      ├─ live: Gemini generateContent via Cloudflare Worker proxy (proxy/src/index.ts; key only there)
+      └─ fallback / offline: MockAgent (src/agent/mock.ts) — deterministic intent parser
+      ↓ tool calls (identical for both engines)
+─────────────────────────────────────────────────────────────
+getUserContext · listNearbyStores · getMenu · optimizeMeal · explainProvenance · analyzeMenuImage · prepareOrder
+      (src/agent/tools.ts → lib/optimizer.ts, lib/feasibility.ts, data/*)
+─────────────────────────────────────────────────────────────
+      ↓ structured results
+Cards (from tool results only) + VERIFY (flags model numbers no tool produced) + quick actions
+      ↓
+User approval (OrderCard → AppState.placeOrder) → pickup / in-store ticket, or counter hand-off
+```
+
+| Piece | Files | Notes |
+|---|---|---|
+| Agent session | `src/agent/agentState.tsx` | sessionStorage: messages, current restaurant, scanned menu (text only), current recommendation, order drafts, Gemini history (last 6 turns, no images). Reset on every trial Begin and demo reset |
+| Tools | `src/agent/tools.ts` | JSON-schema declarations for Gemini; each returns `{result, card}`. `prepareOrder` only drafts |
+| Adjustments | `lib/optimizer.ts` (`resolveAdjustment`, `optimizeMealConstrained`) | "less/more/none/exact" on a group, resolved against **supported** options only; otherwise a refusal naming the supported options |
+| Gemini client | `src/agent/gemini.ts` | Stateless `generateContent` with full history; model content echoed verbatim (keeps `thoughtSignature`); `functionResponse` keeps the call `id`; ≤ 6 tool rounds; 25 s timeout |
+| Offline agent | `src/agent/mock.ts` | Same tools. Understands nearby / compare / restaurant names / numbers / diet / "less X" / why / pickup / in-store / menu / scan |
+| Proxy | `proxy/` | Origin allow-list, fixed model, body and token caps, field allow-list, server policy preamble, per-IP rate limit, no body logging |
+| Map | `src/explore/*` | Leaflet + OSM tiles (attributed), fictional pins; illustrated fallback |
+| Scans | `src/scan/imageStore.ts`, `src/scan/menuExtraction.ts`, `src/screens/Scan.tsx` | IndexedDB (30-min TTL, purge on start, Delete scan); consented Gemini extraction to a validated `ScannedMenu`; offline sample clearly labelled |
+
+**Real vs simulated in V3:**
+- **Real:** the Gemini calls (once the proxy is deployed), OSM tiles, the camera, QR decoding and IndexedDB.
+- **Simulated:** restaurants, locations, integrations, order sending, pickup codes, and the offline sample extraction.
+
+The V2 layers below are unchanged.
+
 MacroTable is a static single-page app with **no backend**: Vite, React 19, TypeScript, Tailwind CSS v4, React Router 7 and `vite-plugin-pwa`. It is deployed to GitHub Pages by GitHub Actions.
 
 ```

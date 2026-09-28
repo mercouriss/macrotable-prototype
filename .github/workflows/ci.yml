@@ -30,6 +30,8 @@ jobs:
         run: npm run build
         env:
           VITE_BASE: /${{ github.event.repository.name }}/
+          # Public URL of the agent proxy (not a secret). Unset → offline demo agent only.
+          VITE_AGENT_PROXY_URL: ${{ vars.AGENT_PROXY_URL }}
       - uses: actions/upload-pages-artifact@v4
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         with:

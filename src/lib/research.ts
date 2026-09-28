@@ -385,8 +385,20 @@ export const CSV_COLUMNS = [
   "meals_viewed",
   "modifier_changes",
   "provenance_views",
+  "agent_messages",
+  "agent_tool_calls",
+  "agent_provider",
+  "agent_fallbacks",
   "event_count",
 ] as const;
+
+/** Which agent engine answered in a session: gemini / mock / mixed, or "" if the agent wasn't used. */
+export function agentProvider(s: ParticipantSession): string {
+  const p = new Set(
+    s.events.filter((e) => e.event === "agent_reply").map((e) => (e.detail as { provider?: string } | undefined)?.provider).filter((x) => x === "gemini" || x === "mock"),
+  );
+  return p.size === 2 ? "mixed" : ([...p][0] ?? "");
+}
 
 export function csvCell(v: unknown): string {
   if (v === undefined || v === null) return "";
@@ -435,6 +447,10 @@ export function sessionsToCSV(sessions: ParticipantSession[]): string {
       meals_viewed: count(s, "meal_viewed"),
       modifier_changes: count(s, "modifier_changed"),
       provenance_views: count(s, "provenance_viewed"),
+      agent_messages: count(s, "agent_message_sent"),
+      agent_tool_calls: count(s, "agent_tool_called"),
+      agent_provider: agentProvider(s),
+      agent_fallbacks: count(s, "agent_fallback"),
       event_count: s.events.length,
     };
     return CSV_COLUMNS.map((c) => csvCell(row[c])).join(",");

@@ -156,9 +156,10 @@ export function AgentStateProvider({ children }: { children: ReactNode }) {
         }
         const selection = { mealId: d.mealId, selections: d.selections, recommended: d.selections };
         appRef.current.selectMeal(selection);
+        // Log before placing: placing an order completes (and unlocks) a research trial.
+        appRef.current.log("order_approved_in_agent", { mealId: d.mealId, detail: { mode: d.mode } });
         const result = appRef.current.placeOrder(d.mode === "in-store" ? "in-store" : "pickup", selection);
         if (!result) return null;
-        appRef.current.log("order_approved_in_agent", { mealId: d.mealId, detail: { mode: d.mode } });
         markDone({ orderNumber: result.order.orderNumber, pickupCode: result.order.pickupCode });
         return result;
       },

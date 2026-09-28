@@ -63,7 +63,17 @@ Double vegetables    +30        +2    +5     0     +€0.50
 = MacroTable version 682 kcal  49 P   72 C  20 F   €16.50
 ```
 
-## Provenance
+## Provenance (V3: five levels)
+
+| Label | Meaning |
+|---|---|
+| VERIFIED | MacroTable partner recipe and modifier data |
+| OFFICIAL | Restaurant-published structured nutrition |
+| MENU-READ | All four values printed on a scanned menu (read by the vision model; not verified) |
+| ESTIMATED | Public-menu estimate, or AI-inferred from a scanned description (≈ shown on numbers) |
+| INSUFFICIENT | Not enough information; never recommended |
+
+## Provenance (V2 detail)
 
 | Label | Meaning | UI |
 |---|---|---|
@@ -114,3 +124,28 @@ Storage: localStorage key `macrotable.sessions.v2`, with an in-memory fallback. 
 `participant_id, session_id, condition, scenario, status, started_at, completed_at, completion_time_s, meal_id, meal_name, restaurant, integration_level, provenance, handoff, modifiers, kcal, protein_g, carbs_g, fat_g, price_eur, target_kcal, target_protein_g, target_budget_eur, calorie_deviation_kcal, calories_within_10pct, protein_met, within_budget, diet_ok, feasible_order, target_range, meals_viewed, modifier_changes, provenance_views, event_count`
 
 Booleans are exported as `1`/`0`, timestamps as ISO 8601 UTC. No images, names or device identifiers are exported.
+
+## V3 additions
+
+```ts
+interface Restaurant { …; location: {lat,lng}; address: string; priceRange: "€"|"€€"|"€€€";
+                       serviceModes: ("pickup"|"in-store")[]; pickupMinutes: number }   // fictional locations: src/data/geo.ts
+interface PlacedOrder { …; serviceMode: "pickup"|"in-store"|"handoff"; pickupCode: string }  // e.g. MT1042 → K42
+
+interface ScannedMenu { scanId; restaurantName: string|null; source: "gemini"|"simulated"; createdAt;
+                        items: ScannedItem[]; uncertainties: string[] }
+interface ScannedItem { id; name; description?; price: number|null; nutrition: Nutrition|null;
+                        provenance: "menu-read"|"estimated"|"insufficient"; printedFields: (keyof Nutrition)[];
+                        markedDietary: string[]; visibleModifiers: string[] }       // unknown price never passes the budget
+
+interface ScanRecord { scanSessionId; restaurantId?; imageBlob: Blob; createdAt; expiresAt /* +30 min */;
+                       status: "captured"|"analyzing"|"extracted"|"failed" }       // IndexedDB "macrotable-scans"
+
+interface AgentSessionState { messages; currentRestaurantId; scannedMenu; currentRecommendation;
+                              orderDrafts: OrderDraft[]; providerHistory }          // sessionStorage "macrotable.agent.v1"
+interface OrderDraft { …; mode: "pickup"|"in-store"|"handoff"; status: "awaiting-approval"|"approved"|"cancelled" }
+```
+
+New research events: `agent_opened`, `agent_message_sent` (`chars` and `source` only, **never text**), `agent_tool_called`, `agent_reply` (provider, model, fallback, latency, tool names), `agent_fallback`, `order_prepared`, `order_approved_in_agent`, `scan_menu_opened`, `scan_qr_opened`, `menu_photo_taken`, `scan_image_sent_to_model`, `scan_extraction_failed`, `scan_deleted`.
+
+New CSV columns: `agent_messages`, `agent_tool_calls`, `agent_provider` (gemini / mock / mixed / blank), `agent_fallbacks`.

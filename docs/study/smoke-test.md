@@ -18,12 +18,19 @@ Before starting, clear the site's data or use a private tab, so onboarding shows
 | 8 | Scan QR on a printed demo code (`/research` → Printable demo QR codes) → restaurant page | NOT TESTED | NOT TESTED |
 | 9 | Phone's own camera app on a demo QR → opens the app at `/r/...` | NOT TESTED | NOT TESTED |
 | 10 | Preferences: numeric keyboard, validation message, page doesn't zoom on focus | NOT TESTED | NOT TESTED |
-| 11 | Pilot link `T001` Task 1 (baseline A) → Begin → order → "Task complete" | NOT TESTED | NOT TESTED |
-| 12 | Pilot link `T001` Task 2 (MacroTable B) → Begin → order → "Task complete" | NOT TESTED | NOT TESTED |
+| 11 | Pilot link `VT001` Task 1 (baseline A) → Begin → order → "Task complete" | NOT TESTED | NOT TESTED |
+| 12 | Pilot link `VT001` Task 2 (MacroTable B) → Begin → order → "Task complete" | NOT TESTED | NOT TESTED |
 | 13 | Mid-trial: typing `/macrotable` or `/demo` in the address bar returns to the assigned task | NOT TESTED | NOT TESTED |
 | 14 | `/research` shows both sessions; **Export CSV** and **Export JSON** save/open on the phone | NOT TESTED | NOT TESTED |
 | 15 | Share button opens the share sheet (or copies the link) | NOT TESTED | NOT TESTED |
 | 16 | Add to Home Screen → opens standalone; top/bottom not hidden under notch or home bar | NOT TESTED | NOT TESTED |
 | 17 | Airplane mode after one visit → app still opens | NOT TESTED | NOT TESTED |
+| 18 | **V3** Agent pill shows *Live · Gemini* (proxy deployed) | NOT TESTED | NOT TESTED |
+| 19 | **V3** "What should I eat near me?" → FitKitchen, 682 kcal / 49 g / €16.50, VERIFIED | NOT TESTED | NOT TESTED |
+| 20 | **V3** "less rice" at Urban Bowl is refused with supported options | NOT TESTED | NOT TESTED |
+| 21 | **V3** Prepare pickup → Approve → pickup code; in a trial → "Task complete" | NOT TESTED | NOT TESTED |
+| 22 | **V3** Explore map tiles load; pins say fictional; illustrated fallback in airplane mode | NOT TESTED | NOT TESTED |
+| 23 | **V3** Menu photo → consent → Gemini extraction → agent shows MENU-READ/ESTIMATED; Delete scan works | NOT TESTED | NOT TESTED |
+| 24 | **V3** Airplane mode → Agent shows "Offline demo agent" and still answers | NOT TESTED | NOT TESTED |
 
-**Go/no-go:** rows 1, 2, 11–14 must PASS on at least one phone type used by participants before recruiting. Camera rows (3–9) affect demo credibility, not the main experiment, because the experiment doesn't use the camera.
+**Go/no-go (V3):** rows 1, 2, 11–14, 18, 19 and 21 must PASS on at least one phone type used by participants before recruiting. Camera rows (3–9) affect demo credibility, not the main experiment, because the experiment doesn't use the camera.

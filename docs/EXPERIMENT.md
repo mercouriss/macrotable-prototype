@@ -2,7 +2,18 @@
 
 > Operational materials for running the pilot and main study (schedule, questionnaire, analysis script, freeze record) are in [docs/study/](study/README.md). The team protocol document is the authority. This page describes how the app implements it.
 
-## Research question
+## V3 study (supersedes the V2 design for the final evaluation)
+
+V3 materially changes the treatment, so **don't combine V2 pilot observations with V3 data**. Run a new pilot (codes `VT001–VT006`) and a new main study (`VP001–VP040`); see [study/assignment-schedule.md](study/assignment-schedule.md).
+
+- **Baseline:** unchanged. Normal restaurant browsing and configuration with the same menus, prices and supported modifiers.
+- **MacroTable (treatment):** agent-guided restaurant, meal and configuration decisions. Participants may use the Agent tab, Explore, the guided flow or the menus. The final order is placed from an agent order card or the approval screen. Either way it completes the trial.
+- **Revised hypothesis:** *Does an agent that gathers context, invokes deterministic optimization tools, explains trade-offs and guides execution improve the user's food-ordering decision?*
+- **Engine:** live Gemini with the offline agent as fallback. Every session records which engine answered (`agent_provider`: gemini / mock / mixed) and its `agent_fallbacks`. Decide at freeze whether sessions with fallbacks are analysed separately. The analysis script lists them as failure cases.
+- **Privacy:** research logs never store message text. Live messages go to Gemini (Google may use free-tier content), and the Agent tab tells participants not to share personal information.
+- **Camera:** not part of the task. Leave menu scanning out of trials unless the protocol adds it.
+
+## Research question (V2)
 
 > Does MacroTable help users select a feasible restaurant order that better fits their nutritional objective than conventional ordering?
 

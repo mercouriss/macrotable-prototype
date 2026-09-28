@@ -13,7 +13,14 @@
 - **Major:** materially affects usability or measurement. Fix, and retest where possible.
 - **Minor:** cosmetic or low impact. Don't delay the study for it.
 
-## Changes already made before the pilot
+## V3 changes (new pilot required)
+
+| Change | Why | Commit |
+|---|---|---|
+| Treatment becomes agent-guided (MacroAgent tab, tools, Gemini + offline fallback) | Team testing: the agent interaction is part of the mechanism | V3 commits |
+| Ordering limited to pickup / in-store, and five-level provenance | V3 scope | V3 commits |
+
+## Changes already made before the V2 pilot
 
 | Change | Why | Commit |
 |---|---|---|

@@ -10,7 +10,7 @@ import type { Provenance } from "../types";
 const STEPS = [
   {
     title: "Restaurant food that fits the rest of your day",
-    body: "Tell MacroTable what you have left — calories, protein, budget — and it finds dinner that fits.",
+    body: "Ask MacroAgent. It knows what you have left today (calories, protein, budget) and finds nearby food that fits.",
     art: "fit",
   },
   {
@@ -20,7 +20,7 @@ const STEPS = [
   },
   {
     title: "You stay in control",
-    body: "Every meal shows where its nutrition comes from — verified, official or estimated — and nothing is ordered until you approve it.",
+    body: "Every meal shows where its nutrition comes from, from verified to estimated. MacroAgent prepares pickup or in-store orders, and nothing is ordered until you approve it.",
     art: "control",
   },
 ] as const;

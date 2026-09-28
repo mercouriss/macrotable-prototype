@@ -74,6 +74,11 @@ def load_survey(path):
     return out
 
 
+def agent_provider(s):
+    p = {(e.get("detail") or {}).get("provider") for e in s["events"] if e["event"] == "agent_reply"} & {"gemini", "mock"}
+    return "mixed" if len(p) == 2 else (p.pop() if p else "")
+
+
 def num(x):
     return "" if x is None else x
 
@@ -146,6 +151,12 @@ def build_observations(sessions, survey):
                 "modifier_changes": ev.count("modifier_changed"),
                 "provenance_views": ev.count("provenance_viewed"),
                 "used_macrotable_version": int("macrotable_version_used" in ev),
+                # V3 agent usage (never message text)
+                "agent_messages": ev.count("agent_message_sent"),
+                "agent_tool_calls": ev.count("agent_tool_called"),
+                "agent_provider": agent_provider(s),
+                "agent_fallbacks": ev.count("agent_fallback"),
+                "agent_order_approved": int("order_approved_in_agent" in ev),
                 "started_at_utc": datetime.fromtimestamp(s["startedAt"] / 1000, tz=timezone.utc).isoformat(timespec="seconds"),
                 "source_export": s["_source"],
             }
@@ -270,6 +281,18 @@ def main():
         L.append("MacroTable-only ratings (1–7): " + " · ".join(
             f"{k.replace('_', ' ')} {statistics.mean([r[k] for r in mt if r[k] != '']):.1f}"
             for k in LIKERT_MT if any(r[k] != "" for r in mt)))
+    if mt:
+        L.append("")
+        used = [r for r in mt if r["agent_messages"] or r["agent_tool_calls"]]
+        prov = defaultdict(int)
+        for r in mt:
+            prov[r["agent_provider"] or "not used"] += 1
+        L.append(
+            f"MacroAgent use (MacroTable observations): {len(used)}/{len(mt)} used the agent · "
+            f"median messages {statistics.median(r['agent_messages'] for r in mt):g} · "
+            f"engine: " + ", ".join(f"{k} {v}" for k, v in sorted(prov.items())) +
+            f" · sessions with a live→offline fallback: {sum(1 for r in mt if r['agent_fallbacks'])}"
+        )
     L.append("")
     L.append("Dimension errors (mean |error|, all completed): " + " · ".join(
         f"{c}: kcal {statistics.mean(r['kcal_deviation'] for r in rows):.0f}, P {statistics.mean(r['protein_error'] for r in rows):.0f} g, "
@@ -287,6 +310,8 @@ def main():
         if w["time_diff"] < 0:
             cases.append(f"- **{w['participant']}**: MacroTable took longer ({w['time_macrotable']} s vs {w['time_baseline']} s).")
     for r in mt:
+        if r["agent_provider"] == "mixed" or r["agent_fallbacks"]:
+            cases.append(f"- **{r['participant']}**: live model failed at least once — offline agent answered (check before pooling with live sessions).")
         if not r["protein_success"]:
             cases.append(f"- **{r['participant']}**: MacroTable order missed the protein target ({r['protein_g']} g vs ≥{r['target_protein_g']} g).")
         if not r["used_macrotable_version"] and r["condition"] == "macrotable":

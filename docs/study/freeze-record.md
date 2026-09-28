@@ -4,7 +4,10 @@ Complete this **after** the pilot fixes and the final smoke test, and **before**
 
 | Item | Frozen value |
 |---|---|
+| Version | **V3 (agent-guided treatment)**. Don't pool with V2 data |
 | Prototype commit | `________` (`git rev-parse --short HEAD` on `main`) |
+| Agent engine | Proxy URL `________` · model `________` (from `proxy/wrangler.toml`) · Gemini tier: free / paid |
+| Sessions with agent fallback | Analyse together / separately / exclude (decide now) |
 | Deployment version / date | GitHub Actions run `#____` · deployed `____-__-__` |
 | Scenarios | Task 1 = **A** (700 kcal · ≥45 g P · ≤ €18), Task 2 = **B** (800 kcal · ≥55 g P · ≤ €20 · lower fat) — *confirm* |
 | Baseline nutrition setting | Visible / Hidden — **decide** (protocol §7 recommends visible if plausible for a conventional digital menu). Set on `/research` → Demo settings on **every study device**, and check it before each session |

@@ -1,5 +1,7 @@
 # Study pack: pilot and main experiment
 
+> **V3 update:** the treatment is now **agent-guided** (MacroAgent + deterministic tools). The revised hypothesis asks whether an agent that gathers context, invokes deterministic optimization tools, explains trade-offs and guides execution improves the user's food-ordering decision. Run a **new V3 pilot** (`VT001–VT006`) before the main study (`VP001–VP040`). **Don't combine V2 observations with V3 data.** Before recruiting, deploy the proxy ([../../proxy/README.md](../../proxy/README.md)) so participants get the live agent, and check the Agent pill says *Live · Gemini* on each study device.
+
 Operational materials for the MacroTable pilot and main study (protocol: *MacroTable — Pilot Study & Main Experiment Protocol*). **Feature development is paused**: change the app only for critical or major pilot findings.
 
 ```

@@ -10,7 +10,36 @@ Use a laptop browser window ≥1280 px wide. The app appears in a phone frame, w
 2. Check that the presenter panel says **Demo mode — nothing is logged**.
 3. If you'll show QR: open `/research` → *Printable demo QR codes*, and print them or show them on a second screen.
 
-## Exact sequence
+## V3 Demo Day story (agent)
+
+Before you start, check the Agent pill:
+- **Live · Gemini** means the proxy is deployed and reachable.
+- **Offline demo agent** is fine too. It uses the same tools, but say it's the offline agent.
+- If Wi-Fi is unreliable, turn on Profile → **Offline demo agent only**.
+
+```
+1. /demo → Home: 700 kcal · ≥45 g protein remaining, €18
+2. Explore → map with three fictional stores (FitKitchen 360 m, Local Grill 520 m, Urban Bowl 530 m)
+3. Agent → "What should I eat near me?" (or the suggestion chip)
+4. Agent compares stores → stores card
+5. FitKitchen has the strongest VERIFIED match
+6. Agent ran optimizeMeal (tap "2 tool calls" to show the tools)
+7. Card: Chicken Power Bowl · +50 g chicken, half rice, light sauce, double veg · 682 kcal · 49 g · €16.50
+8. Tap the VERIFIED badge → provenance sheet
+9. "Prepare pickup" → order card
+10. "Approve & send order" → pickup code (e.g. K42) → Kitchen ticket
+11. Scan → Scan a menu → photo/upload → Analyze (live: consent → Gemini; offline: labelled sample)
+12. Agent reads the temporary menu → best fit shown as MENU-READ / ESTIMATED
+13. Point out lower confidence: not verified, can't be modified, "Order at counter" hand-off
+14. Explain the integration-depth strategy: VERIFIED partner (configure + ticket) → OFFICIAL (configure) → scan/estimate (recommend + hand-off)
+```
+
+Optional extras:
+- *"Yes, but less rice"* re-optimises within supported options.
+- At Urban Bowl, *"less rice"* is refused, and the agent names the supported options.
+- Scan QR → *Demo: simulate FitKitchen's table QR* → "You're at FitKitchen…".
+
+## V2 exact sequence (guided flow)
 
 ```
 /demo                      → resets to Scenario A, lands on Home
