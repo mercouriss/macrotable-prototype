@@ -51,7 +51,7 @@ function DemoPanel() {
   return (
     <aside className="hidden w-[260px] shrink-0 self-center text-ink-2 xl:block" aria-label="Presenter controls">
       <div className="flex items-center gap-2.5">
-        <img src="/favicon.svg" alt="" className="h-8 w-8" />
+        <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="h-8 w-8" />
         <div>
           <p className="text-[15px] font-semibold text-ink">MacroTable</p>
           <p className="text-[12px] text-ink-3">Team 44 · prototype</p>

@@ -6,7 +6,7 @@ import { AppStateProvider } from "./state/AppState";
 
 // No StrictMode: its dev-only double effects would double-log research events.
 createRoot(document.getElementById("root")!).render(
-  <BrowserRouter>
+  <BrowserRouter basename={import.meta.env.BASE_URL.replace(/\/$/, "") || "/"}>
     <AppStateProvider>
       <App />
     </AppStateProvider>
