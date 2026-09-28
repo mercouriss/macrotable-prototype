@@ -1,176 +1,116 @@
-# MacroTable — prototype
+# MacroTable — mobile research prototype
 
-> **This application is a university proof-of-concept. Restaurant integrations, nutrition data, orders, health synchronization, and checkout are simulated unless explicitly stated otherwise.**
+> **MacroTable is a university research prototype. Restaurant integrations, nutrition values, health synchronization, commerce actions and orders are simulated unless explicitly stated otherwise.**
 
 Team 44 · Information Strategy
 
-## 1. What MacroTable is
+**Live app:** https://mercouriss.github.io/macrotable-prototype/
+**Repository:** https://github.com/mercouriss/macrotable-prototype
 
-MacroTable is a nutrition-aware food-commerce agent. You give it your remaining nutritional targets, budget and preferences. It considers restaurant meals, **uses only the modifications each restaurant supports**, picks the best feasible configuration, explains the choice and where the nutrition data comes from, asks for your approval, and turns the decision into a restaurant-readable kitchen order.
+## Concept
 
-> Existing nutrition tools can recommend what to eat. MacroTable turns a nutritional objective into an executable restaurant order.
->
+MacroTable is a nutrition-aware food-commerce agent. You give it your remaining calories and macros, a budget and your preferences. It searches restaurant meals and **uses only the modifications each restaurant supports**. It then picks the best feasible configuration, explains the choice and where its nutrition data comes from, and asks for your approval. Finally it turns the decision into a restaurant-readable kitchen order.
+
 > **AI interprets. Optimization calculates. Restaurant constraints determine what can actually be made.**
 
-## 2. Purpose of this prototype
+The research question the prototype exists to test:
 
-This is a clickable, mobile-first prototype that makes the core workflow believable and testable:
+> *Does MacroTable help users select a feasible restaurant order that better fits their nutritional objective than conventional ordering?*
 
-```
-nutrition goal → preferences → meal discovery → feasibility filter → recommendations
-→ supported modification → nutrition comparison → user approval → kitchen ticket
-```
+## Status
 
-It also includes a deliberately **impossible** case, where MacroTable says so instead of inventing a modification. It also has a **conventional ordering baseline** for a controlled comparison. It is not production software.
+V2 is a controlled research prototype, not a product. It has three operating modes:
 
-## 3. Install and run
+| Mode | Entry | Behaviour |
+|---|---|---|
+| **Demo** | `/demo` (or just open the app) | Scenario A, canonical data, presenter panel on wide screens, **nothing is logged** |
+| **Participant** | `/experiment?participant=P001&condition=baseline&scenario=A` | Neutral instructions → **Begin** starts timing → assigned condition/scenario locked → neutral completion screen |
+| **Researcher** | `/research` | Create participant links (copy / share / QR), inspect sessions and summaries, export CSV/JSON, clear local data |
 
-Requires Node 18+ (tested on Node 24).
+## Install, run, test, build
+
+Requires Node 20+ (CI uses Node 24).
 
 ```bash
 npm install
-npm run dev
+npm run dev          # http://localhost:5173
+npm run typecheck
+npm test             # Vitest — 48 tests
+npm run build        # production build into dist/ (base "/")
+npm run preview      # serve the production build
 ```
 
-Open http://localhost:5173. On a desktop browser the app is shown in a 390×844 phone frame. At ≥1280 px width a presenter panel for switching scenarios appears beside it. On a phone the app fills the screen.
+To build for GitHub Pages locally: `VITE_BASE=/macrotable-prototype/ npm run build`. See `.env.example`.
 
-Other commands:
+CI (`.github/workflows/ci.yml`) runs `npm ci → typecheck → test → build` on every push and PR. On `main` it then deploys `dist/` to GitHub Pages. No linter is configured.
 
-```bash
-npm test           # optimiser + arithmetic tests (Vitest)
-npm run build      # type-check + production build into dist/
-npm run preview    # serve the production build
-```
+## Routes
 
-No network access is needed once dependencies are installed: there are no external APIs, fonts, images or analytics.
-
-## 4. Demo flow (Demo Day path)
-
-Scenario A is the default. Append `?scenario=A` to any URL to reset to it.
-
-1. **Home** (`/macrotable`): Alex has 700 kcal · 45 g protein · 75 g carbs · 22 g fat left and a €18 dinner budget. Tap **Find me a meal**.
-2. **Preferences**: budget, diet, priority (macros / price / closest) and taste preferences. Tap **Find meals**.
-3. **Searching**: a short progress screen. Every line shows a real count from the search: 134 supported configurations, 4 unsupported options never used, 113 within €18. **Skip** jumps ahead.
-4. **Results**: three options, one per restaurant, ranked by fit. They are VERIFIED (FitKitchen), OFFICIAL (Urban Bowl) and ESTIMATED (Local Grill).
-5. **Chicken Power Bowl** → **Why this meal**: your target next to this order (682 kcal, 49 g protein, 72 g carbs, 20 g fat, €16.50), plus the reasons.
-6. **Use MacroTable's version** → **Configuration**: original dish → MacroTable version (+50 g chicken, half rice, light sauce, double vegetables). Tap any row to change it; totals and price recalculate. Unsupported options are shown locked.
-7. **How was this calculated?** opens the provenance sheet.
-8. **Review order** → **Approval**: nothing is ordered until **Confirm configuration** is tapped.
-9. **Order sent** → **View kitchen ticket** (`MACROTABLE ORDER #MT1042`).
-
-**Failure case** (either route):
-
-- *Restaurant-level:* Discover → **Urban Bowl** → *Find what fits my macros here*. Urban Bowl can't add salmon or halve the rice, so the best it can do is **760 kcal / 40 g protein / €17.20**. The app shows *No exact configuration available*, the closest supported option, and why.
-- *Global:* switch to **Scenario D** (`/macrotable?scenario=D`, 450 kcal with ≥65 g protein). Even the maximum supported chicken portion leaves the best bowl 8 g short.
-
-**Other entry points:** *Scan QR* simulates a table QR at FitKitchen (a partner). *Scan menu* simulates photographing Local Grill's paper menu (unaffiliated; estimates and hand-off only). Neither uses a camera, a QR library or image recognition.
-
-## 5. Baseline experiment route
-
-| Route | Condition |
+| Route | Purpose |
 |---|---|
-| `/macrotable` | Treatment: MacroTable-assisted ordering |
-| `/baseline` | Control: conventional ordering |
-| `/research` | Researcher screen (hidden; also via Profile → Research & scenarios) |
+| `/` → `/macrotable` | Treatment app (Home). First visit shows a 3-screen onboarding (`/welcome`) |
+| `/macrotable/preferences` | Budget, diet, priority, preferences, validated editable targets, **Reset demo values** |
+| `/macrotable/results` | Best option per restaurant, ranked by fit |
+| `/macrotable/meal/:id` | "Why this meal": target vs order, **Meets / Trade-offs / Confidence** |
+| `/macrotable/configure/:id` | Original → MacroTable version; supported modifiers only |
+| `/macrotable/review` | Approval (nothing is ordered without it) |
+| `/macrotable/success/:n`, `/macrotable/ticket/:n` | Simulated order + kitchen ticket |
+| `/macrotable/failure` | No exact match / budget failure / diet failure |
+| `/macrotable/scan?type=menu\|qr` | Camera: menu photo or table QR |
+| `/r/:restaurantId` | Table-QR landing (demo QR codes encode this URL) |
+| `/macrotable/discover`, `/orders`, `/profile` | Browse restaurants, demo orders, profile/share/reset |
+| `/baseline` | Conventional ordering (unrecorded preview unless started from an experiment link) |
+| `/experiment?participant=&condition=&scenario=` | Participant assignment link |
+| `/experiment/done` | Neutral completion screen |
+| `/research` | Researcher dashboard |
+| `/demo` | Demo lock: reset to Scenario A, canonical data |
+| `/privacy` | Prototype privacy notice |
 
-The baseline uses **the same restaurants, meals and supported modifiers** (`src/data/restaurants.ts`). It removes recommendations, optimised configurations, target comparison, explanations and nutrition-fit ranking. Restaurants and meals appear in fixed menu order. The participant sees the task, browses, configures manually and places a simulated order. A research toggle controls whether menu nutrition is shown in the baseline, as some conventional apps do.
+`?scenario=A|B|C|D` on any demo-mode URL switches scenario. It is ignored during a participant trial.
 
-For each trial the app records the selected meal and configuration, final nutrition, final price, whether the order reached the target range, meals viewed, modifier changes and **completion time** (from *Start* / *Find me a meal* to order confirmation). Results appear on `/research` and can be exported as JSON.
+## Camera and HTTPS
 
-Events (`localStorage` only, no external service): `experiment_started`, `preferences_set`, `search_run`, `recommendation_selected`, `meal_viewed`, `modifier_changed`, `provenance_viewed`, `order_confirmed`, `experiment_completed`, among others.
+- The camera is requested **only after a tap** on *Scan menu*, *Scan QR* or *Open camera*. Opening a scan URL directly does not start it.
+- The rear camera is preferred (`facingMode: { ideal: "environment" }`) and audio is never requested. All tracks are stopped on capture, cancel, leaving the screen, or when the app is backgrounded.
+- There are clear states for permission denied, no camera, camera busy, insecure page (HTTP) and unsupported browser. Every state offers **Upload photo** (`<input type="file" accept="image/*">`).
+- Browsers only allow the camera on **HTTPS** (or `localhost`). Use the public `https://` URL on phones.
+- Photos stay in memory as `blob:` URLs on the device and are **never uploaded**.
+- **Menu analysis is simulated:** "Prototype analysis — matching this image to our demo menu dataset." No OCR or AI reads the photo, and the user can correct the matched demo menu.
+- **QR decoding is real** (jsQR, lazy-loaded). Known demo codes open `/r/<restaurant>`. Unknown codes say there is no structured data and offer estimated mode. Printable demo QR codes are on `/research`.
 
-## 6. Preset scenarios
+## Research workflow (summary)
 
-Switch scenarios with `?scenario=A|B|C|D` on any URL, the Research screen, or the desktop presenter panel. Switching resets targets and preferences.
+1. On `/research`, enter an anonymous code (suggested `P001`, `P002`, …), pick a condition and scenario, then **Copy / Share / QR**, or **Start on this device**.
+2. The participant reads neutral instructions and taps **Begin**. Timing starts then.
+3. The condition and scenario are locked. The presenter panel, demo reset and research dashboard are hidden, and the other condition is unreachable.
+4. The order confirmation ends the trial and shows a neutral "Task complete" screen that doesn't reveal the best answer.
+5. Back on `/research`, review sessions and summaries, then **Export CSV** and **Export JSON** after every session.
 
-| | Target | Budget | Preferences | Expected outcome |
-|---|---|---|---|---|
-| **A** | 700 kcal, ≥45 g protein (75 g C, 22 g F) | €18 | none (high protein on) | Chicken Power Bowl, MacroTable version, 682 kcal / 49 g |
-| **B** | 800 kcal, ≥55 g protein (90 g C, 20 g F) | €20 | lower fat | Chicken Power Bowl, +100 g chicken, no sauce, double veg |
-| **C** | 650 kcal, ≥40 g protein (75 g C, 20 g F) | €17 | vegetarian | Crispy Tofu Tahini Bowl, +75 g tofu, light tahini |
-| **D** | 450 kcal, ≥65 g protein | €18 | — | Deliberately impossible → closest option |
+Full protocol: [docs/EXPERIMENT.md](docs/EXPERIMENT.md).
 
-Scenarios A–C each contain meals that reach the target and meals that do not. `src/lib/__tests__/optimizer.test.ts` asserts this.
+## Storage and export limits
 
-## 7. Mock data
+Research data lives **only in this browser's localStorage on this device**, with an in-memory fallback if storage is blocked. It is lost if site data is cleared, and it isn't shared across devices or browsers. **Export after every session.** *Clear local research data* deletes sessions and simulated orders after a confirmation. It never touches app code or mock data, and it is separate from **Reset demo**, which only resets the UI to Scenario A and never deletes research data. Exports contain the anonymous code, condition, scenario, timings, configuration, nutrition, price and outcome flags. They contain no photos, names or device identifiers.
 
-`src/data/restaurants.ts` holds 3 fictional restaurants and 11 meals:
+## What is simulated
 
-| Restaurant | Integration level | Provenance | What MacroTable can do |
-|---|---|---|---|
-| **FitKitchen** | 3 · Verified partner | VERIFIED (recipe-level) | Optimise at recipe level, configure, send kitchen ticket |
-| **Urban Bowl** | 2 · Structured integration | OFFICIAL (published by the merchant) | Filter, optimise within supported modifiers, create order |
-| **Local Grill** | 1 · Unaffiliated | ESTIMATED (from the public menu) | Recommend, estimate, hand off. No modifications, no direct order |
+Restaurants, menus, recipes, prices, nutrition values and provenance labels are all fictional. The same goes for restaurant integrations (levels 1–3), order sending, kitchen tickets, hand-off, checkout and payment (nothing is ever charged), delivery times and "closest", the "logged today" macros, and menu-photo recognition. Real: browser camera access, QR decoding, the deterministic optimizer, local research logging and exports, and the PWA install/offline cache.
 
-Each meal has base nutrition and price, and modifier groups whose options carry a **nutrition delta and a price delta**. The default option always has a zero delta. Options marked `supported: false` are ones the restaurant explicitly does not allow (e.g. Urban Bowl's *half rice*, *extra salmon*). They never enter the search space and are shown locked in the UI. The data also covers the error states: one sold-out item (Steak & Sweet Potato), one item with no nutrition data (Chef's Daily Special) and one spicy item (filtered by *No spicy food*).
+Not integrated: Uber Eats, DoorDash, Toast, Square, Apple Health, Google Health Connect, maps, geolocation, accounts, payments, LLM APIs, analytics, and any backend.
 
-The Chicken Power Bowl arithmetic, checked by tests:
+## Known limitations
 
-```
-Base         890 kcal  39 P  105 C  31 F   €14.50
-+50 g chicken +70      +12     0    +2     +€1.50
-Half rice    −160       −3   −35     0
-Light sauce  −148       −1    −3   −13
-Double veg    +30       +2    +5     0     +€0.50
-= MacroTable 682 kcal  49 P   72 C  20 F   €16.50
-```
+- Nutrition data is invented. It is internally consistent but not measured. VERIFIED describes the data source, not guaranteed accuracy.
+- Modifier deltas are additive and independent, and orders are one meal only (no sides, fees or tips).
+- The ±10 % calorie rule, the protein-as-minimum rule and the ranking weights are prototype design choices, not validated thresholds.
+- Research data is per-device localStorage, so export after each session.
+- **GitHub Pages deep links:** a first visit straight to a deep URL (e.g. an `/experiment?...` link) is served through Pages' `404.html` SPA fallback. The app renders normally, but the HTTP status is 404. After the first visit the service worker serves the app shell directly. The root URL always returns 200.
+- The PWA offline cache is best-effort and not guaranteed like a production app.
+- Real iPhone Safari / Android Chrome behaviour is **NOT TESTED ON REAL DEVICE** by the build agent. See [docs/DEMO.md](docs/DEMO.md#real-device-checklist).
 
-## 8. Architecture
+## Documentation
 
-Vite + React 19 + TypeScript + Tailwind CSS v4 + React Router. There is no backend, no state library and no UI kit.
-
-```
-src/
-├── data/          restaurants.ts (menus, modifiers, deltas) · scenarios.ts (A–D, persona)
-├── lib/
-│   ├── nutrition.ts    deterministic base + deltas (integer cents); refuses unsupported options
-│   ├── feasibility.ts  hard filters (available, nutrition present, diet, spicy), enumeration of
-│   │                   supported configurations, budget, "reaches target" definition
-│   ├── optimizer.ts    distance D, ranking, per-restaurant recommendations, explanations
-│   ├── experiment.ts   localStorage event log, orders, trial summaries, JSON export
-│   └── __tests__/      16 tests: arithmetic, supported-only, scenarios, failure case
-├── state/         AppState (React context) · useMealSelection
-├── components/    ProvenanceBadge, RestaurantBadge, MealCard, NutritionComparison,
-│                  ModifierSelector, KitchenTicket, MacroSummary, Sheet, Screen/BottomNavigation, …
-├── screens/       Home, Preferences, Search, Results, MealDetail, Configure, Review,
-│                  Success/Ticket, Failure, Scan, Discover, Orders/Profile, Research
-└── baseline/      conventional-ordering control condition
-```
-
-**Recommendation logic** (`x* = argmin_{x∈F} D(N(x), T)`):
-
-1. Generate every configuration from the **supported** options of each modifier group.
-2. Remove infeasible ones: unavailable, no nutrition data, diet or spicy mismatch, over the hard budget.
-3. Compute nutrition and price deterministically: base plus deltas.
-4. Compare with the target using a transparent distance: `D = 1·|kcal err| + 1.5·protein shortfall + 0.5·|carb err| + 0.5·|fat err|`, each relative to the target. *High protein* raises the shortfall weight to 2. *Lower fat* penalises only fat above target, at weight 1.
-5. Rank. Configurations that **reach the target range** (kcal within ±10 %, protein ≥ target) come first, then the user's priority: fit (D), price, or delivery time.
-
-D is a **prototype ranking heuristic, not a validated nutrition model**. Its number is never shown to users; the UI explains the underlying dimensions instead. Results show the best configuration from each restaurant, ranked by fit. Integration level affects data confidence and what can be ordered, **never the ranking**.
-
-No LLM is called anywhere. Nutrition is never calculated by AI.
-
-## 9. What is simulated
-
-Everything external:
-
-- restaurants, menus, recipes, prices, nutrition values and provenance
-- restaurant integrations (levels 1–3)
-- QR scanning and menu photo recognition
-- delivery times and "closest"
-- order sending, kitchen tickets and hand-off
-- checkout (no payment is ever taken)
-- the "logged today" macros on Home
-
-Not integrated: Uber Eats, DoorDash, Toast, Square, Apple Health, Google Health Connect, maps, geolocation, authentication, payments, LLM APIs, analytics.
-
-## 10. Known limitations
-
-- Nutrition values are invented for the demo. They are internally consistent but not real-world measurements. VERIFIED describes the data source, not guaranteed accuracy.
-- Modifier deltas are additive and independent. Real kitchens have interactions (e.g. sauce absorbed by rice) and portion variance.
-- The ±10 % calorie tolerance, the protein-as-minimum rule and the D weights are design choices for the prototype, not validated thresholds.
-- One meal per order. No sides, drinks, multi-item baskets, tips or delivery fees.
-- "Closest" uses a fixed delivery-time field, not location.
-- Research data lives in the browser's `localStorage` on one device. Export JSON after each session. Clearing site data deletes it.
-- The persona, targets and "logged today" data are fixed per scenario. There is no real food log.
-- The UI is English only, light theme only, and tested at 390×844 and desktop widths.
-- MacroTable is not a medical tool. It makes no diagnostic, medication, diabetes or allergen claims, and it never orders without explicit confirmation.
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): layers, real vs simulated
+- [docs/EXPERIMENT.md](docs/EXPERIMENT.md): study design, participant links, logging, export
+- [docs/DATA_MODEL.md](docs/DATA_MODEL.md): restaurants, meals, modifiers, provenance, sessions, events
+- [docs/DEMO.md](docs/DEMO.md): Demo Day script, recovery, real-device checklist
