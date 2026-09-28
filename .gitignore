@@ -1,0 +1,16 @@
+# dependencies & build output
+node_modules/
+dist/
+dev-dist/
+*.log
+.DS_Store
+
+# secrets — never commit; .env.example is the only allowed env file
+.env
+.env.*
+!.env.example
+
+# participant research exports (never commit participant data)
+macrotable-research-*.json
+macrotable-research-*.csv
+research-exports/
