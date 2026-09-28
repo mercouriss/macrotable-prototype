@@ -80,6 +80,12 @@ export default defineConfig({
         // SPA: serve the app shell for any in-scope navigation (fixes GitHub Pages 404 deep links after first visit).
         navigateFallback: `${base}index.html`,
         cleanupOutdatedCaches: true,
+        // Activate a new deploy immediately and take over open pages; the registration's
+        // "activated (isUpdate)" handler then reloads onto the new build. Without these the
+        // new worker waits forever while any tab/installed app is open and returning visitors
+        // keep seeing the previous build across reloads (found in the V3.1 verification).
+        skipWaiting: true,
+        clientsClaim: true,
       },
     }),
   ],
