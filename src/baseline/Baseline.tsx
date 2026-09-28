@@ -94,8 +94,9 @@ function TaskText() {
 }
 
 export function BaselineBrowse() {
+  const { lock } = useAppState();
   return (
-    <BaselineScreen title="Restaurants" back="/baseline">
+    <BaselineScreen title="Restaurants" back={lock ? undefined : "/baseline"}>
       <ul className="mb-6 space-y-3">
         {RESTAURANTS.map((r) => (
           <li key={r.id}>
@@ -240,7 +241,9 @@ export function BaselineReview() {
         <Button
           onClick={() => {
             const r = placeOrder();
-            if (r) navigate(r.research ? "/experiment/done" : `/baseline/done/${r.order.orderNumber}`, { replace: true });
+            if (!r) return;
+            if (r.research) navigate("/experiment/done", { replace: true, state: { completed: true } });
+            else navigate(`/baseline/done/${r.order.orderNumber}`, { replace: true });
           }}
         >
           Place order · {euro(price)}

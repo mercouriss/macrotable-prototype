@@ -31,54 +31,24 @@ const kcal = (v?: number) => (v === undefined ? "—" : `${Math.round(v)} kcal`)
 
 /** Researcher dashboard: participant links, trials, descriptive summaries, export/reset. */
 export function Research() {
-  const { scenarioId, setScenario, settings, setSettings, prefs, lock, abortExperiment } = useAppState();
+  const { scenarioId, setScenario, settings, setSettings, prefs, lock } = useAppState();
   const [, refresh] = useReducer((x: number) => x + 1, 0);
   const sessions = [...researchStore.list()].sort((a, b) => b.startedAt - a.startedAt);
   const summary = summarize(sessions);
   const w = weightsFor(prefs);
   const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
 
-  // Keep the elapsed timer / list fresh while a trial runs on this device.
-  useEffect(() => {
-    if (!lock) return;
-    const t = setInterval(refresh, 5000);
-    return () => clearInterval(t);
-  }, [lock]);
+  // During a trial the participant may hold the device: show only the status gate, never data or controls.
+  if (lock) {
+    return (
+      <Screen title="Research">
+        <TrialGate />
+      </Screen>
+    );
+  }
 
   return (
     <Screen title="Research" back="/macrotable/profile">
-      {lock && (
-        <Card className="mt-2 border-brand/30 p-4">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-brand" aria-hidden="true" />
-            <p className="text-[14px] font-semibold">Trial in progress on this device</p>
-          </div>
-          <p className="tnum mt-1 text-[13px] text-ink-2">
-            {lock.participantId} · {COND_LABEL[lock.condition]} · Scenario {lock.scenarioId} · started {clock(lock.startedAt)} (
-            {duration(Date.now() - lock.startedAt)} ago)
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <Link
-              to={lock.condition === "baseline" ? "/baseline/browse" : "/macrotable"}
-              className="flex min-h-11 items-center justify-center rounded-xl border border-line bg-surface text-[13.5px] font-semibold"
-            >
-              Back to task
-            </Link>
-            <button
-              onClick={() => {
-                if (window.confirm(`Abort ${lock.participantId}'s trial? It will be kept as "aborted".`)) {
-                  abortExperiment();
-                  refresh();
-                }
-              }}
-              className="min-h-11 rounded-xl bg-warn-soft text-[13.5px] font-semibold text-warn"
-            >
-              Abort trial
-            </button>
-          </div>
-        </Card>
-      )}
-
       <LinkBuilder sessions={sessions} disabled={!!lock} />
 
       <Section title="Summary" note="Descriptive only — no significance testing. Completed trials only.">
@@ -206,6 +176,34 @@ export function Research() {
         </ol>
       </details>
     </Screen>
+  );
+}
+
+function TrialGate() {
+  const { lock, abortExperiment } = useAppState();
+  const navigate = useNavigate();
+  if (!lock) return null;
+  return (
+    <div className="pt-10">
+      <span className="grid h-12 w-12 place-items-center rounded-2xl bg-sunken text-ink-2" aria-hidden="true">
+        <Icon name="lock" size={22} />
+      </span>
+      <h2 className="mt-4 font-display text-[24px] font-semibold tracking-tight">A study task is in progress</h2>
+      <p className="mt-2 text-[14.5px] leading-relaxed text-ink-2">
+        The research dashboard is hidden until the task is finished.
+      </p>
+      <div className="mt-6 space-y-2">
+        <Button onClick={() => navigate(lock.condition === "baseline" ? "/baseline/browse" : "/macrotable")}>Back to the task</Button>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            if (window.confirm(`Researcher only: abort ${lock.participantId}'s trial? It is kept as "aborted" and the dashboard reopens.`)) abortExperiment();
+          }}
+        >
+          Researcher: abort trial
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -371,6 +369,7 @@ function SessionCard({ s }: { s: ParticipantSession }) {
   const n = s.finalNutrition;
   const o = s.outcome;
   const changes = s.events.filter((e) => e.event === "modifier_changed").length;
+  const viewed = s.events.filter((e) => e.event === "meal_viewed").length;
   return (
     <Card className="p-4 text-[13px]">
       <div className="flex items-center justify-between gap-2">
@@ -383,7 +382,7 @@ function SessionCard({ s }: { s: ParticipantSession }) {
       </div>
       <p className="text-[12px] text-ink-3">
         {new Date(s.startedAt).toLocaleString([], { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })} ·{" "}
-        {s.events.filter((e) => e.event === "meal_viewed").length} meals viewed · {changes} modifier {changes === 1 ? "change" : "changes"}
+        {viewed} {viewed === 1 ? "meal" : "meals"} viewed · {changes} modifier {changes === 1 ? "change" : "changes"}
       </p>
       {f && n && (
         <div className="mt-2 border-t border-line-2 pt-2">

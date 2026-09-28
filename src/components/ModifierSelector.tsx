@@ -76,6 +76,7 @@ function GroupRow({
         onClick={onToggle}
         aria-expanded={open}
         aria-controls={panelId}
+        aria-label={`${group.name}: ${selected.label}${changed && compareTo === "default" ? ` (changed from ${original.label})` : ""}`}
         className="flex min-h-14 w-full items-center gap-3 rounded-xl py-2 text-left"
       >
         <div className="min-w-0 flex-1">
@@ -110,6 +111,13 @@ function GroupRow({
                   type="button"
                   role="radio"
                   aria-checked={active}
+                  aria-label={[
+                    o.label,
+                    o.priceDelta ? signedEuro(o.priceDelta) : "",
+                    showNutrition && d.calories ? `${signed(d.calories, " kcal")}, protein ${signed(d.protein, " g")}` : "",
+                  ]
+                    .filter(Boolean)
+                    .join(", ")}
                   onClick={() => onChange(o.id)}
                   className={`flex min-h-12 items-center gap-3 rounded-2xl border px-3.5 py-2.5 text-left transition-colors ${
                     active ? "border-brand bg-brand-soft/60" : "border-line bg-surface hover:bg-sunken"

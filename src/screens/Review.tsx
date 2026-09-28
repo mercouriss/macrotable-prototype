@@ -24,7 +24,8 @@ export function Review() {
   const confirm = () => {
     const result = placeOrder();
     if (!result) return;
-    navigate(result.research ? "/experiment/done" : `/macrotable/success/${result.order.orderNumber}`, { replace: true });
+    if (result.research) navigate("/experiment/done", { replace: true, state: { completed: true } });
+    else navigate(`/macrotable/success/${result.order.orderNumber}`, { replace: true });
   };
 
   return (

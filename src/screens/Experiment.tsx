@@ -1,4 +1,4 @@
-import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Icon } from "../components/Icon";
 import { Screen } from "../components/Screen";
 import { Button, Callout, Card, Eyebrow } from "../components/ui";
@@ -101,10 +101,12 @@ export function Experiment() {
         </li>
         <li className="flex gap-2">
           <Icon name="lock" size={16} className="mt-px shrink-0 text-ink-3" />
-          Only your anonymous code and your taps in this app are recorded, on this device.{" "}
-          <Link to="/privacy" className="font-medium text-brand underline-offset-2 hover:underline">
-            Privacy
-          </Link>
+          <span>
+            Only your anonymous code and your taps in this app are recorded, on this device.{" "}
+            <Link to="/privacy" className="font-medium text-brand underline underline-offset-2">
+              Privacy notice
+            </Link>
+          </span>
         </li>
       </ul>
       <div className="h-6" />
@@ -115,7 +117,10 @@ export function Experiment() {
 /** Neutral end screen — never reveals the expected best answer. */
 export function ExperimentDone() {
   const { lock } = useAppState();
-  if (lock) return <Navigate to={conditionHome(lock.condition)} replace />;
+  // Arriving from order confirmation carries `completed`; the lock may still be clearing in the same render.
+  // Anyone opening this URL mid-trial without that flag is sent back to their task.
+  const completed = (useLocation().state as { completed?: boolean } | null)?.completed === true;
+  if (lock && !completed) return <Navigate to={conditionHome(lock.condition)} replace />;
   return (
     <Screen>
       <div className="flex min-h-full flex-col items-center justify-center pb-16 text-center">

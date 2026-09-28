@@ -83,7 +83,6 @@ export function Preferences() {
                 key={d}
                 type="button"
                 aria-label={d < 0 ? "Decrease budget by €1" : "Increase budget by €1"}
-                disabled={!!errors.maxBudget && d === 0}
                 onClick={() => {
                   const cur = Number(drafts.maxBudget.replace(",", ".")) || target.maxBudget;
                   const next = Math.min(TARGET_FIELDS.maxBudget.max, Math.max(TARGET_FIELDS.maxBudget.min, Math.round(cur + d)));

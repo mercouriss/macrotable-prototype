@@ -45,7 +45,8 @@ export function AppFrame() {
   const redirect = lockedRedirect(lock, pathname);
   return (
     <div className="flex h-full items-center justify-center sm:gap-10 sm:p-6">
-      {!lock && <DemoPanel />}
+      {/* Presenter controls never appear to participants: hidden during trials and on assignment links. */}
+      {!lock && !pathname.startsWith("/experiment") && <DemoPanel />}
       <div
         className="relative h-full w-full overflow-hidden bg-canvas sm:h-[min(844px,calc(100dvh-48px))] sm:w-[390px] sm:shrink-0 sm:rounded-[46px] sm:shadow-device"
         style={{ isolation: "isolate" }}

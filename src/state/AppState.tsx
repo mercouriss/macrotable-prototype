@@ -145,7 +145,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         orderNumber: order.orderNumber,
         at: order.placedAt,
       });
-      commit({ ...s, selection: null, lock: null });
+      // Keep `selection`: clearing it here makes the review screen's own "no selection" guard
+      // redirect after we navigate to the neutral completion screen. Begin resets state anyway.
+      commit({ ...s, lock: null });
       return { order, research: true };
     }
     return { order, research: false };
