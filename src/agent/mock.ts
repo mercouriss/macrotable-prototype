@@ -3,6 +3,9 @@ import { euro } from "../lib/format";
 import type { Adjustment } from "../lib/optimizer";
 import { executeTool, SCAN_RESTAURANT_ID, type ToolContext } from "./tools";
 import type { RecommendationCardData, StoreSummary, ToolRun } from "./types";
+import { provenanceLabel } from "../lib/provenance";
+import type { Provenance } from "../types";
+import { getRestaurant } from "../data/restaurants";
 
 /*
  * Offline MockAgent: a deterministic intent parser that calls the SAME tools
@@ -62,7 +65,7 @@ export function parseIntent(raw: string): ParsedIntent {
   };
 }
 
-const provWord = (p: string) => p.toUpperCase();
+const provWord = (p: string) => provenanceLabel(p as Provenance);
 
 function recText(rec: RecommendationCardData, lead: string): string {
   const n = rec.nutrition;
@@ -159,6 +162,13 @@ export function runMockTurn(userText: string, ctx: ToolContext): MockTurn {
     return { text: recText(rec, "From the scanned menu, lower confidence — nothing here is verified:"), toolRuns: runs };
   }
 
+  // 5b. A real (unaffiliated) restaurant: no menu data — offer the scan path, never invent a menu.
+  const realR = i.restaurantId ? getRestaurant(i.restaurantId) : undefined;
+  if (realR?.identity === "real") {
+    call("getMenu", { restaurantId: realR.id });
+    return { text: `${realR.name} is a real restaurant that isn't affiliated with MacroTable, so I have no menu, prices or nutrition for it. Scan its menu and I'll read it and find what fits — with lower confidence.`, toolRuns: runs };
+  }
+
   // 6. Compare stores / find something nearby / specific restaurant.
   if (i.compare || i.recommend || i.restaurantId || i.adjustments.length || Object.keys(overrides).length) {
     let stores: StoreSummary[] = [];
@@ -172,8 +182,10 @@ export function runMockTurn(userText: string, ctx: ToolContext): MockTurn {
       const why = ((r.result as { notPossible?: string[] }).notPossible ?? [])[0];
       return { text: why ?? "Nothing nearby fits those constraints. Try a higher budget or fewer restrictions.", toolRuns: runs };
     }
+    const demo = stores.filter((s) => s.identity === "demo").length;
+    const real = stores.length - demo;
     const lead = stores.length
-      ? `I compared ${stores.length} nearby MacroTable stores (fictional demo stores). ${rec.restaurantName} has the strongest ${provWord(rec.provenance)} match:`
+      ? `I compared ${demo} nearby restaurants with MacroTable demo menus${real ? ` (${real} real restaurants nearby aren't affiliated, so I'd need a menu scan there)` : ""}. ${rec.restaurantName} has the strongest ${provWord(rec.provenance)} match:`
       : `At ${rec.restaurantName}, the best fit is:`;
     return { text: recText(rec, lead), toolRuns: runs };
   }

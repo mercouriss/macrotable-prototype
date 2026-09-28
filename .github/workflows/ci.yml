@@ -32,6 +32,8 @@ jobs:
           VITE_BASE: /${{ github.event.repository.name }}/
           # Public URL of the agent proxy (not a secret). Unset → offline demo agent only.
           VITE_AGENT_PROXY_URL: ${{ vars.AGENT_PROXY_URL }}
+          # Desktop showcase video (YouTube/Vimeo/https embed, or a .mp4/.webm URL or path in public/). Unset → placeholder.
+          VITE_SHOWCASE_VIDEO_URL: ${{ vars.SHOWCASE_VIDEO_URL }}
       - uses: actions/upload-pages-artifact@v4
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         with:

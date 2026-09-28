@@ -7,8 +7,8 @@ const SECTIONS: [string, string][] = [
     "MacroTable is a university research prototype. Restaurant integrations, nutrition values, health synchronization, commerce actions and orders are simulated unless explicitly stated otherwise. No food is ordered and no payment is ever taken.",
   ],
   [
-    "Simulated restaurants and nutrition",
-    "All restaurants, dishes, prices and nutrition values are fictional demo data. VERIFIED, OFFICIAL, MENU-READ, ESTIMATED and INSUFFICIENT describe where the data comes from, not guaranteed accuracy. Nutrition information may vary with actual preparation.",
+    "Real and demo restaurants",
+    "Restaurants marked “Real” (Sally's Salads, Mozza and Erasmus Paviljoen) are real places whose name and location were checked on 29 September 2026. They are not affiliated with MacroTable, and the app has no menu, prices, nutrition, hours or ordering for them. Restaurants marked DEMO are fictional brands. Their integrations, menus, nutrition, prices, availability, pickup times, orders and kitchen tickets are all simulated. DEMO VERIFIED and DEMO OFFICIAL mean simulated data. MENU-READ, ESTIMATED and INSUFFICIENT describe where scanned or estimated data comes from. None of these labels guarantees accuracy.",
   ],
   [
     "MacroAgent (AI assistant)",
@@ -20,7 +20,7 @@ const SECTIONS: [string, string][] = [
   ],
   [
     "Map",
-    "The Explore map loads map images from OpenStreetMap's servers, which see your IP address like any website. The restaurants and their locations are fictional, and your real location is never used.",
+    "The Explore map loads map images from OpenStreetMap's servers, which see your IP address like any website. Map data © OpenStreetMap contributors. DEMO pins are fictional, and your real location is never used (the map uses a fixed demo location).",
   ],
   [
     "Anonymous study logging",

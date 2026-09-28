@@ -1,6 +1,7 @@
 import { systemPrompt } from "./systemPrompt";
 import { executeTool, TOOL_DECLARATIONS, type ToolContext } from "./tools";
 import type { ToolRun } from "./types";
+import { COMPOSING, STEP_ACTIVE, UNDERSTANDING } from "./steps";
 
 /*
  * Live provider: Gemini generateContent via MacroTable's serverless proxy.
@@ -14,6 +15,8 @@ import type { ToolRun } from "./types";
 
 export const PROXY_URL: string = (import.meta.env.VITE_AGENT_PROXY_URL ?? "").replace(/\/+$/, "");
 export const MAX_TOOL_ROUNDS = 6;
+/** Frozen model settings for the agent (recorded in the freeze fingerprint). */
+export const GENERATION_CONFIG = { temperature: 0.2, maxOutputTokens: 1024 } as const;
 
 export class ProviderError extends Error {}
 
@@ -32,7 +35,7 @@ export async function runGeminiTurn(
   userText: string,
   ctx: ToolContext,
   history: unknown[][],
-  opts: { proxyUrl?: string; fetchImpl?: typeof fetch; timeoutMs?: number } = {},
+  opts: { proxyUrl?: string; fetchImpl?: typeof fetch; timeoutMs?: number; onProgress?: (label: string) => void } = {},
 ): Promise<GeminiTurn> {
   const url = (opts.proxyUrl ?? PROXY_URL).replace(/\/+$/, "");
   if (!url) throw new ProviderError("No proxy configured");
@@ -42,6 +45,7 @@ export async function runGeminiTurn(
   let model: string | undefined;
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    opts.onProgress?.(round === 0 ? UNDERSTANDING : COMPOSING);
     let res: Response;
     try {
       res = await f(`${url}/v1/generate`, {
@@ -51,7 +55,7 @@ export async function runGeminiTurn(
           contents: [...(history.flat() as Content[]), ...turn],
           tools: [{ functionDeclarations: TOOL_DECLARATIONS }],
           systemInstruction: { parts: [{ text: systemPrompt(ctx) }] },
-          generationConfig: { temperature: 0.2, maxOutputTokens: 1024 },
+          generationConfig: GENERATION_CONFIG,
         }),
         signal: AbortSignal.timeout(opts.timeoutMs ?? 25_000),
       });
@@ -78,6 +82,7 @@ export async function runGeminiTurn(
     }
     const responses: Part[] = calls.map((p) => {
       const fc = p.functionCall!;
+      opts.onProgress?.(STEP_ACTIVE[fc.name] ?? "Using a tool");
       const run = executeTool(fc.name, fc.args ?? {}, ctx);
       toolRuns.push(run);
       return { functionResponse: { ...(fc.id ? { id: fc.id } : {}), name: fc.name, response: { result: run.result } } };
@@ -88,12 +93,18 @@ export async function runGeminiTurn(
 }
 
 export async function checkProxyHealth(opts: { proxyUrl?: string; fetchImpl?: typeof fetch } = {}): Promise<boolean> {
+  return (await proxyHealth(opts)).ok;
+}
+
+/** Health + the model the proxy is configured to use (server-side). */
+export async function proxyHealth(opts: { proxyUrl?: string; fetchImpl?: typeof fetch } = {}): Promise<{ ok: boolean; model?: string }> {
   const url = (opts.proxyUrl ?? PROXY_URL).replace(/\/+$/, "");
-  if (!url) return false;
+  if (!url) return { ok: false };
   try {
     const res = await (opts.fetchImpl ?? fetch)(`${url}/v1/health`, { signal: AbortSignal.timeout(5000) });
-    return res.ok;
+    const body = (await res.json().catch(() => ({}))) as { model?: string };
+    return { ok: res.ok, model: body.model };
   } catch {
-    return false;
+    return { ok: false };
   }
 }

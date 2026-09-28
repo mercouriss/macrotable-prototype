@@ -80,7 +80,7 @@
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
   }
-  @media (min-width: 640px) {
+  @media (min-width: 1024px) {
     body {
       background: var(--color-desk);
     }
@@ -112,6 +112,7 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
   }
@@ -129,9 +130,10 @@
   white-space: nowrap;
   box-shadow: var(--shadow-card), 0 0 0 1px rgb(22 24 28 / 0.08);
 }
-.mt-pin[data-level="3"]::before { content: "✓ "; color: var(--color-verified); }
+.mt-pin[data-identity="real"] { border: 1.5px dashed rgb(22 24 28 / 0.45); box-shadow: var(--shadow-card); }
+.mt-pin-tag { margin-left: 5px; font-size: 8.5px; font-weight: 800; letter-spacing: 0.06em; opacity: 0.55; }
 .mt-pin-active { background: var(--color-ink); color: #fff; }
-.mt-pin-active[data-level="3"]::before { color: #9fe0c4; }
+.mt-pin-active[data-identity="real"] { border-color: #fff; }
 .mt-you {
   display: block;
   width: 18px;

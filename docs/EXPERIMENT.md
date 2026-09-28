@@ -2,6 +2,16 @@
 
 > Operational materials for running the pilot and main study (schedule, questionnaire, analysis script, freeze record) are in [docs/study/](study/README.md). The team protocol document is the authority. This page describes how the app implements it.
 
+## V3.1 note
+
+V3.1 changes the treatment UI:
+- agent step states;
+- DEMO labels;
+- real restaurants on the Explore map;
+- Scan-the-menu-here action.
+
+**Treat V3.1 as its own pilot version** and don't pool it with V3.0 pilot data. The baseline content is unchanged; it still lists only the three demo menus. The desktop showcase video is never shown during trials or on `/experiment` or `/baseline`. At freeze, copy **/research → Freeze record values** (commit, model ID, prompt/tools/settings hash, fallback policy) into `study/freeze-record.md`.
+
 ## V3 study (supersedes the V2 design for the final evaluation)
 
 V3 materially changes the treatment, so **don't combine V2 pilot observations with V3 data**. Run a new pilot (codes `VT001–VT006`) and a new main study (`VP001–VP040`); see [study/assignment-schedule.md](study/assignment-schedule.md).

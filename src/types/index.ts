@@ -60,19 +60,36 @@ export interface Meal {
 
 export type IntegrationLevel = 1 | 2 | 3;
 
+/** Where a real restaurant's identity/location was verified. Nothing else about it is claimed. */
+export interface RealIdentity {
+  website: string;
+  addressLine: string;
+  osm: string;
+  verifiedOn: string;
+  sources: string[];
+}
+
 export interface Restaurant {
   id: string;
   name: string;
+  /**
+   * "demo": fictional demo brand whose integration, menu, nutrition, prices and ordering are simulated.
+   * "real": a real restaurant — ONLY its name and location are real (see `real`); it is NOT affiliated with
+   * MacroTable, has no menu data here (meals: []), and MacroTable can only help via a menu scan.
+   */
+  identity: "demo" | "real";
+  real?: RealIdentity;
   integrationLevel: IntegrationLevel;
   cuisine: string;
   tagline: string;
   /** Fictional demo location (see src/data/geo.ts). */
   location: GeoPoint;
   address: string;
-  priceRange: "€" | "€€" | "€€€";
-  /** How the restaurant itself serves customers. Ordering via MacroTable additionally needs integration level ≥ 2. */
+  /** Demo brands only — never claimed for real restaurants. */
+  priceRange?: "€" | "€€" | "€€€";
+  /** Simulated service modes (demo brands). Empty for real restaurants: MacroTable makes no claim about them. */
   serviceModes: ServiceMode[];
-  pickupMinutes: number;
+  pickupMinutes?: number;
   meals: Meal[];
 }
 

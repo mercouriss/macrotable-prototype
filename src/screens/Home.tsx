@@ -78,9 +78,9 @@ export function Home() {
         </Eyebrow>
         <ol className="mt-3 space-y-3">
           {[
-            ["You set the goal", "Remaining macros, budget and preferences."],
-            ["Only real options", "MacroTable only uses modifications the restaurant supports."],
-            ["You approve", "Nothing is ordered until you confirm."],
+            ["Ask MacroAgent", "It knows your remaining macros, budget and where you are."],
+            ["Only real options", "It configures dishes only with changes the restaurant supports."],
+            ["You approve", "Pickup or in-store — nothing is ordered until you confirm."],
           ].map(([t, d], i) => (
             <li key={t} className="flex gap-3">
               <span className="tnum grid h-7 w-7 shrink-0 place-items-center rounded-full bg-sunken text-[12.5px] font-semibold text-ink-2">

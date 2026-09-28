@@ -11,6 +11,7 @@ import {
   type Adjustment,
   type ScoredConfiguration,
 } from "../lib/optimizer";
+import { provenanceLabel, relationshipLabel } from "../lib/provenance";
 import type { Meal, Preferences, Restaurant, UserTarget } from "../types";
 import type { AgentSessionState, OrderDraft, RecommendationCardData, ScannedMenu, StoreSummary, ToolRun } from "./types";
 
@@ -36,7 +37,7 @@ interface ToolDef {
   run: (args: Record<string, unknown>, ctx: ToolContext) => Omit<ToolRun, "name" | "args">;
 }
 
-const LEVEL_LABEL = { 3: "Verified MacroTable partner", 2: "Integrated menu", 1: "Not integrated (hand-off only)" } as const;
+const REAL_NOTE = "Real restaurant, not affiliated with MacroTable: no menu, nutrition, prices or ordering here. MacroTable can only help if the user scans the menu.";
 export const SCAN_RESTAURANT_ID = "scan";
 
 // ─── Scanned menus as pseudo-restaurant data ──────────────────────────────
@@ -44,6 +45,7 @@ export const SCAN_RESTAURANT_ID = "scan";
 export function scannedRestaurant(menu: ScannedMenu): Restaurant {
   return {
     id: SCAN_RESTAURANT_ID,
+    identity: "demo",
     name: menu.restaurantName ?? "Scanned menu",
     integrationLevel: 1,
     cuisine: "Scanned menu",
@@ -121,7 +123,7 @@ const summary = (c: ScoredConfiguration) => ({
   carbs_g: c.nutrition.carbs,
   fat_g: c.nutrition.fat,
   price_eur: c.price,
-  provenance: c.meal.provenance.toUpperCase(),
+  provenance: provenanceLabel(c.meal.provenance),
   reachesTarget: c.meets,
 });
 
@@ -172,7 +174,9 @@ const listNearbyStores: ToolDef = {
         name: r.name,
         distanceKm: Math.round(distanceFromUser(r.location) * 100) / 100,
         integrationLevel: r.integrationLevel,
-        levelLabel: LEVEL_LABEL[r.integrationLevel],
+        identity: r.identity,
+        levelLabel: relationshipLabel(r),
+        note: r.identity === "real" ? REAL_NOTE : undefined,
         serviceModes: r.serviceModes,
         pickupMinutes: r.pickupMinutes,
         priceRange: r.priceRange,
@@ -199,7 +203,11 @@ const listNearbyStores: ToolDef = {
     const clean = stores.map(({ _best, ...s }) => s);
     return {
       ok: true,
-      result: { note: "Fictional demo stores. Ranking follows fit to the user's targets, not integration level.", sortBy, stores: clean },
+      result: {
+        note: "Demo restaurants (identity 'demo') are fictional brands with simulated menus and integrations. Real restaurants (identity 'real') are real places near the user that are NOT affiliated with MacroTable and have no menu data. Ranking follows fit to the user's targets, not integration level.",
+        sortBy,
+        stores: clean,
+      },
       card: { kind: "stores", stores: clean },
     };
   },
@@ -217,11 +225,12 @@ const getMenu: ToolDef = {
   run: (a, { state }) => {
     const [r] = restaurantsInScope(String(a.restaurantId ?? ""), state);
     if (!r) return { ok: false, result: { error: `Unknown restaurant "${a.restaurantId}". Known: ${RESTAURANTS.map((x) => x.id).join(", ")}${state.scannedMenu ? ", scan" : ""}.` } };
+    if (r.identity === "real") return { ok: false, result: { restaurant: r.name, error: REAL_NOTE, website: r.real?.website } };
     return {
       ok: true,
       result: {
         restaurant: r.name,
-        integration: LEVEL_LABEL[r.integrationLevel],
+        integration: relationshipLabel(r),
         serviceModes: r.serviceModes,
         dishes: r.meals.map((m) => ({
           mealId: m.id,
@@ -230,7 +239,7 @@ const getMenu: ToolDef = {
           price_eur: Number.isFinite(m.price) ? m.price : null,
           available: m.available,
           nutrition: m.nutrition,
-          provenance: m.provenance.toUpperCase(),
+          provenance: provenanceLabel(m.provenance),
           dietaryLabels: m.dietaryTags,
           modifications: m.modifierGroups.map((g) => ({
             group: g.name,
@@ -360,8 +369,8 @@ const explainProvenance: ToolDef = {
     if (!r) return { ok: false, result: { error: "Specify mealId or restaurantId." } };
     const prov = f?.meal.provenance ?? (r.integrationLevel === 3 ? "verified" : r.integrationLevel === 2 ? "official" : "estimated");
     const meaning: Record<string, string> = {
-      verified: "Recipe and supported-modification data provided by the restaurant; nutrition calculated from the configured ingredients. Actual preparation may vary.",
-      official: "Values published by the restaurant, combined with its published modifier values.",
+      verified: "SIMULATED partner-level data for a fictional demo brand: shows what recipe-level data from a verified partner would look like. Nutrition is calculated from the configured ingredients.",
+      official: "SIMULATED published-nutrition data for a fictional demo brand.",
       "menu-read": "Printed on the menu the user photographed and read by the vision model; not verified. Reading errors are possible.",
       estimated: "An estimate (public menu or inferred from a dish description); not verified and may differ from the real meal.",
       insufficient: "Not enough information to assess — MacroTable will not recommend it.",
@@ -371,9 +380,9 @@ const explainProvenance: ToolDef = {
       result: {
         restaurant: r.name,
         dish: f?.meal.name,
-        provenance: prov.toUpperCase(),
+        provenance: provenanceLabel(prov),
         meaning: meaning[prov],
-        integration: LEVEL_LABEL[r.integrationLevel],
+        integration: relationshipLabel(r),
         canOrderThroughMacroTable: r.integrationLevel >= 2,
       },
     };
@@ -393,7 +402,7 @@ const analyzeMenuImage: ToolDef = {
       result: {
         source: m.source === "gemini" ? "read by the vision model from the user's photo" : "SIMULATED sample extraction (offline demo) — not read from the photo",
         restaurantName: m.restaurantName,
-        items: m.items.map((i) => ({ mealId: `scan:${i.id}`, name: i.name, price_eur: i.price, nutrition: i.nutrition, provenance: i.provenance.toUpperCase(), printedFields: i.printedFields, markedDietary: i.markedDietary, visibleExtras: i.visibleModifiers })),
+        items: m.items.map((i) => ({ mealId: `scan:${i.id}`, name: i.name, price_eur: i.price, nutrition: i.nutrition, provenance: provenanceLabel(i.provenance), printedFields: i.printedFields, markedDietary: i.markedDietary, visibleExtras: i.visibleModifiers })),
         uncertainties: m.uncertainties,
       },
       card: { kind: "scan", scanId: m.scanId },

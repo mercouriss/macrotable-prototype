@@ -26,10 +26,12 @@ Before starting, clear the site's data or use a private tab, so onboarding shows
 | 16 | Add to Home Screen → opens standalone; top/bottom not hidden under notch or home bar | NOT TESTED | NOT TESTED |
 | 17 | Airplane mode after one visit → app still opens | NOT TESTED | NOT TESTED |
 | 18 | **V3** Agent pill shows *Live · Gemini* (proxy deployed) | NOT TESTED | NOT TESTED |
-| 19 | **V3** "What should I eat near me?" → FitKitchen, 682 kcal / 49 g / €16.50, VERIFIED | NOT TESTED | NOT TESTED |
+| 19 | **V3** "What should I eat near me?" → FitKitchen, 682 kcal / 49 g / €16.50, DEMO VERIFIED; steps checklist shown | NOT TESTED | NOT TESTED |
 | 20 | **V3** "less rice" at Urban Bowl is refused with supported options | NOT TESTED | NOT TESTED |
 | 21 | **V3** Prepare pickup → Approve → pickup code; in a trial → "Task complete" | NOT TESTED | NOT TESTED |
-| 22 | **V3** Explore map tiles load; pins say fictional; illustrated fallback in airplane mode | NOT TESTED | NOT TESTED |
+| 22 | **V3.1** Explore map tiles load; real pins dashed, DEMO pins tagged; tapping a pin brings its card into view; illustrated fallback in airplane mode | NOT TESTED | NOT TESTED |
+| 25 | **V3.1** Real restaurant (e.g. Mozza) → Ask Agent → "not affiliated" + Scan the menu here | NOT TESTED | NOT TESTED |
+| 26 | **V3.1** Phone shows only the app (no showcase/video); desktop ≥1024 px shows the showcase, except on study links | NOT TESTED | NOT TESTED |
 | 23 | **V3** Menu photo → consent → Gemini extraction → agent shows MENU-READ/ESTIMATED; Delete scan works | NOT TESTED | NOT TESTED |
 | 24 | **V3** Airplane mode → Agent shows "Offline demo agent" and still answers | NOT TESTED | NOT TESTED |
 

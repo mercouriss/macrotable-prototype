@@ -1,3 +1,4 @@
+import { PROVENANCE_LABEL } from "../lib/provenance";
 import type { Provenance } from "../types";
 import { Icon, type IconName } from "./Icon";
 import { useSheet } from "./Sheet";
@@ -14,27 +15,27 @@ export const PROVENANCE_META: Record<
   }
 > = {
   verified: {
-    label: "VERIFIED",
-    sub: "Recipe-level data",
+    label: PROVENANCE_LABEL.verified,
+    sub: "Simulated partner data",
     icon: "check",
     chip: "bg-verified-soft text-verified",
-    sheetTitle: "Verified recipe",
+    sheetTitle: "Demo verified data (simulated)",
     sheetBody: (r) => [
-      `${r ?? "This restaurant"} provides MacroTable with recipe and supported modification information.`,
-      "MacroTable calculates nutrition from the configured ingredients.",
-      "Actual preparation may vary. Verified describes where the data comes from — it is not a guarantee of exact real-world values.",
+      `${r ?? "This restaurant"} is a fictional demo partner. Its recipes, modifications and nutrition are simulated to show what recipe-level data from a verified MacroTable partner would look like.`,
+      "MacroTable calculates nutrition from the configured ingredients — no restaurant has verified these numbers.",
+      "In a real product, verified data would still vary with actual preparation.",
     ],
   },
   official: {
-    label: "OFFICIAL",
-    sub: "Restaurant nutrition",
+    label: PROVENANCE_LABEL.official,
+    sub: "Simulated published data",
     icon: "building",
     chip: "bg-official-soft text-official",
-    sheetTitle: "Official restaurant nutrition",
+    sheetTitle: "Demo official data (simulated)",
     sheetBody: (r) => [
-      `Nutrition values are based on information published by ${r ?? "the restaurant"}, including the published values of each supported modification.`,
-      "MacroTable has no recipe-level detail for this restaurant, so it can only combine the published values.",
-      "Actual preparation may vary.",
+      `${r ?? "This restaurant"} is a fictional demo brand. Its "published" nutrition and modifier values are simulated to show a structured-menu integration.`,
+      "At this level MacroTable has no recipe detail, so it can only combine the published values.",
+      "A plain OFFICIAL label would be used only for data genuinely published by a real restaurant (none in this prototype).",
     ],
   },
   "menu-read": {

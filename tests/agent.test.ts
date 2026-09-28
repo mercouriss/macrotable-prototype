@@ -41,11 +41,19 @@ describe("tools", () => {
     expect(ctx.state.currentRecommendation).toMatchObject({ mealId: "fk-chicken-power-bowl", selections: DEMO, nutrition: { calories: 682, protein: 49, carbs: 72, fat: 20 }, price: 16.5, provenance: "verified" });
     expect(r.card?.kind).toBe("recommendation");
   });
-  it("listNearbyStores ranks by fit and marks stores as fictional", () => {
+  it("listNearbyStores ranks by fit and separates demo brands from real, unaffiliated restaurants", () => {
     const r = executeTool("listNearbyStores", {}, ctxA());
-    const res = r.result as { note: string; stores: { restaurantId: string; distanceKm: number }[] };
-    expect(res.note).toMatch(/Fictional/);
+    const res = r.result as { note: string; stores: { restaurantId: string; distanceKm: number; identity: string; best?: unknown; note?: string; levelLabel: string }[] };
+    expect(res.note).toMatch(/fictional brands/);
+    expect(res.note).toMatch(/NOT affiliated/);
     expect(res.stores[0].restaurantId).toBe("fitkitchen");
+    const real = res.stores.filter((s) => s.identity === "real");
+    expect(real.length).toBe(3);
+    for (const s of real) {
+      expect(s.best).toBeUndefined();
+      expect(s.levelLabel).toBe("Real restaurant · not affiliated");
+      expect(s.note).toMatch(/no menu, nutrition, prices or ordering/);
+    }
     expect(res.stores.every((s) => s.distanceKm > 0 && s.distanceKm < 2)).toBe(true);
   });
   it("prepareOrder only drafts, and hands off for non-integrated restaurants", () => {
@@ -72,7 +80,8 @@ describe("offline MockAgent (same tools)", () => {
     const ctx = ctxA();
     const t = runMockTurn("I have about 700 calories left and need at least 45g protein. I want something nearby.", ctx);
     expect(t.toolRuns.map((r) => r.name)).toEqual(["listNearbyStores", "optimizeMeal"]);
-    expect(t.text).toMatch(/FitKitchen has the strongest VERIFIED match/);
+    expect(t.text).toMatch(/FitKitchen has the strongest DEMO VERIFIED match/);
+    expect(t.text).toMatch(/real restaurants nearby aren't affiliated/);
     expect(t.text).toMatch(/682 kcal · 49 g protein · €16\.50/);
     expect(ctx.state.currentRecommendation?.selections).toEqual(DEMO);
   });
@@ -162,5 +171,75 @@ describe("Gemini provider loop (mocked proxy)", () => {
     const run = executeTool("optimizeMeal", {}, ctx);
     expect(unverifiedNumbers("It has 682 kcal and 49 g protein for €16.50.", [run], ctx)).toEqual([]);
     expect(unverifiedNumbers("It has 613 kcal and €9.99.", [run], ctx)).toEqual(["613 kcal", "€9.99"]);
+  });
+});
+
+describe("real restaurants: identity only, never invented data", () => {
+  it("carry verified identity/location sources and no menu, prices, hours or pickup claims", async () => {
+    const { RESTAURANTS, MENU_RESTAURANTS } = await import("../src/data/restaurants");
+    const real = RESTAURANTS.filter((r) => r.identity === "real");
+    expect(real.map((r) => r.name)).toEqual(["Sally's Salads", "Mozza", "Erasmus Paviljoen"]);
+    for (const r of real) {
+      expect(r.meals).toEqual([]);
+      expect(r.priceRange).toBeUndefined();
+      expect(r.pickupMinutes).toBeUndefined();
+      expect(r.serviceModes).toEqual([]);
+      expect(r.real?.website).toMatch(/^https:\/\//);
+      expect(r.real?.osm).toMatch(/^node\/\d+$/);
+      expect(r.real?.verifiedOn).toBe("2026-09-29");
+    }
+    expect(MENU_RESTAURANTS.every((r) => r.identity === "demo")).toBe(true);
+  });
+
+  it("getMenu refuses to produce a menu for a real restaurant", () => {
+    const r = executeTool("getMenu", { restaurantId: "mozza-eur" }, ctxA());
+    expect(r.ok).toBe(false);
+    expect(JSON.stringify(r.result)).toMatch(/not affiliated/);
+  });
+
+  it("agent opened at a real restaurant offers the scan path instead of a recommendation", () => {
+    const ctx = ctxA();
+    const o = runContextTurn("restaurant", ctx, "sallys-salads-eur");
+    expect(o.message.text).toMatch(/real restaurant that isn't affiliated with MacroTable/);
+    expect(o.message.text).not.toMatch(/kcal ·/);
+    expect(o.message.actions?.[0]).toMatchObject({ kind: "navigate", label: "Scan the menu here", to: "/macrotable/scan?type=menu&restaurant=sallys-salads-eur" });
+    expect(ctx.state.currentRecommendation).toBeNull();
+  });
+
+  it("the offline agent never invents a real restaurant's menu", () => {
+    const t = runMockTurn("What should I get at Mozza?", ctxA());
+    expect(t.text).toMatch(/isn't affiliated with MacroTable, so I have no menu/);
+  });
+
+  it("simulated data is labelled DEMO, scanned data is not", async () => {
+    const { provenanceLabel } = await import("../src/lib/provenance");
+    expect([provenanceLabel("verified"), provenanceLabel("official"), provenanceLabel("menu-read"), provenanceLabel("estimated")]).toEqual(["DEMO VERIFIED", "DEMO OFFICIAL", "MENU-READ", "ESTIMATED"]);
+    const r = executeTool("optimizeMeal", {}, ctxA());
+    expect(JSON.stringify(r.result)).toMatch(/"provenance":"DEMO VERIFIED"/);
+  });
+});
+
+describe("visible agent steps map 1:1 to real activity", () => {
+  it("context turn lists only the steps that ran", () => {
+    const o = runContextTurn("restaurant", ctxA(), "fitkitchen");
+    expect(o.message.steps).toEqual(["Optimized supported configuration", "Checked constraints"]);
+    const p = runContextTurn("prepare", (() => { const c = ctxA(); executeTool("optimizeMeal", {}, c); return c; })(), "pickup");
+    expect(p.message.steps).toEqual(["Checked constraints", "Ready for approval"]);
+  });
+
+  it("live progress reports model calls and tool executions in order", async () => {
+    const responses = [
+      { candidates: [{ content: { role: "model", parts: [{ functionCall: { id: "a", name: "listNearbyStores", args: {} } }, { functionCall: { id: "b", name: "optimizeMeal", args: {} } }] } }] },
+      { candidates: [{ content: { role: "model", parts: [{ text: "FitKitchen, 682 kcal." }] } }] },
+    ];
+    let i = 0;
+    const fetchImpl = (async () => new Response(JSON.stringify(responses[i++]), { status: 200 })) as unknown as typeof fetch;
+    const seen: string[] = [];
+    const out = await runAgentTurn("near me?", ctxA(), [], "auto", {
+      gemini: (t, c, h, o) => runGeminiTurn(t, c, h, { ...o, proxyUrl: "https://proxy.test", fetchImpl }),
+      onProgress: (l) => seen.push(l),
+    });
+    expect(seen).toEqual(["Understanding request", "Checking restaurants", "Optimizing supported configuration", "Writing reply", "Checking constraints"]);
+    expect(out.message.steps).toEqual(["Checked restaurants", "Optimized supported configuration", "Checked constraints"]);
   });
 });

@@ -1,4 +1,4 @@
-import type { ModifierOption, Nutrition, Restaurant } from "../types";
+import type { ModifierOption, Nutrition, RealIdentity, Restaurant } from "../types";
 import { DEMO_STORE_LOCATIONS } from "./geo";
 
 /*
@@ -32,6 +32,7 @@ const unsupported = (id: string, label: string): ModifierOption => opt(id, label
 // ─── Level 3 · Verified MacroTable partner ─────────────────────────────────
 const fitKitchen: Restaurant = {
   id: "fitkitchen",
+  identity: "demo",
   name: "FitKitchen",
   integrationLevel: 3,
   cuisine: "Protein bowls",
@@ -218,6 +219,7 @@ const fitKitchen: Restaurant = {
 // ─── Level 2 · Structured integration (official nutrition) ────────────────
 const urbanBowl: Restaurant = {
   id: "urbanbowl",
+  identity: "demo",
   name: "Urban Bowl",
   integrationLevel: 2,
   cuisine: "Build-your-own bowls",
@@ -366,6 +368,7 @@ const urbanBowl: Restaurant = {
 // ─── Level 1 · Unaffiliated (estimated from a public menu) ────────────────
 const localGrill: Restaurant = {
   id: "localgrill",
+  identity: "demo",
   name: "Local Grill",
   integrationLevel: 1,
   cuisine: "Grill & wraps",
@@ -431,7 +434,56 @@ const localGrill: Restaurant = {
   ],
 };
 
-export const RESTAURANTS: Restaurant[] = [fitKitchen, urbanBowl, localGrill];
+// ─── REAL restaurants (identity + location only) ──────────────────────────
+/*
+ * Verified 2026-09-29: website live and stating this address; OpenStreetMap
+ * node surveyed 2026-06-07. We claim NOTHING else: no partnership, API, menu,
+ * prices, nutrition, hours or ordering. MacroTable treats them as unaffiliated
+ * and can only help by reading a menu photo the user takes.
+ */
+const realRestaurant = (id: string, name: string, cuisine: string, location: { lat: number; lng: number }, real: RealIdentity): Restaurant => ({
+  id,
+  identity: "real",
+  real,
+  name,
+  integrationLevel: 1,
+  cuisine,
+  tagline: "Real restaurant · not affiliated with MacroTable",
+  location,
+  address: real.addressLine,
+  serviceModes: [],
+  meals: [],
+});
+
+const REAL_RESTAURANTS: Restaurant[] = [
+  realRestaurant("sallys-salads-eur", "Sally's Salads", "Salads", { lat: 51.91666, lng: 4.52559 }, {
+    website: "https://sallyssalads.nl/",
+    addressLine: "Foodcourt Erasmus Universiteit, Burgemeester Oudlaan 50, Rotterdam",
+    osm: "node/4140102516",
+    verifiedOn: "2026-09-29",
+    sources: ["sallyssalads.nl (location page)", "OpenStreetMap node/4140102516, surveyed 2026-06-07"],
+  }),
+  realRestaurant("mozza-eur", "Mozza", "Mediterranean", { lat: 51.91688, lng: 4.52547 }, {
+    website: "https://mozzaeur.nl/",
+    addressLine: "Erasmus Food Plaza, Burgemeester Oudlaan 50, Rotterdam",
+    osm: "node/4140102517",
+    verifiedOn: "2026-09-29",
+    sources: ["mozzaeur.nl", "OpenStreetMap node/4140102517, surveyed 2026-06-07"],
+  }),
+  realRestaurant("erasmus-paviljoen", "Erasmus Paviljoen", "Italian", { lat: 51.91734, lng: 4.5258 }, {
+    website: "https://www.erasmuspaviljoen.nl/",
+    addressLine: "Burgemeester Oudlaan 350 (Gebouw X), Rotterdam",
+    osm: "node/4003342398",
+    verifiedOn: "2026-09-29",
+    sources: ["erasmuspaviljoen.nl", "OpenStreetMap node/4003342398, surveyed 2026-06-07"],
+  }),
+];
+
+/** ONE dataset for map pins, Explore, restaurant pages, agent tools, recommendations, QR demos and orders. */
+export const RESTAURANTS: Restaurant[] = [fitKitchen, urbanBowl, localGrill, ...REAL_RESTAURANTS];
+
+/** Restaurants with (simulated) menu data — the only ones the optimizer, baseline and experiment can use. */
+export const MENU_RESTAURANTS: Restaurant[] = RESTAURANTS.filter((r) => r.meals.length > 0);
 
 export const ALL_MEALS = RESTAURANTS.flatMap((r) => r.meals);
 

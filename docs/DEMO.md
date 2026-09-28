@@ -10,6 +10,10 @@ Use a laptop browser window ≥1280 px wide. The app appears in a phone frame, w
 2. Check that the presenter panel says **Demo mode — nothing is logged**.
 3. If you'll show QR: open `/research` → *Printable demo QR codes*, and print them or show them on a second screen.
 
+## V3.1 desktop setup
+
+Open the app at ≥1024 px. The phone sits on the left and the showcase column on the right: a product-demo video (or its placeholder) and the presenter controls (Reset demo, scenarios, Offline agent only). Set the video with the repo variable `SHOWCASE_VIDEO_URL` and redeploy. In steps 2 and 14 below, point out the real restaurants (dashed pins, "Real · not affiliated"). Tap Mozza → Ask Agent to show the honest "no menu data → Scan the menu here" path.
+
 ## V3 Demo Day story (agent)
 
 Before you start, check the Agent pill:
@@ -19,13 +23,13 @@ Before you start, check the Agent pill:
 
 ```
 1. /demo → Home: 700 kcal · ≥45 g protein remaining, €18
-2. Explore → map with three fictional stores (FitKitchen 360 m, Local Grill 520 m, Urban Bowl 530 m)
+2. Explore → map with three real campus restaurants (dashed, "Real · not affiliated") and three DEMO restaurants (FitKitchen 360 m, Local Grill 520 m, Urban Bowl 530 m)
 3. Agent → "What should I eat near me?" (or the suggestion chip)
 4. Agent compares stores → stores card
-5. FitKitchen has the strongest VERIFIED match
-6. Agent ran optimizeMeal (tap "2 tool calls" to show the tools)
+5. FitKitchen has the strongest DEMO VERIFIED match (steps checklist: Checked restaurants · Optimized supported configuration · Checked constraints)
+6. Tap "Tool details" to show the tools it actually called
 7. Card: Chicken Power Bowl · +50 g chicken, half rice, light sauce, double veg · 682 kcal · 49 g · €16.50
-8. Tap the VERIFIED badge → provenance sheet
+8. Tap the DEMO VERIFIED badge → sheet explains the data is simulated partner data
 9. "Prepare pickup" → order card
 10. "Approve & send order" → pickup code (e.g. K42) → Kitchen ticket
 11. Scan → Scan a menu → photo/upload → Analyze (live: consent → Gemini; offline: labelled sample)

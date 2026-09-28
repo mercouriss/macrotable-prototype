@@ -4,7 +4,8 @@ import { Icon } from "../components/Icon";
 import { Screen } from "../components/Screen";
 import { Button, Callout, Card, Eyebrow } from "../components/ui";
 import { decodeQR, decodeQRFromFile, frameImageData, useCamera, type CameraStatus } from "../components/useCamera";
-import { RESTAURANTS } from "../data/restaurants";
+import { getRestaurant, RESTAURANTS } from "../data/restaurants";
+import type { Restaurant } from "../types";
 import { useAgent } from "../agent/agentState";
 import { PROXY_URL } from "../agent/gemini";
 import { AskAgentButton } from "../components/AskAgentButton";
@@ -35,7 +36,8 @@ export function Scan() {
   }, [location, navigate]);
 
   if (!type) return <ScanHub />;
-  return type === "menu" ? <MenuScan key="menu" autoStart={autoStart} /> : <QrScan key="qr" autoStart={autoStart} />;
+  const at = getRestaurant(params.get("restaurant") ?? undefined);
+  return type === "menu" ? <MenuScan key="menu" autoStart={autoStart} at={at} /> : <QrScan key="qr" autoStart={autoStart} />;
 }
 
 /** Scan tab: choose menu photo or restaurant QR (the camera opens only after the tap), plus the current temporary scan. */
@@ -219,7 +221,7 @@ function StartControls({
 
 type MenuPhase = "camera" | "captured" | "consent" | "analyzing" | "error";
 
-function MenuScan({ autoStart }: { autoStart: boolean }) {
+function MenuScan({ autoStart, at }: { autoStart: boolean; at?: Restaurant }) {
   const cam = useCamera();
   const navigate = useNavigate();
   const { log, settings } = useAppState();
@@ -240,7 +242,7 @@ function MenuScan({ autoStart }: { autoStart: boolean }) {
 
   const acceptPhoto = async (blob: Blob, source: "camera" | "upload") => {
     cam.stop();
-    const rec = newScanRecord(blob);
+    const rec = newScanRecord(blob, at?.id);
     await saveScan(rec);
     setRecord(rec);
     setPhotoUrl(URL.createObjectURL(blob));
@@ -268,7 +270,10 @@ function MenuScan({ autoStart }: { autoStart: boolean }) {
     setError(null);
     await updateScanStatus(record.scanSessionId, "analyzing");
     try {
-      const menu = useLive ? await extractMenuFromImage(record.imageBlob, record.scanSessionId) : simulatedExtraction(record.scanSessionId);
+      let menu = useLive ? await extractMenuFromImage(record.imageBlob, record.scanSessionId) : simulatedExtraction(record.scanSessionId);
+      // A real photo of this restaurant's menu may carry its name; the offline SAMPLE never does.
+      if (at && menu.source === "gemini" && !menu.restaurantName) menu = { ...menu, restaurantName: at.name };
+      if (at && menu.source === "simulated") menu = { ...menu, uncertainties: [`Sample data — not ${at.name}'s menu and not read from your photo`] };
       if (useLive) log("scan_image_sent_to_model", { detail: { items: menu.items.length } });
       await updateScanStatus(record.scanSessionId, "extracted");
       agent.setScannedMenu(menu);
@@ -283,7 +288,7 @@ function MenuScan({ autoStart }: { autoStart: boolean }) {
 
   return (
     <Screen
-      title="Scan menu"
+      title={at ? `Scan menu · ${at.name}` : "Scan menu"}
       back="/macrotable/scan"
       footer={
         phase === "captured" ? (

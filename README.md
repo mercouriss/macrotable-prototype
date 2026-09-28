@@ -18,6 +18,24 @@ TRIGGER (ask / scan / choose store) → GATHER CONTEXT → REASON + PLAN (choose
 → ACT (find store, load menu, optimise, configure, draft order) → VERIFY (constraints, provenance, numbers) → HANDOFF (your approval)
 ```
 
+## V3.1: realism, UX and presentation
+
+- **Real restaurants, honestly.** Sally's Salads, Mozza and Erasmus Paviljoen (Erasmus campus, Rotterdam) are real places. Their name and location were verified on 2026-09-29 (own website + OpenStreetMap).
+  - They're shown as **"Real · not affiliated"**.
+  - The prototype has **no** menu, prices, nutrition, hours or ordering for them. MacroAgent offers **Scan the menu here** instead.
+  - The menu-carrying restaurants (FitKitchen, Urban Bowl, Local Grill) are fictional **DEMO** brands.
+  - One dataset (`src/data/restaurants.ts`) drives the map, cards, restaurant pages, agent tools, QR demos and orders.
+- **Labels:** simulated data is labelled **DEMO VERIFIED / DEMO OFFICIAL**. MENU-READ, ESTIMATED and INSUFFICIENT are unchanged.
+- **Agent step states** reflect real tool activity, never reasoning traces.
+- **Explore:** pin → card, stacked labels.
+- **Desktop showcase** (≥1024 px): the interactive phone sits beside a product-demo video. Configure the video with `VITE_SHOWCASE_VIDEO_URL`, or the repo variable `SHOWCASE_VIDEO_URL` in CI; it accepts a YouTube, Vimeo or https embed URL, or a `.mp4`/`.webm` URL or path in `public/`. Unset shows a placeholder.
+  - Below 1024 px only the app renders, and the video is never mounted.
+  - The showcase is hidden from study participants.
+- **Freeze fingerprint** on `/research`.
+- Full audit: [docs/V3.1-AUDIT.md](docs/V3.1-AUDIT.md).
+
+> Prototype demonstration: restaurant identities/locations marked "Real" are real and not affiliated with MacroTable. Demo restaurants, MacroTable integrations, menus, nutrition, availability and ordering are simulated.
+
 ## What's new in V3
 
 - **Agent tab** (`Home | Explore | Agent | Scan | Profile`), plus contextual **Ask MacroAgent** buttons on Home, Explore, restaurant, meal, QR and menu-scan screens. All of them open the same persistent agent session.
@@ -27,7 +45,7 @@ TRIGGER (ask / scan / choose store) → GATHER CONTEXT → REASON + PLAN (choose
   - **Gemini** (live) through a secure **Cloudflare Worker proxy** ([proxy/README.md](proxy/README.md)).
   - An **offline MockAgent** that calls the same tools. It takes over automatically, and says so, when the live model is missing or fails.
 - **VERIFY:** cards and numbers always come from tool results. Any number in the model's text that no tool produced is flagged.
-- **Explore map:** Leaflet with OpenStreetMap tiles (attributed). All three restaurants and their pins are **fictional demo stores** near a Rotterdam campus (`src/data/geo.ts`). An illustrated map replaces the tiles when they fail or you're offline.
+- **Explore map:** Leaflet with OpenStreetMap tiles (attributed), showing real (dashed) and DEMO pins near the Erasmus campus in Rotterdam (`src/data/geo.ts`, `src/data/restaurants.ts`). An illustrated map replaces the tiles when they fail or you're offline.
 - **Scan:**
   - Known restaurant QR → the agent opens with that restaurant's verified menu.
   - Unknown QR → "MacroTable doesn't have verified menu data here" plus *Scan menu instead*.

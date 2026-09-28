@@ -26,7 +26,7 @@ const STATUS: Record<LiveStatus, { label: string; tone: string }> = {
 /** MacroAgent workspace: chat + tool-backed cards + approval. */
 export function Agent() {
   const agent = useAgent();
-  const { state, busy, liveStatus, send } = agent;
+  const { state, busy, liveStatus, send, progress } = agent;
   const { settings, setSettings, target } = useAppState();
   const location = useLocation();
   const navigate = useNavigate();
@@ -47,8 +47,9 @@ export function Agent() {
   }, [location.key]);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "end", behavior: "smooth" });
-  }, [state.messages.length, busy]);
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    endRef.current?.scrollIntoView({ block: "end", behavior: reduce ? "auto" : "smooth" });
+  }, [state.messages.length, busy, progress]);
 
   const submit = (text: string, source: "typed" | "chip" = "typed") => {
     if (!text.trim() || busy) return;
@@ -79,7 +80,11 @@ export function Agent() {
             id="agent-input"
             rows={1}
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
+            onChange={(e) => {
+              setDraft(e.target.value);
+              e.target.style.height = "auto";
+              e.target.style.height = `${Math.min(e.target.scrollHeight, 112)}px`;
+            }}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
@@ -143,13 +148,9 @@ export function Agent() {
             <MessageView key={m.id} m={m} last={i === state.messages.length - 1} onAction={(a) => runAction(a)} />
           ))}
           {busy && (
-            <li className="flex items-center gap-2 text-[13px] text-ink-3">
-              <span className="flex gap-1" aria-hidden="true">
-                {[0, 1, 2].map((d) => (
-                  <span key={d} className="h-1.5 w-1.5 animate-pulse rounded-full bg-ink-3" style={{ animationDelay: `${d * 150}ms` }} />
-                ))}
-              </span>
-              Checking menus and running the optimizer…
+            <li className="flex items-center gap-2 text-[13px] text-ink-2" role="status">
+              <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-brand/25 border-t-brand" aria-hidden="true" />
+              {progress ?? "Working"}…
             </li>
           )}
         </ol>
@@ -181,15 +182,26 @@ function MessageView({ m, last, onAction }: { m: AgentMessage; last: boolean; on
       {m.fallbackReason && (
         <p className="text-[11.5px] text-estimated">Live model unavailable — answered by the offline demo agent.</p>
       )}
-      <p className="max-w-[92%] rounded-2xl rounded-bl-md bg-surface px-3.5 py-2.5 text-[14.5px] leading-snug whitespace-pre-wrap shadow-card">{m.text}</p>
+      {!!m.steps?.length && (
+        <ol className="flex flex-wrap gap-x-3 gap-y-1" aria-label="What MacroAgent did">
+          {m.steps.map((s, i) => (
+            <li key={s} className="inline-flex animate-rise items-center gap-1 text-[11.5px] font-medium text-brand" style={{ animationDelay: `${i * 60}ms` }}>
+              <Icon name="check" size={11} stroke={3} /> {s}
+            </li>
+          ))}
+        </ol>
+      )}
+      <p className="max-w-[92%] animate-rise rounded-2xl rounded-bl-md bg-surface px-3.5 py-2.5 text-[14.5px] leading-snug whitespace-pre-wrap shadow-card">{m.text}</p>
       {m.cards?.map((c, i) => (
-        <AgentCardView key={i} card={c} />
+        <div key={i} className="animate-rise" style={{ animationDelay: `${80 + i * 60}ms` }}>
+          <AgentCardView card={c} />
+        </div>
       ))}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-ink-3">
         <span>{PROVIDER_LABEL[m.provider ?? "mock"]}</span>
         {!!m.toolRuns?.length && (
           <button onClick={() => setShowTools((s) => !s)} aria-expanded={showTools} className="inline-flex min-h-7 items-center gap-1 hover:text-ink-2">
-            <Icon name="tools" size={12} /> {m.toolRuns.length} tool {m.toolRuns.length === 1 ? "call" : "calls"}
+            <Icon name="tools" size={12} /> Tool details
           </button>
         )}
       </div>

@@ -1,3 +1,4 @@
+import { execSync } from "node:child_process";
 import { copyFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig, type Plugin } from "vite";
@@ -10,6 +11,16 @@ import { VitePWA } from "vite-plugin-pwa";
  * VITE_BASE=/macrotable-prototype/. Locally (and on Vercel/Netlify) it is "/".
  */
 const base = process.env.VITE_BASE ?? "/";
+
+/** Commit baked into the build (for the experiment freeze record). */
+const commit = (() => {
+  if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA.slice(0, 7);
+  try {
+    return execSync("git rev-parse --short HEAD", { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+  } catch {
+    return "dev";
+  }
+})();
 
 /**
  * Static hosts without rewrites (GitHub Pages):
@@ -38,6 +49,7 @@ function spaFallback(): Plugin {
 
 export default defineConfig({
   base,
+  define: { __APP_COMMIT__: JSON.stringify(commit) },
   plugins: [
     react(),
     tailwindcss(),

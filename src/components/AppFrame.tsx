@@ -5,6 +5,9 @@ import { lockedRedirect } from "../lib/research";
 import { useAppState } from "../state/AppState";
 import type { ScenarioId } from "../types";
 import { Icon } from "./Icon";
+import { ShowcaseVideo } from "./Showcase";
+import { useMediaQuery } from "./useMediaQuery";
+import { REALISM_DISCLOSURE } from "../lib/provenance";
 import { OfflineBanner } from "./OfflineBanner";
 import { SheetProvider } from "./Sheet";
 
@@ -36,19 +39,21 @@ export function DemoReset() {
 }
 
 /**
- * Mobile: the app fills the screen. Desktop (Demo Day): the app sits in a 390×844
- * device frame, with a presenter panel beside it on wide screens (hidden during trials).
+ * < 1024 px (phones, small tablets): ONLY the app, full height — no desktop shell, no video.
+ * ≥ 1024 px: presentation layout — interactive phone on the left, showcase column on the right
+ * (brand, product-demo video, presenter controls). The showcase is never shown to study
+ * participants (trials, /experiment, /baseline) so the baseline can't be contaminated.
  */
 export function AppFrame() {
   const { log, lock } = useAppState();
   const { pathname } = useLocation();
+  const desktop = useMediaQuery("(min-width: 1024px)");
   const redirect = lockedRedirect(lock, pathname);
+  const participantContext = !!lock || pathname.startsWith("/experiment") || pathname.startsWith("/baseline");
   return (
-    <div className="flex h-full items-center justify-center sm:gap-10 sm:p-6">
-      {/* Presenter controls never appear to participants: hidden during trials and on assignment links. */}
-      {!lock && !pathname.startsWith("/experiment") && <DemoPanel />}
+    <div className="flex h-full justify-center bg-canvas lg:items-center lg:gap-12 lg:bg-desk lg:px-10 lg:py-6">
       <div
-        className="relative h-full w-full overflow-hidden bg-canvas sm:h-[min(844px,calc(100dvh-48px))] sm:w-[390px] sm:shrink-0 sm:rounded-[46px] sm:shadow-device"
+        className="relative h-full w-full max-w-[520px] overflow-hidden bg-canvas lg:h-[min(844px,calc(100dvh-48px))] lg:w-[390px] lg:max-w-none lg:shrink-0 lg:rounded-[46px] lg:shadow-device"
         style={{ isolation: "isolate" }}
       >
         <SheetProvider onOpen={(c) => c.kind === "provenance" && log("provenance_viewed", { detail: { provenance: c.provenance } })}>
@@ -57,76 +62,83 @@ export function AppFrame() {
           {redirect ? <Navigate to={redirect} replace /> : <Outlet />}
         </SheetProvider>
       </div>
+      {desktop && !participantContext && <ShowcasePanel />}
     </div>
   );
 }
 
-function DemoPanel() {
-  const { scenarioId, setScenario, resetDemo } = useAppState();
+function ShowcasePanel() {
+  const { scenarioId, setScenario, resetDemo, settings, setSettings } = useAppState();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const mode = pathname.startsWith("/baseline") ? "baseline" : pathname.startsWith("/research") ? "research" : "macrotable";
+  const mode = pathname.startsWith("/research") ? "research" : "macrotable";
   return (
-    <aside className="hidden w-[260px] shrink-0 self-center text-ink-2 xl:block" aria-label="Presenter controls">
-      <div className="flex items-center gap-2.5">
-        <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="h-8 w-8" />
+    <aside className="flex max-h-[min(844px,calc(100dvh-48px))] w-full max-w-[640px] min-w-[420px] flex-col gap-5 overflow-y-auto py-1 text-ink-2" aria-label="Product showcase and presenter controls">
+      <header className="flex items-center gap-3">
+        <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="h-10 w-10" />
         <div>
-          <p className="text-[15px] font-semibold text-ink">MacroTable</p>
-          <p className="text-[12px] text-ink-3">Team 44 · research prototype</p>
+          <h1 className="font-display text-[26px] leading-tight font-semibold tracking-[-0.02em] text-ink">MacroTable</h1>
+          <p className="text-[13.5px] text-ink-3">Nutrition-aware restaurant ordering agent · Team 44 research prototype</p>
         </div>
-      </div>
-      <p className="mt-5 text-[13px] leading-relaxed">
-        AI interprets. Optimization calculates. Restaurant constraints determine what can actually be made.
+      </header>
+
+      <ShowcaseVideo />
+
+      <p className="text-[13.5px] leading-relaxed">
+        <strong className="text-ink">LLM interprets and orchestrates. Deterministic code calculates. Restaurant data defines what's possible. You approve.</strong>{" "}
+        Try it on the phone: ask MacroAgent “What should I eat near me?”, explore the map, or scan a menu.
       </p>
 
-      <button
-        onClick={() => {
-          resetDemo();
-          navigate("/macrotable");
-        }}
-        className="mt-6 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-ink text-[13.5px] font-semibold text-white hover:bg-ink/90"
-      >
-        <Icon name="refresh" size={16} /> Reset demo
-      </button>
-
-      <p className="mt-6 mb-2 text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-3">Scenario</p>
-      <div className="grid grid-cols-4 gap-1 rounded-xl bg-canvas p-1">
-        {SCENARIO_IDS.map((id) => (
+      <section className="rounded-[20px] border border-line bg-surface/70 p-4" aria-label="Presenter controls">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-3">Presenter</p>
+          <label className="flex items-center gap-2 text-[12.5px]">
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-[var(--color-brand)]"
+              checked={settings.agentMode === "offline"}
+              onChange={(e) => setSettings({ agentMode: e.target.checked ? "offline" : "auto" })}
+            />
+            Offline agent only
+          </label>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
-            key={id}
             onClick={() => {
-              setScenario(id);
-              navigate(mode === "baseline" ? "/baseline" : mode === "research" ? "/research" : "/macrotable");
+              resetDemo();
+              navigate("/macrotable");
             }}
-            aria-pressed={scenarioId === id}
-            className={`h-9 rounded-lg text-[13px] font-semibold ${scenarioId === id ? "bg-surface text-ink shadow-card" : "text-ink-3 hover:text-ink"}`}
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-ink px-4 text-[13px] font-semibold text-white hover:bg-ink/90"
           >
-            {id}
+            <Icon name="refresh" size={15} /> Reset demo
           </button>
-        ))}
-      </div>
-      <p className="mt-2 text-[12px] leading-snug text-ink-3">{SCENARIOS[scenarioId].summary}</p>
-
-      <p className="mt-6 mb-2 text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-3">Mode</p>
-      <nav className="grid gap-1 text-[13.5px]">
-        {[
-          { to: "/macrotable", label: "MacroTable (treatment)", key: "macrotable" },
-          { to: "/baseline", label: "Conventional (baseline)", key: "baseline" },
-          { to: "/research", label: "Research dashboard", key: "research" },
-        ].map((l) => (
-          <Link
-            key={l.to}
-            to={l.to}
-            className={`flex items-center justify-between rounded-lg px-3 py-2 ${mode === l.key ? "bg-surface font-semibold text-ink shadow-card" : "hover:bg-canvas"}`}
-          >
-            {l.label}
-            <Icon name="chevronRight" size={15} className="text-ink-3" />
+          <div className="flex gap-1 rounded-xl bg-canvas p-1" role="group" aria-label="Scenario">
+            {SCENARIO_IDS.map((id) => (
+              <button
+                key={id}
+                onClick={() => {
+                  setScenario(id);
+                  navigate(mode === "research" ? "/research" : "/macrotable");
+                }}
+                aria-pressed={scenarioId === id}
+                title={SCENARIOS[id].summary}
+                className={`h-8 w-9 rounded-lg text-[12.5px] font-semibold ${scenarioId === id ? "bg-surface text-ink shadow-card" : "text-ink-3 hover:text-ink"}`}
+              >
+                {id}
+              </button>
+            ))}
+          </div>
+          <Link to="/baseline" className="inline-flex min-h-10 items-center rounded-xl px-3 text-[13px] font-medium hover:bg-canvas">
+            Baseline
           </Link>
-        ))}
-      </nav>
-      <p className="mt-8 text-[11.5px] leading-relaxed text-ink-3">
-        Demo mode — nothing is logged. Restaurants, nutrition data, orders and checkout are simulated.
-      </p>
+          <Link to="/research" className="inline-flex min-h-10 items-center rounded-xl px-3 text-[13px] font-medium hover:bg-canvas">
+            Research
+          </Link>
+        </div>
+        <p className="mt-2 text-[12px] text-ink-3">Scenario {scenarioId}: {SCENARIOS[scenarioId].summary} · demo mode never logs.</p>
+      </section>
+
+      <p className="text-[11.5px] leading-relaxed text-ink-3">{REALISM_DISCLOSURE}</p>
     </aside>
   );
 }

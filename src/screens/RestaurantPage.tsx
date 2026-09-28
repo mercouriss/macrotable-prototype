@@ -2,7 +2,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { AskAgentButton } from "../components/AskAgentButton";
 import { Plate } from "../components/Plate";
 import { approx, ProvenanceBadge } from "../components/ProvenanceBadge";
-import { DeliveryTime, RestaurantBadge } from "../components/RestaurantBadge";
+import { DeliveryTime, RealRestaurantInfo, RestaurantBadge } from "../components/RestaurantBadge";
 import { Screen } from "../components/Screen";
 import { useSheet } from "../components/Sheet";
 import { Button, Eyebrow } from "../components/ui";
@@ -16,6 +16,32 @@ export function RestaurantPage() {
   const navigate = useNavigate();
   const { openLevel } = useSheet();
   if (!r) return <NotFound />;
+  if (r.identity === "real")
+    return (
+      <Screen
+        title={r.name}
+        back="/macrotable/explore"
+        footer={
+          <div className="space-y-2">
+            <Button icon="camera" onClick={() => navigate(`/macrotable/scan?type=menu&restaurant=${r.id}`, { state: { userTap: true } })}>
+              Scan the menu here
+            </Button>
+            <AskAgentButton context={{ kind: "restaurant", id: r.id, entry: "restaurant" }} label="Ask MacroAgent" />
+          </div>
+        }
+      >
+        <div className="pt-2">
+          <p className="text-[13.5px] text-ink-3">{r.cuisine}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <RestaurantBadge restaurant={r} />
+            <DeliveryTime restaurant={r} />
+          </div>
+        </div>
+        <div className="mt-5 mb-6 rounded-[22px] border border-line-2 bg-surface p-5 shadow-card">
+          <RealRestaurantInfo restaurant={r} />
+        </div>
+      </Screen>
+    );
   return (
     <Screen
       title={r.name}

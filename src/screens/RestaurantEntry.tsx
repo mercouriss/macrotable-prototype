@@ -43,13 +43,20 @@ export function RestaurantEntry() {
   }, [r, log]);
 
   if (!r) return <NotFound />;
+  const real = r.identity === "real";
   return (
     <Screen
       title="Restaurant QR"
       back="/macrotable"
       footer={
         <div className="space-y-2">
-          <AskAgentButton context={{ kind: "restaurant", id: r.id, entry: "qr" }} variant="primary" label="Open MacroAgent here" />
+          {real ? (
+            <Button icon="camera" onClick={() => navigate(`/macrotable/scan?type=menu&restaurant=${r.id}`, { state: { userTap: true } })}>
+              Scan the menu here
+            </Button>
+          ) : (
+            <AskAgentButton context={{ kind: "restaurant", id: r.id, entry: "qr" }} variant="primary" label="Open MacroAgent here" />
+          )}
           <Button variant="ghost" onClick={() => navigate(`/macrotable/explore/${r.id}`)}>
             View full menu
           </Button>
@@ -60,10 +67,17 @@ export function RestaurantEntry() {
         <p className="text-[13px] font-medium text-ink-3">Restaurant detected</p>
         <h2 className="mt-1 font-display text-[30px] font-semibold tracking-[-0.02em]">{r.name}</h2>
         <p className="mt-1 text-[14px] text-ink-2">
-          {r.cuisine} · {LEVEL_META[r.integrationLevel].short}
+          {r.cuisine} · {real ? "Real restaurant · not affiliated" : `${LEVEL_META[r.integrationLevel].short} (demo)`}
         </p>
         <Card className="mt-6 divide-y divide-line-2 px-5">
-          {CHECKS[r.integrationLevel].map((c) => (
+          {(real
+            ? [
+                { ok: true, text: "Real restaurant found" },
+                { ok: false, text: "Not affiliated with MacroTable — no menu data" },
+                { ok: false, text: "Scan the menu to continue" },
+              ]
+            : CHECKS[r.integrationLevel]
+          ).map((c) => (
             <div key={c.text} className="flex min-h-14 items-center gap-3 py-3">
               <span
                 className={`grid h-7 w-7 shrink-0 place-items-center rounded-full ${c.ok ? "bg-brand-soft text-brand" : "bg-estimated-soft text-estimated"}`}
@@ -76,7 +90,9 @@ export function RestaurantEntry() {
             </div>
           ))}
         </Card>
-        <p className="mt-4 text-[12.5px] leading-snug text-ink-3">Demo restaurant — menu and nutrition data are simulated.</p>
+        <p className="mt-4 text-[12.5px] leading-snug text-ink-3">
+          {real ? "Only this restaurant's name and location are real. MacroTable has no relationship with it." : "Demo restaurant — its integration, menu, nutrition and ordering are simulated."}
+        </p>
       </div>
     </Screen>
   );

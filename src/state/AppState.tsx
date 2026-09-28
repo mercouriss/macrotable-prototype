@@ -30,6 +30,8 @@ interface PersistedState {
   selection: MealSelection | null;
   /** Set only while an assigned research trial is running (after "Begin"). */
   lock: ExperimentLock | null;
+  /** Incremented by Reset demo so other session stores (the agent conversation) reset too. */
+  demoEpoch?: number;
 }
 
 export interface PlaceOrderResult {
@@ -198,7 +200,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       placeOrder,
       resetDemo: () => {
         if (stateRef.current.lock) return false;
-        commit(initialFor("A"));
+        commit({ ...initialFor("A"), demoEpoch: (stateRef.current.demoEpoch ?? 0) + 1 });
         return true;
       },
     }),

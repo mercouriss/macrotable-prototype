@@ -5,6 +5,7 @@ import type { PlacedOrder, ServiceMode } from "../types";
 import { checkProxyHealth, PROXY_URL } from "./gemini";
 import { liveAvailable, msgId, runAgentTurn, runContextTurn, type TurnOutcome } from "./orchestrator";
 import type { ToolContext } from "./tools";
+import { UNDERSTANDING } from "./steps";
 import type { AgentMessage, AgentSessionState, ScannedMenu } from "./types";
 
 /*
@@ -33,6 +34,8 @@ export type LiveStatus = "checking" | "live" | "unreachable" | "not-configured" 
 interface AgentApi {
   state: AgentSessionState;
   busy: boolean;
+  /** Current real activity while busy (model call / tool name / verify). */
+  progress: string | null;
   liveStatus: LiveStatus;
   send: (text: string, source?: "typed" | "chip") => Promise<void>;
   openContext: (kind: "restaurant" | "meal" | "scan", id?: string, entry?: string) => void;
@@ -50,6 +53,7 @@ export function AgentStateProvider({ children }: { children: ReactNode }) {
   const app = useAppState();
   const [state, setState] = useState<AgentSessionState>(load);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
   const [liveStatus, setLiveStatus] = useState<LiveStatus>("checking");
   const ref = useRef(state);
   ref.current = state;
@@ -65,7 +69,7 @@ export function AgentStateProvider({ children }: { children: ReactNode }) {
   }, [state]);
 
   // Fresh agent session per research trial, and after a demo reset / scenario switch.
-  const sessionKey = `${app.lock?.sessionId ?? "demo"}|${app.scenarioId}`;
+  const sessionKey = `${app.lock?.sessionId ?? "demo"}|${app.scenarioId}|${app.demoEpoch ?? 0}`;
   const lastKey = useRef(sessionKey);
   useEffect(() => {
     if (lastKey.current !== sessionKey) {
@@ -113,12 +117,14 @@ export function AgentStateProvider({ children }: { children: ReactNode }) {
     try {
       const ctx = ctxFor();
       const mode = appRef.current.settings.agentMode === "offline" || liveStatus === "unreachable" ? "offline" : "auto";
-      const o = await runAgentTurn(trimmed, ctx, ref.current.providerHistory, mode);
+      setProgress(mode === "auto" ? UNDERSTANDING : null);
+      const o = await runAgentTurn(trimmed, ctx, ref.current.providerHistory, mode, { onProgress: setProgress });
       const history = o.historyAppend ? [...ref.current.providerHistory, o.historyAppend].slice(-MAX_HISTORY_TURNS) : ref.current.providerHistory;
       commit({ ...ctx.state, messages: [...ref.current.messages, o.message], providerHistory: history });
       record(o);
     } finally {
       setBusy(false);
+      setProgress(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [busy, liveStatus]);
@@ -135,6 +141,7 @@ export function AgentStateProvider({ children }: { children: ReactNode }) {
     () => ({
       state,
       busy,
+      progress,
       liveStatus,
       send,
       openContext: (kind, id, entry) => {
@@ -170,7 +177,7 @@ export function AgentStateProvider({ children }: { children: ReactNode }) {
       clear: () => commit({ ...empty(), scannedMenu: ref.current.scannedMenu, currentRestaurantId: ref.current.currentRestaurantId }),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state, busy, liveStatus, send],
+    [state, busy, progress, liveStatus, send],
   );
 
   return <Ctx.Provider value={api}>{children}</Ctx.Provider>;

@@ -149,3 +149,17 @@ interface OrderDraft { …; mode: "pickup"|"in-store"|"handoff"; status: "awaiti
 New research events: `agent_opened`, `agent_message_sent` (`chars` and `source` only, **never text**), `agent_tool_called`, `agent_reply` (provider, model, fallback, latency, tool names), `agent_fallback`, `order_prepared`, `order_approved_in_agent`, `scan_menu_opened`, `scan_qr_opened`, `menu_photo_taken`, `scan_image_sent_to_model`, `scan_extraction_failed`, `scan_deleted`.
 
 New CSV columns: `agent_messages`, `agent_tool_calls`, `agent_provider` (gemini / mock / mixed / blank), `agent_fallbacks`.
+
+## V3.1: real vs demo restaurants
+
+```ts
+interface Restaurant { …; identity: "demo" | "real"; real?: RealIdentity; priceRange?; pickupMinutes? }
+interface RealIdentity { website; addressLine; osm /* e.g. node/4140102516 */; verifiedOn: "2026-09-29"; sources: string[] }
+```
+
+| Restaurant | Identity | What is real | What is simulated |
+|---|---|---|---|
+| FitKitchen, Urban Bowl, Local Grill | demo | nothing (fictional brands and locations) | integration level, menu, nutrition (DEMO VERIFIED / DEMO OFFICIAL / ESTIMATED), modifiers, prices, pickup times, orders, tickets |
+| Sally's Salads, Mozza, Erasmus Paviljoen | real | name + location (website + OSM, verified 2026-09-29) | nothing is claimed: `meals: []`, no price range, pickup or service modes; MacroTable is not affiliated |
+
+`MENU_RESTAURANTS` (demo brands with menus) feeds the optimizer, the baseline and the experiment. `RESTAURANTS` (all six) feeds the map, Explore, the agent's `listNearbyStores` and QR lookup.

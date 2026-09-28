@@ -5,7 +5,7 @@ import { QRCode } from "../components/QRCode";
 import { Screen } from "../components/Screen";
 import { AgentModeToggle } from "./Account";
 import { Button, Card, Eyebrow } from "../components/ui";
-import { getMeal, RESTAURANTS } from "../data/restaurants";
+import { getMeal, MENU_RESTAURANTS } from "../data/restaurants";
 import { SCENARIO_IDS, SCENARIOS } from "../data/scenarios";
 import { clearOrders } from "../lib/experiment";
 import { clock, duration, euro } from "../lib/format";
@@ -24,6 +24,8 @@ import {
 } from "../lib/research";
 import { appUrl, copyText, shareLink } from "../lib/share";
 import { useAppState } from "../state/AppState";
+import { GENERATION_CONFIG, MAX_TOOL_ROUNDS, PROXY_URL, proxyHealth } from "../agent/gemini";
+import { agentConfigDocument, FALLBACK_POLICY, sha256Hex } from "../lib/freeze";
 import type { Mode, ScenarioId } from "../types";
 
 const COND_LABEL: Record<Mode, string> = { baseline: "Baseline", macrotable: "MacroTable" };
@@ -137,13 +139,15 @@ export function Research() {
         </Card>
       </Section>
 
+      <FreezeInfo />
+
       <details className="mt-4 rounded-2xl border border-line bg-surface p-4">
         <summary className="cursor-pointer text-[14px] font-semibold">Printable demo QR codes</summary>
         <p className="mt-2 text-[12.5px] text-ink-3">
           Each code opens the restaurant's page in the app — scan with the in-app scanner or the phone's own camera.
         </p>
         <div className="mt-3 grid grid-cols-2 gap-3">
-          {RESTAURANTS.map((r) => (
+          {MENU_RESTAURANTS.map((r) => (
             <figure key={r.id} className="flex flex-col items-center rounded-xl border border-line-2 p-3">
               <QRCode text={appUrl(`r/${r.id}`)} size={132} label={`QR code for ${r.name}`} />
               <figcaption className="mt-1.5 text-[12.5px] font-semibold">{r.name}</figcaption>
@@ -408,5 +412,51 @@ function SessionCard({ s }: { s: ParticipantSession }) {
         </div>
       )}
     </Card>
+  );
+}
+
+/** Values for docs/study/freeze-record.md — copy them at freeze time. */
+function FreezeInfo() {
+  const { settings } = useAppState();
+  const [model, setModel] = useState<string>("checking…");
+  const [hash, setHash] = useState<string>("…");
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    void sha256Hex(agentConfigDocument()).then((h) => setHash(h.slice(0, 16)));
+    if (!PROXY_URL) setModel("none — offline demo agent only");
+    else void proxyHealth().then((r) => setModel(r.ok ? (r.model ?? "unknown") : `proxy unreachable (${PROXY_URL})`));
+  }, []);
+  const rows: [string, string][] = [
+    ["App commit", __APP_COMMIT__],
+    ["Agent model (server-side)", model],
+    ["Proxy", PROXY_URL || "not configured"],
+    ["Prompt + tools + settings SHA-256", hash],
+    ["Generation settings", `temperature ${GENERATION_CONFIG.temperature} · max ${GENERATION_CONFIG.maxOutputTokens} tokens · ≤${MAX_TOOL_ROUNDS} tool rounds`],
+    ["Fallback policy", FALLBACK_POLICY],
+    ["Agent mode on this device", settings.agentMode === "offline" ? "offline demo agent only" : "live when available"],
+    ["Baseline nutrition on this device", settings.baselineShowNutrition ? "visible" : "hidden"],
+  ];
+  return (
+    <details className="mt-4 rounded-2xl border border-line bg-surface p-4">
+      <summary className="cursor-pointer text-[14px] font-semibold">Freeze record values</summary>
+      <dl className="mt-3 space-y-2 text-[12.5px]">
+        {rows.map(([k, v]) => (
+          <div key={k}>
+            <dt className="text-ink-3">{k}</dt>
+            <dd className="font-mono break-words text-ink">{v}</dd>
+          </div>
+        ))}
+      </dl>
+      <Button
+        variant="secondary"
+        className="mt-3"
+        onClick={async () => {
+          setCopied(await copyText(rows.map(([k, v]) => `${k}: ${v}`).join("\n")));
+          setTimeout(() => setCopied(false), 2000);
+        }}
+      >
+        {copied ? "Copied" : "Copy for freeze record"}
+      </Button>
+    </details>
   );
 }

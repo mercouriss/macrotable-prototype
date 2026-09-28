@@ -1,5 +1,5 @@
 import { distanceFromUser } from "../data/geo";
-import { RESTAURANTS } from "../data/restaurants";
+import { MENU_RESTAURANTS } from "../data/restaurants";
 import type { Configuration, Meal, Nutrition, Preferences, Restaurant, Selections, UserTarget } from "../types";
 import {
   enumerateConfigurations,
@@ -145,7 +145,7 @@ export interface SearchResult {
 }
 
 export function runSearch(target: UserTarget, prefs: Preferences, restaurantId?: string): SearchResult {
-  const restaurants = restaurantId ? RESTAURANTS.filter((r) => r.id === restaurantId) : RESTAURANTS;
+  const restaurants = restaurantId ? MENU_RESTAURANTS.filter((r) => r.id === restaurantId) : MENU_RESTAURANTS;
   const meals = restaurants.flatMap((r) => r.meals.map((m) => optimizeMeal(m, r, target, prefs)));
   const ranked = meals
     .map((m) => m.best)

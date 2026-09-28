@@ -16,12 +16,15 @@ export interface ToolRun {
 export interface StoreSummary {
   restaurantId: string;
   name: string;
+  identity: "demo" | "real";
   distanceKm: number;
   integrationLevel: IntegrationLevel;
   levelLabel: string;
   serviceModes: ServiceMode[];
-  pickupMinutes: number;
-  priceRange: string;
+  pickupMinutes?: number;
+  priceRange?: string;
+  /** For real restaurants: what MacroTable can (not) do there. */
+  note?: string;
   best?: {
     mealId: string;
     mealName: string;
@@ -112,6 +115,8 @@ export interface AgentMessage {
   cards?: AgentCard[];
   actions?: QuickAction[];
   toolRuns?: { name: string; ok: boolean }[];
+  /** Completed product steps (1:1 with tool calls / VERIFY), shown as a checklist. */
+  steps?: string[];
   provider?: AgentProviderId;
   model?: string;
   /** Set when the live model failed and the offline agent answered instead. */

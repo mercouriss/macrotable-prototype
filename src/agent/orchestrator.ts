@@ -1,4 +1,6 @@
 import { getRestaurant } from "../data/restaurants";
+import { provenanceLabel } from "../lib/provenance";
+import { stepsFor, VERIFYING } from "./steps";
 import { runGeminiTurn, PROXY_URL } from "./gemini";
 import { runMockTurn } from "./mock";
 import { executeTool, SCAN_RESTAURANT_ID, type ToolContext } from "./tools";
@@ -31,9 +33,18 @@ export function cardsFrom(runs: ToolRun[]): AgentCard[] {
   return cards;
 }
 
+export const scanAction = (restaurantId?: string): QuickAction => ({
+  kind: "navigate",
+  label: "Scan the menu here",
+  to: `/macrotable/scan?type=menu${restaurantId ? `&restaurant=${restaurantId}` : ""}`,
+  state: { userTap: true },
+});
+
 /** Quick replies derived from state after the turn (identical for live and offline agents). */
 export function actionsFor(ctx: ToolContext, runs: ToolRun[]): QuickAction[] {
   const rec = ctx.state.currentRecommendation;
+  const here = getRestaurant(ctx.state.currentRestaurantId ?? undefined);
+  if (here?.identity === "real" && (!rec || rec.restaurantId !== here.id)) return [scanAction(here.id)];
   const hasOrderCard = runs.some((r) => r.card?.kind === "order");
   if (hasOrderCard || !rec) return rec ? [] : [{ kind: "send", label: "What should I eat near me?", text: "What should I eat near me?" }];
   const integrated = rec.integrationLevel >= 2 && rec.restaurantId !== SCAN_RESTAURANT_ID;
@@ -75,7 +86,7 @@ export async function runAgentTurn(
   ctx: ToolContext,
   history: unknown[][],
   mode: AgentMode,
-  deps: { gemini?: typeof runGeminiTurn } = {},
+  deps: { gemini?: typeof runGeminiTurn; onProgress?: (label: string) => void } = {},
 ): Promise<TurnOutcome> {
   const t0 = Date.now();
   let provider: AgentProviderId = "mock";
@@ -88,7 +99,7 @@ export async function runAgentTurn(
 
   if (liveAvailable(mode) || deps.gemini) {
     try {
-      const g = await (deps.gemini ?? runGeminiTurn)(userText, ctx, history);
+      const g = await (deps.gemini ?? runGeminiTurn)(userText, ctx, history, { onProgress: deps.onProgress });
       provider = "gemini";
       text = g.text;
       runs = g.toolRuns;
@@ -108,6 +119,7 @@ export async function runAgentTurn(
   }
 
   const cards = cardsFrom(runs);
+  deps.onProgress?.(VERIFYING);
   if (provider === "gemini") {
     const bad = unverifiedNumbers(text, runs, ctx);
     if (bad.length)
@@ -122,6 +134,7 @@ export async function runAgentTurn(
       cards,
       actions: actionsFor(ctx, runs),
       toolRuns: runs.map((r) => ({ name: r.name, ok: r.ok })),
+      steps: stepsFor(runs.map((r) => r.name), cards.some((c) => c.kind === "recommendation" || c.kind === "order")),
       provider,
       model,
       fallbackReason,
@@ -153,8 +166,27 @@ export function runContextTurn(kind: "restaurant" | "meal" | "scan" | "prepare",
     const rec = ctx.state.currentRecommendation;
     const src = ctx.state.scannedMenu?.source === "simulated" ? " (offline demo: a sample extraction, not read from your photo)" : "";
     text = r.ok && rec
-      ? `I read ${ctx.state.scannedMenu?.items.length ?? 0} dishes from the menu${src}. Best fit for ${t.calories} kcal / ≥${t.protein} g protein: ${rec.mealName} — ${rec.nutrition.calories} kcal · ${rec.nutrition.protein} g protein (${rec.provenance.toUpperCase()}). This isn't verified by the restaurant, so treat it as lower confidence.`
+      ? `I read ${ctx.state.scannedMenu?.items.length ?? 0} dishes from the menu${src}. Best fit for ${t.calories} kcal / ≥${t.protein} g protein: ${rec.mealName} — ${rec.nutrition.calories} kcal · ${rec.nutrition.protein} g protein (${provenanceLabel(rec.provenance)}). This isn't verified by the restaurant, so treat it as lower confidence.`
       : `I read the menu${src}, but no dish has enough information and a known price to recommend. You could ask staff for nutrition details.`;
+  } else if (kind === "restaurant" && getRestaurant(arg)?.identity === "real") {
+    const r = getRestaurant(arg)!;
+    ctx.state.currentRestaurantId = r.id;
+    call("getMenu", { restaurantId: r.id });
+    text = `You're at ${r.name}, a real restaurant that isn't affiliated with MacroTable. I have no menu, prices or nutrition for it, and I won't guess. Scan the menu and I'll read it and find what fits your ${t.calories} kcal / ≥${t.protein} g protein, with lower confidence.`;
+    return {
+      message: {
+        id: msgId(),
+        role: "agent",
+        text,
+        createdAt: Date.now(),
+        cards: [],
+        actions: [scanAction(r.id), { kind: "navigate", label: "Nearby demo restaurants", to: "/macrotable/explore" }],
+        toolRuns: runs.map((x) => ({ name: x.name, ok: x.ok })),
+        provider: "tools",
+      },
+      toolRuns: runs,
+      latencyMs: Date.now() - t0,
+    };
   } else {
     const args = kind === "meal" ? { mealId: arg } : { restaurantId: arg };
     const r = call("optimizeMeal", args);
@@ -166,13 +198,23 @@ export function runContextTurn(kind: "restaurant" | "meal" | "scan" | "prepare",
       const n = rec.nutrition;
       text = [
         kind === "restaurant" ? `You're at ${rec.restaurantName}. You have ${t.calories} kcal and need ≥${t.protein} g protein.` : `Looking at ${rec.mealName} for your ${t.calories} kcal / ≥${t.protein} g protein.`,
-        `Best ${rec.provenance.toUpperCase()} fit: ${rec.mealName}${rec.changes.length ? ` with ${rec.changes.join(", ").toLowerCase()}` : ""} — ${n.calories} kcal · ${n.protein} g protein · €${rec.price.toFixed(2)}.`,
+        `Best ${provenanceLabel(rec.provenance)} fit: ${rec.mealName}${rec.changes.length ? ` with ${rec.changes.join(", ").toLowerCase()}` : ""} — ${n.calories} kcal · ${n.protein} g protein · €${rec.price.toFixed(2)}.`,
         rec.gaps.length ? `Heads-up: ${rec.gaps.join("; ").toLowerCase()}.` : "It fits your calorie range and protein minimum.",
       ].join("\n");
     }
   }
   return {
-    message: { id: msgId(), role: "agent", text, createdAt: Date.now(), cards: cardsFrom(runs), actions: actionsFor(ctx, runs), toolRuns: runs.map((r) => ({ name: r.name, ok: r.ok })), provider: "tools" },
+    message: {
+      id: msgId(),
+      role: "agent",
+      text,
+      createdAt: Date.now(),
+      cards: cardsFrom(runs),
+      actions: actionsFor(ctx, runs),
+      toolRuns: runs.map((r) => ({ name: r.name, ok: r.ok })),
+      steps: stepsFor(runs.map((r) => r.name), cardsFrom(runs).some((c) => c.kind === "recommendation" || c.kind === "order")),
+      provider: "tools",
+    },
     toolRuns: runs,
     latencyMs: Date.now() - t0,
   };
