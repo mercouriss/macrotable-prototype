@@ -37,7 +37,7 @@ export function Orders() {
                   <Card className="flex items-center gap-3 p-4 hover:bg-sunken/40">
                     <div className="min-w-0 flex-1">
                       <p className="text-[12.5px] text-ink-3">
-                        #{o.orderNumber} · {clock(o.placedAt)} · {o.handoff ? "Hand-off" : "Sent to kitchen"}
+                        #{o.orderNumber} · {clock(o.placedAt)} · {o.handoff ? "Order at counter" : o.serviceMode === "in-store" ? `In-store · ${o.pickupCode}` : `Pickup · ${o.pickupCode}`}
                       </p>
                       <p className="text-[15.5px] font-semibold">{f?.meal.name}</p>
                       <p className="tnum text-[13px] text-ink-2">

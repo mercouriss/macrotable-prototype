@@ -1,4 +1,5 @@
 import type { IntegrationLevel, Restaurant } from "../types";
+import { distanceFromUser, formatDistance } from "../data/geo";
 import { Icon } from "./Icon";
 import { useSheet } from "./Sheet";
 
@@ -63,12 +64,12 @@ export function LevelDots({ level }: { level: IntegrationLevel }) {
   );
 }
 
+/** Distance from the demo user location (fictional) and pickup time. */
 export function DeliveryTime({ restaurant }: { restaurant: Restaurant }) {
-  if (!restaurant.estimatedDeliveryMinutes) return null;
   return (
     <span className="inline-flex items-center gap-1 text-[12.5px] text-ink-3">
-      <Icon name="clock" size={13} />
-      {restaurant.estimatedDeliveryMinutes} min
+      <Icon name="compass" size={13} />
+      {formatDistance(distanceFromUser(restaurant.location))} · pickup ~{restaurant.pickupMinutes} min
     </span>
   );
 }

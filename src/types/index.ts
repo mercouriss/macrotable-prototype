@@ -1,4 +1,18 @@
-export type Provenance = "verified" | "official" | "estimated";
+/**
+ * VERIFIED     MacroTable partner recipe/modifier data
+ * OFFICIAL     restaurant-published structured nutrition
+ * MENU-READ    nutrition explicitly printed on a scanned menu
+ * ESTIMATED    inferred / incomplete (public-menu estimate or AI-inferred from a scan)
+ * INSUFFICIENT not enough information — never recommended
+ */
+export type Provenance = "verified" | "official" | "menu-read" | "estimated" | "insufficient";
+
+export type ServiceMode = "pickup" | "in-store";
+
+export interface GeoPoint {
+  lat: number;
+  lng: number;
+}
 
 export interface Nutrition {
   calories: number;
@@ -52,7 +66,13 @@ export interface Restaurant {
   integrationLevel: IntegrationLevel;
   cuisine: string;
   tagline: string;
-  estimatedDeliveryMinutes?: number;
+  /** Fictional demo location (see src/data/geo.ts). */
+  location: GeoPoint;
+  address: string;
+  priceRange: "€" | "€€" | "€€€";
+  /** How the restaurant itself serves customers. Ordering via MacroTable additionally needs integration level ≥ 2. */
+  serviceModes: ServiceMode[];
+  pickupMinutes: number;
   meals: Meal[];
 }
 
@@ -125,6 +145,10 @@ export interface PlacedOrder {
   price: number;
   /** Level-1 restaurants can't receive orders; MacroTable only prepares a handoff. */
   handoff: boolean;
+  /** V3: in-store or pickup only (no delivery). "handoff" = user orders at the counter themselves. */
+  serviceMode: ServiceMode | "handoff";
+  /** Simulated pickup / counter code shown to the user and printed on the ticket. */
+  pickupCode: string;
   sessionId?: string;
   meetsTarget: boolean;
 }

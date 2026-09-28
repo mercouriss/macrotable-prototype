@@ -31,7 +31,7 @@ export function Success() {
           </span>
           <h1 className="mt-5 font-display text-[26px] font-semibold tracking-[-0.02em]">Hand-off ready</h1>
           <p className="mt-2 max-w-[290px] text-[14.5px] leading-relaxed text-ink-2">
-            {restaurant.name} isn't integrated, so no kitchen ticket was sent. Order this dish as listed through the restaurant.
+            {restaurant.name} isn't integrated, so nothing was sent to the kitchen. Order this dish as listed at the counter.
           </p>
         </div>
         <Card className="mt-8 p-5">
@@ -66,11 +66,12 @@ export function Success() {
         </span>
         <h1 className="mt-6 font-display text-[28px] font-semibold tracking-[-0.02em]">Order sent</h1>
         <p className="mt-2 max-w-[290px] text-[15px] leading-relaxed text-ink-2">
-          {restaurant.name} received your approved configuration as a structured kitchen order.
+          {restaurant.name} received your approved configuration as a structured kitchen order
+          {order.serviceMode === "in-store" ? " — show your code at the counter." : "."}
         </p>
         <p className="tnum mt-6 rounded-full bg-sunken px-4 py-2 text-[13px] font-medium text-ink-2">
-          #{order.orderNumber}
-          {restaurant.estimatedDeliveryMinutes ? ` · arriving in ~${restaurant.estimatedDeliveryMinutes} min` : ""}
+          {order.serviceMode === "in-store" ? "In-store" : "Pickup"} code <span className="font-bold text-ink">{order.pickupCode}</span>
+          {order.serviceMode === "pickup" ? ` · ready in ~${restaurant.pickupMinutes} min` : ""}
         </p>
         <p className="mt-10 text-[12.5px] text-ink-3">Simulated order — nothing was sent or charged.</p>
       </div>

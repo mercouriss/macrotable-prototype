@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
+import type { ServiceMode } from "../types";
 import { Icon } from "../components/Icon";
 import { Plate } from "../components/Plate";
 import { approx, ProvenanceBadge } from "../components/ProvenanceBadge";
@@ -14,6 +16,7 @@ export function Review() {
   const { selection, placeOrder } = useAppState();
   const navigate = useNavigate();
   const { found, config, inBudget } = useMealSelection(selection?.mealId);
+  const [mode, setMode] = useState<ServiceMode>("pickup");
 
   if (!found || !config) return <Navigate to="/macrotable" replace />;
   const { meal, restaurant } = found;
@@ -22,7 +25,7 @@ export function Review() {
   const ap = approx(meal.provenance);
 
   const confirm = () => {
-    const result = placeOrder();
+    const result = placeOrder(mode);
     if (!result) return;
     if (result.research) navigate("/experiment/done", { replace: true, state: { completed: true } });
     else navigate(`/macrotable/success/${result.order.orderNumber}`, { replace: true });
@@ -83,11 +86,38 @@ export function Review() {
         </div>
       </Card>
 
+      {!handoff && (
+        <fieldset className="mt-4">
+          <legend className="mb-2 text-[13px] font-medium text-ink-2">How will you get it?</legend>
+          <div role="radiogroup" aria-label="Order type" className="grid grid-cols-2 gap-1 rounded-2xl bg-sunken p-1">
+            {(
+              [
+                ["pickup", `Pickup · ~${restaurant.pickupMinutes} min`],
+                ["in-store", "Eat in-store"],
+              ] as [ServiceMode, string][]
+            )
+              .filter(([m]) => restaurant.serviceModes.includes(m))
+              .map(([m, label]) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={mode === m}
+                  onClick={() => setMode(m)}
+                  className={`min-h-11 rounded-xl text-[13.5px] font-semibold ${mode === m ? "bg-surface text-ink shadow-card" : "text-ink-3"}`}
+                >
+                  {label}
+                </button>
+              ))}
+          </div>
+        </fieldset>
+      )}
+
       <div className="mt-4 mb-6 space-y-3">
         {handoff ? (
           <Callout tone="estimated" title="Hand-off, not a direct order" icon="handoff">
-            {restaurant.name} isn't integrated. MacroTable will prepare a summary for you to order it as listed through the
-            restaurant. No modifications will be requested.
+            {restaurant.name} isn't integrated. MacroTable prepares a summary you can show at the counter to order it as listed.
+            No modifications are requested.
           </Callout>
         ) : (
           <p className="flex gap-2 px-1 text-[13px] leading-snug text-ink-3">

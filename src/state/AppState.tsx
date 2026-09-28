@@ -5,7 +5,7 @@ import { meetsTarget } from "../lib/feasibility";
 import { nextOrderNumber, readJSON, saveOrder, STORAGE_KEYS, writeJSON } from "../lib/experiment";
 import { computeConfiguration, configurationId, isSelectionSupported } from "../lib/nutrition";
 import { researchStore, type Assignment, type ExperimentLock } from "../lib/research";
-import type { ExperimentEvent, PlacedOrder, Preferences, ScenarioId, Selections, UserTarget } from "../types";
+import type { ExperimentEvent, PlacedOrder, Preferences, ScenarioId, Selections, ServiceMode, UserTarget } from "../types";
 
 export interface MealSelection {
   mealId: string;
@@ -50,7 +50,7 @@ interface AppStateValue extends PersistedState {
   abortExperiment: () => void;
   /** Research logging — a no-op outside an assigned trial (demo mode never logs). */
   log: (event: string, extra?: Partial<Pick<ExperimentEvent, "mealId" | "configurationId" | "detail">>) => void;
-  placeOrder: () => PlaceOrderResult | null;
+  placeOrder: (mode?: ServiceMode) => PlaceOrderResult | null;
   /** Demo lock: Scenario A, canonical data, no selection. Refused during a research trial. */
   resetDemo: () => boolean;
 }
@@ -61,6 +61,12 @@ const DEFAULT_SETTINGS: Settings = { baselineShowNutrition: true, onboardingDone
 function initialFor(id: ScenarioId): PersistedState {
   const s = SCENARIOS[id];
   return { scenarioId: id, target: { ...s.target }, prefs: { ...s.preferences }, selection: null, lock: null };
+}
+
+/** Deterministic, human-friendly counter code from the order number (MT1042 → A42). */
+export function pickupCodeFor(orderNumber: string): string {
+  const n = Number(orderNumber.replace(/\D/g, "")) || 0;
+  return `${String.fromCharCode(65 + (Math.floor(n / 100) % 26))}${String(n % 100).padStart(2, "0")}`;
 }
 
 function dietToRestrictions(diet: Preferences["diet"]): string[] {
@@ -113,7 +119,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     commit({ ...initialFor(s.scenarioId), lock: null });
   }, []);
 
-  const placeOrder = useCallback((): PlaceOrderResult | null => {
+  const placeOrder = useCallback((mode: ServiceMode = "pickup"): PlaceOrderResult | null => {
     const s = stateRef.current;
     if (!s.selection) return null;
     const found = getMeal(s.selection.mealId);
@@ -131,6 +137,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       nutrition,
       price,
       handoff: found.restaurant.integrationLevel === 1,
+      serviceMode: found.restaurant.integrationLevel === 1 ? "handoff" : mode,
+      pickupCode: pickupCodeFor(nextOrderNumber()),
       sessionId: s.lock?.sessionId,
       meetsTarget: meetsTarget(nutrition, s.target),
     };

@@ -27,7 +27,7 @@ export function Results() {
 
   const excluded = r.meals.filter((m) => m.exclusion);
   const overBudget = r.meals.filter((m) => !m.exclusion && !m.best);
-  const byPriority = { macros: "fit to your targets", price: "price (among meals that fit)", distance: "delivery time (among meals that fit)" }[
+  const byPriority = { macros: "fit to your targets", price: "price (among meals that fit)", distance: "distance (among meals that fit)" }[
     target.priority
   ];
 

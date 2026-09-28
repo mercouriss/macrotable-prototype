@@ -109,7 +109,7 @@ export function BaselineBrowse() {
                 <div className="flex-1">
                   <p className="text-[16px] font-semibold">{r.name}</p>
                   <p className="text-[13px] text-ink-3">
-                    {r.cuisine} · {r.estimatedDeliveryMinutes} min
+                    {r.cuisine} · pickup ~{r.pickupMinutes} min
                   </p>
                 </div>
                 <Icon name="chevronRight" size={18} className="text-ink-3" />

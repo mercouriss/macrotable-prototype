@@ -1,4 +1,5 @@
 import type { ModifierOption, Nutrition, Restaurant } from "../types";
+import { DEMO_STORE_LOCATIONS } from "./geo";
 
 /*
  * ALL DATA IN THIS FILE IS FICTIONAL MOCK DATA for a university prototype.
@@ -35,7 +36,11 @@ const fitKitchen: Restaurant = {
   integrationLevel: 3,
   cuisine: "Protein bowls",
   tagline: "Verified recipes · chef-approved modifications",
-  estimatedDeliveryMinutes: 25,
+  location: DEMO_STORE_LOCATIONS.fitkitchen,
+  address: "Fictional demo store A",
+  priceRange: "€€",
+  serviceModes: ["pickup", "in-store"],
+  pickupMinutes: 12,
   meals: [
     {
       id: "fk-chicken-power-bowl",
@@ -217,7 +222,11 @@ const urbanBowl: Restaurant = {
   integrationLevel: 2,
   cuisine: "Build-your-own bowls",
   tagline: "Official nutrition · structured menu",
-  estimatedDeliveryMinutes: 30,
+  location: DEMO_STORE_LOCATIONS.urbanbowl,
+  address: "Fictional demo store B",
+  priceRange: "€€",
+  serviceModes: ["pickup", "in-store"],
+  pickupMinutes: 15,
   meals: [
     {
       id: "ub-teriyaki-salmon",
@@ -361,7 +370,11 @@ const localGrill: Restaurant = {
   integrationLevel: 1,
   cuisine: "Grill & wraps",
   tagline: "Public menu only · estimated nutrition",
-  estimatedDeliveryMinutes: 20,
+  location: DEMO_STORE_LOCATIONS.localgrill,
+  address: "Fictional demo store C",
+  priceRange: "€",
+  serviceModes: ["in-store"],
+  pickupMinutes: 10,
   meals: [
     {
       id: "lg-chicken-salad",
@@ -409,7 +422,7 @@ const localGrill: Restaurant = {
       description: "Changes daily — ask the restaurant.",
       price: 14.0,
       nutrition: null,
-      provenance: "estimated",
+      provenance: "insufficient",
       available: true,
       dietaryTags: [],
       palette: ["#D8CFC0", "#B7AA95", "#EDE7DC", "#A39883"],

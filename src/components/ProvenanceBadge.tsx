@@ -37,6 +37,18 @@ export const PROVENANCE_META: Record<
       "Actual preparation may vary.",
     ],
   },
+  "menu-read": {
+    label: "MENU-READ",
+    sub: "Printed on the menu",
+    icon: "camera",
+    chip: "bg-menuread-soft text-menuread",
+    sheetTitle: "Read from the menu",
+    sheetBody: () => [
+      "These values were printed on the menu you photographed and read by the MacroAgent's vision model.",
+      "They are what the menu states — not verified by the restaurant or MacroTable. Reading errors are possible, so check the menu itself.",
+      "MacroTable can't request modifications here; order at the counter.",
+    ],
+  },
   estimated: {
     label: "ESTIMATED",
     sub: "Menu-based estimate",
@@ -44,9 +56,20 @@ export const PROVENANCE_META: Record<
     chip: "bg-estimated-soft text-estimated",
     sheetTitle: "Estimated nutrition",
     sheetBody: (r) => [
-      "Nutrition was estimated from available menu information.",
+      "Nutrition was estimated — from a public menu, or inferred by the vision model from a scanned dish description. It was not printed on the menu or verified.",
       `It is not verified by ${r ?? "the restaurant"} and may differ from the actual meal.`,
       "Because the restaurant isn't integrated, MacroTable can't request modifications here — only recommend and hand off.",
+    ],
+  },
+  insufficient: {
+    label: "INSUFFICIENT",
+    sub: "Not enough information",
+    icon: "ban",
+    chip: "bg-insufficient-soft text-insufficient",
+    sheetTitle: "Not enough information",
+    sheetBody: (r) => [
+      `There isn't enough reliable information about this dish${r ? ` at ${r}` : ""} to estimate its nutrition.`,
+      "MacroTable never recommends a dish it can't assess. Ask the restaurant, or choose another dish.",
     ],
   },
 };

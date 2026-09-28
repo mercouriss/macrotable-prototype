@@ -1,3 +1,4 @@
+import { distanceFromUser } from "../data/geo";
 import { RESTAURANTS } from "../data/restaurants";
 import type { Configuration, Meal, Nutrition, Preferences, Restaurant, Selections, UserTarget } from "../types";
 import {
@@ -59,8 +60,8 @@ export function compareConfigs(a: ScoredConfiguration, b: ScoredConfiguration, p
   if (a.meets !== b.meets) return a.meets ? -1 : 1;
   if (priority === "price" && a.price !== b.price) return a.price - b.price;
   if (priority === "distance") {
-    const da = a.restaurant.estimatedDeliveryMinutes ?? 99;
-    const db = b.restaurant.estimatedDeliveryMinutes ?? 99;
+    const da = distanceFromUser(a.restaurant.location);
+    const db = distanceFromUser(b.restaurant.location);
     if (da !== db) return da - db;
   }
   if (a.score !== b.score) return a.score - b.score;

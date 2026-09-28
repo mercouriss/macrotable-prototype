@@ -11,7 +11,7 @@ import type { Diet, Priority } from "../types";
 const PRIORITIES: { id: Priority; label: string; sub: string; icon: IconName }[] = [
   { id: "macros", label: "Hit my macros", sub: "Closest to your targets", icon: "scale" },
   { id: "price", label: "Lowest price", sub: "Cheapest meal that still fits", icon: "receipt" },
-  { id: "distance", label: "Closest", sub: "Fastest delivery (simulated)", icon: "clock" },
+  { id: "distance", label: "Closest", sub: "Nearest demo store (fictional locations)", icon: "compass" },
 ];
 
 const DIETS: { id: Diet; label: string }[] = [

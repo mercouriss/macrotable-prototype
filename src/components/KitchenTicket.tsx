@@ -19,7 +19,8 @@ export function KitchenTicket({ order }: { order: PlacedOrder }) {
         <p className="mt-3 text-center text-[15px] font-bold tracking-[0.04em]">MACROTABLE ORDER #{order.orderNumber}</p>
         <p className="text-center text-[11px] text-[#6b6a64]">
           {placed.toLocaleDateString([], { day: "2-digit", month: "short" })} ·{" "}
-          {placed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · DELIVERY
+          {placed.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · {order.serviceMode === "in-store" ? "IN-STORE" : "PICKUP"}{" "}
+          {order.pickupCode ?? ""}
         </p>
         <div className="my-4 border-t border-dashed border-[#bdbab0]" />
         <p className="text-[15px] font-bold">1× {meal.name.toUpperCase()}</p>
