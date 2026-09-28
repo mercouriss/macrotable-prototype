@@ -114,3 +114,4 @@ Not integrated: Uber Eats, DoorDash, Toast, Square, Apple Health, Google Health 
 - [docs/EXPERIMENT.md](docs/EXPERIMENT.md): study design, participant links, logging, export
 - [docs/DATA_MODEL.md](docs/DATA_MODEL.md): restaurants, meals, modifiers, provenance, sessions, events
 - [docs/DEMO.md](docs/DEMO.md): Demo Day script, recovery, real-device checklist
+- [docs/study/](docs/study/README.md): pilot and main-study pack (smoke test, counterbalanced links, questionnaire, observation sheet, issue log, freeze record, analysis script)

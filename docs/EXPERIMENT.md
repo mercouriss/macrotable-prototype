@@ -1,5 +1,7 @@
 # Experiment protocol
 
+> Operational materials for running the pilot and main study (schedule, questionnaire, analysis script, freeze record) are in [docs/study/](study/README.md). The team protocol document is the authority. This page describes how the app implements it.
+
 ## Research question
 
 > Does MacroTable help users select a feasible restaurant order that better fits their nutritional objective than conventional ordering?
@@ -42,7 +44,7 @@ A–C each contain both configurations that reach the target and ones that don't
 
 ## Participant flow
 
-1. The link opens neutral instructions with the same wording in both conditions. **Timing starts only on Begin**, and no session exists before it.
+1. The link opens the protocol §9 instruction, verbatim and identical in both conditions, plus the scenario's targets and constraints (budget, and where relevant *Vegetarian* / *Preference: lower fat*). **Timing starts only on Begin**, and no session exists before it.
 2. During the trial:
    - condition and scenario are locked;
    - `?scenario=` is ignored;

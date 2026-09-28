@@ -101,6 +101,20 @@ export function nextParticipantId(sessions: ParticipantSession[]): string {
   return `P${String(next).padStart(3, "0")}`;
 }
 
+/** Study protocol §9 — the single neutral instruction shown in both conditions. */
+export const PARTICIPANT_INSTRUCTION =
+  "Imagine these are the nutritional targets you have remaining for dinner today. Choose a restaurant meal you would actually be willing to order while staying within the stated constraints. You may use the options shown in the app. Complete the task when you are satisfied with your choice.";
+
+/** Scenario constraints beyond kcal/protein/budget, stated identically to both conditions. */
+export function taskConstraints(scenarioId: ScenarioId): string[] {
+  const p = SCENARIOS[scenarioId].preferences;
+  const out: string[] = [];
+  if (p.diet !== "none") out.push(p.diet === "vegan" ? "Vegan" : "Vegetarian");
+  if (p.lowerFat) out.push("Preference: lower fat");
+  if (p.noSpicy) out.push("No spicy food");
+  return out;
+}
+
 // ─── Condition lock ───────────────────────────────────────────────────────
 
 export interface ExperimentLock extends Assignment {

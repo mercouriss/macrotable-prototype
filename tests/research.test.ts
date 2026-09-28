@@ -179,3 +179,20 @@ describe("exports and summaries", () => {
     expect(macrotable).toMatchObject({ completed: 1, medianTimeMs: 40_000, proteinSuccessRate: 1, targetRangeRate: 1 });
   });
 });
+
+describe("participant instructions (protocol §9)", () => {
+  it("uses the frozen neutral wording and never implies a single correct meal", async () => {
+    const { PARTICIPANT_INSTRUCTION } = await import("../src/lib/research");
+    expect(PARTICIPANT_INSTRUCTION).toBe(
+      "Imagine these are the nutritional targets you have remaining for dinner today. Choose a restaurant meal you would actually be willing to order while staying within the stated constraints. You may use the options shown in the app. Complete the task when you are satisfied with your choice.",
+    );
+    expect(PARTICIPANT_INSTRUCTION).not.toMatch(/best|correct|right answer/i);
+  });
+
+  it("states each scenario's extra constraints identically to both conditions", async () => {
+    const { taskConstraints } = await import("../src/lib/research");
+    expect(taskConstraints("A")).toEqual([]);
+    expect(taskConstraints("B")).toEqual(["Preference: lower fat"]);
+    expect(taskConstraints("C")).toEqual(["Vegetarian"]);
+  });
+});

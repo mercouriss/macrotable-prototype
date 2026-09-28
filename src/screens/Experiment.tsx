@@ -4,7 +4,7 @@ import { Screen } from "../components/Screen";
 import { Button, Callout, Card, Eyebrow } from "../components/ui";
 import { SCENARIOS } from "../data/scenarios";
 import { euroShort } from "../lib/format";
-import { conditionHome, parseAssignment } from "../lib/research";
+import { conditionHome, parseAssignment, PARTICIPANT_INSTRUCTION, taskConstraints } from "../lib/research";
 import { useAppState } from "../state/AppState";
 
 /**
@@ -56,7 +56,6 @@ export function Experiment() {
 
   const a = parsed.value;
   const t = SCENARIOS[a.scenarioId].target;
-  const diet = SCENARIOS[a.scenarioId].preferences.diet;
 
   return (
     <Screen
@@ -77,21 +76,19 @@ export function Experiment() {
     >
       <div className="pt-10">
         <p className="text-[13px] font-medium text-ink-3">Study task · Participant {a.participantId}</p>
-        <h1 className="mt-1 font-display text-[28px] leading-tight font-semibold tracking-[-0.02em]">Order tonight's dinner</h1>
-        <p className="mt-3 text-[15px] leading-relaxed text-ink-2">
-          Imagine it's evening and you want to order dinner from a nearby restaurant using this app. Choose and order the one meal you
-          think fits best. There are no right or wrong answers, and you can take as long as you need.
-        </p>
+        <h1 className="mt-1 font-display text-[28px] leading-tight font-semibold tracking-[-0.02em]">Your task</h1>
+        {/* Verbatim from the study protocol (§9) — identical for both conditions. Do not edit after freeze. */}
+        <p className="mt-3 text-[15px] leading-relaxed text-ink-2">{PARTICIPANT_INSTRUCTION}</p>
       </div>
       <Card className="mt-6 p-5">
         <Eyebrow>What you have left today</Eyebrow>
         <ul className="tnum mt-2 space-y-1.5 text-[15.5px] font-medium">
           <li>About {t.calories} kcal</li>
           <li>At least {t.protein} g protein</li>
-          <li>
-            A budget of {euroShort(t.maxBudget)}
-            {diet !== "none" ? ` · ${diet}` : ""}
-          </li>
+          <li>A budget of {euroShort(t.maxBudget)}</li>
+          {taskConstraints(a.scenarioId).map((c) => (
+            <li key={c}>{c}</li>
+          ))}
         </ul>
       </Card>
       <ul className="mt-5 space-y-2 text-[13.5px] leading-snug text-ink-2">

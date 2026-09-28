@@ -8,6 +8,7 @@ import { Button, ButtonLink, Card, Eyebrow } from "../components/ui";
 import { getMeal, getRestaurant, RESTAURANTS } from "../data/restaurants";
 import { SCENARIOS } from "../data/scenarios";
 import { getOrders } from "../lib/experiment";
+import { taskConstraints } from "../lib/research";
 import { euro, euroShort } from "../lib/format";
 import { changesFromDefault, computeConfiguration, defaultSelections, describeChange } from "../lib/nutrition";
 import { useAppState } from "../state/AppState";
@@ -25,13 +26,14 @@ import { NotFound } from "../screens/NotFound";
 const orderable = (m: Meal) => m.available && !!m.nutrition;
 
 function TaskBanner() {
-  const { target, prefs } = useAppState();
+  const { target, scenarioId } = useAppState();
+  const extra = taskConstraints(scenarioId);
   return (
     <div className="mx-5 mb-3 rounded-2xl bg-ink px-4 py-3 text-white">
       <p className="text-[11px] font-semibold uppercase tracking-[0.09em] text-white/60">Your task</p>
       <p className="tnum mt-0.5 text-[13.5px] leading-snug">
-        Order a dinner of about {target.calories} kcal with at least {target.protein} g protein, max {euroShort(target.maxBudget)}
-        {prefs.diet !== "none" ? ` · ${prefs.diet}` : ""}.
+        About {target.calories} kcal · at least {target.protein} g protein · max {euroShort(target.maxBudget)}
+        {extra.length ? ` · ${extra.join(" · ")}` : ""}
       </p>
     </div>
   );
@@ -83,12 +85,13 @@ export function BaselineStart() {
 }
 
 function TaskText() {
-  const { target, prefs } = useAppState();
+  const { target, scenarioId } = useAppState();
+  const extra = taskConstraints(scenarioId);
   return (
     <p className="tnum mt-1.5 text-[16px] leading-snug font-medium">
       A dinner of about {target.calories} kcal, at least {target.protein} g protein, costing no more than{" "}
       {euroShort(target.maxBudget)}
-      {prefs.diet !== "none" ? `, ${prefs.diet}` : ""}.
+      {extra.length ? ` · ${extra.join(" · ")}` : ""}.
     </p>
   );
 }
