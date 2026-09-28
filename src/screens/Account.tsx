@@ -1,15 +1,18 @@
-import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Icon, type IconName } from "../components/Icon";
 import { Screen } from "../components/Screen";
-import { ButtonLink, Card, Eyebrow } from "../components/ui";
+import { Button, ButtonLink, Card, Eyebrow } from "../components/ui";
 import { getMeal } from "../data/restaurants";
 import { PERSONA, SCENARIOS } from "../data/scenarios";
 import { getOrders } from "../lib/experiment";
 import { clock, euro } from "../lib/format";
+import { appUrl, shareLink } from "../lib/share";
 import { useAppState } from "../state/AppState";
 
 export function Orders() {
-  const orders = [...getOrders()].filter((o) => o.mode === "macrotable").reverse();
+  // Demo orders only — participant orders belong to the research dashboard.
+  const orders = [...getOrders()].filter((o) => o.mode === "macrotable" && !o.sessionId).reverse();
   return (
     <Screen nav>
       <h1 className="pt-6 font-display text-[27px] font-semibold tracking-[-0.02em]">Orders</h1>
@@ -55,7 +58,9 @@ export function Orders() {
 }
 
 export function Profile() {
-  const { scenarioId, target } = useAppState();
+  const { scenarioId, target, lock, resetDemo } = useAppState();
+  const navigate = useNavigate();
+  const [note, setNote] = useState<string | null>(null);
   const row = (to: string, icon: IconName, label: string, sub?: string) => (
     <Link to={to} className="flex min-h-14 items-center gap-3 px-4 py-3 hover:bg-sunken/50">
       <Icon name={icon} size={19} className="text-ink-2" />
@@ -83,11 +88,40 @@ export function Profile() {
       </Card>
       <Card className="mt-3 divide-y divide-line-2 overflow-hidden">
         {row("/macrotable/preferences", "sliders", "Preferences")}
-        {row("/research", "flask", "Research & scenarios", `Active: ${SCENARIOS[scenarioId].label}`)}
-        {row("/baseline", "compass", "Conventional ordering (baseline)")}
+        {row("/privacy", "lock", "Privacy & prototype notice")}
+        {!lock && row("/research", "flask", "Research dashboard", `Demo scenario: ${SCENARIOS[scenarioId].label}`)}
+        {!lock && row("/baseline", "compass", "Conventional ordering (baseline)")}
       </Card>
-      <p className="mt-6 mb-8 px-1 text-[12.5px] leading-relaxed text-ink-3">
-        MacroTable is a university proof-of-concept and not a medical tool. It doesn't diagnose, give medical advice or infer
+      {!lock && (
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <Button
+            variant="secondary"
+            icon="handoff"
+            onClick={async () => {
+              const r = await shareLink(appUrl("macrotable"), "MacroTable prototype", "Try the MacroTable research prototype");
+              if (r === "copied") setNote("Link copied");
+              if (r === "failed") setNote("Couldn't share the link");
+            }}
+          >
+            Share app
+          </Button>
+          <Button
+            variant="secondary"
+            icon="refresh"
+            onClick={() => {
+              resetDemo();
+              navigate("/macrotable");
+            }}
+          >
+            Reset demo
+          </Button>
+        </div>
+      )}
+      <p className="mt-2 min-h-5 text-center text-[12.5px] text-ink-3" aria-live="polite">
+        {note}
+      </p>
+      <p className="mt-4 mb-8 px-1 text-[12.5px] leading-relaxed text-ink-3">
+        MacroTable is a university research prototype and not a medical tool. It doesn't diagnose, give medical advice or infer
         allergens. Restaurant integrations, nutrition data, orders, health sync and checkout are simulated. Nutrition information may
         vary with actual preparation.
       </p>

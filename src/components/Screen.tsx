@@ -34,7 +34,7 @@ export function Screen({
 }) {
   const goBack = useBack(back ?? "/macrotable");
   return (
-    <div className="flex h-full flex-col bg-canvas">
+    <div className="flex h-full flex-col bg-canvas pt-[env(safe-area-inset-top)]">
       {(title || back || right) && (
         <header className="relative flex h-14 shrink-0 items-center px-2">
           {back !== undefined && (
@@ -48,7 +48,9 @@ export function Screen({
           <div className="ml-auto flex items-center">{right}</div>
         </header>
       )}
-      <main className={`scrollbar-none min-h-0 flex-1 overflow-y-auto ${bleed ? "" : "px-5"} ${className}`}>{children}</main>
+      <main className={`scrollbar-none min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain ${bleed ? "" : "px-5"} ${className}`}>
+        {children}
+      </main>
       {footer && (
         <div className="shrink-0 border-t border-line-2 bg-canvas/95 px-5 pt-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur">
           {footer}

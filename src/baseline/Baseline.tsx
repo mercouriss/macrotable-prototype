@@ -8,7 +8,6 @@ import { Button, ButtonLink, Card, Eyebrow } from "../components/ui";
 import { getMeal, getRestaurant, RESTAURANTS } from "../data/restaurants";
 import { SCENARIOS } from "../data/scenarios";
 import { getOrders } from "../lib/experiment";
-import { withinBudget } from "../lib/feasibility";
 import { euro, euroShort } from "../lib/format";
 import { changesFromDefault, computeConfiguration, defaultSelections, describeChange } from "../lib/nutrition";
 import { useAppState } from "../state/AppState";
@@ -52,40 +51,33 @@ function BaselineScreen(props: Parameters<typeof Screen>[0] & { task?: boolean }
   );
 }
 
+/** Unassigned entry: an unrecorded preview. Recorded trials start from /experiment links. */
 export function BaselineStart() {
-  const { scenarioId, session, startSession } = useAppState();
+  const { scenarioId } = useAppState();
   const navigate = useNavigate();
-  const active = session?.mode === "baseline";
   return (
     <Screen
-      footer={
-        <Button
-          onClick={() => {
-            startSession("baseline");
-            navigate("/baseline/browse");
-          }}
-        >
-          {active ? "Continue task" : "Start task"}
-        </Button>
-      }
+      back="/macrotable/profile"
+      footer={<Button onClick={() => navigate("/baseline/browse")}>Browse restaurants</Button>}
     >
-      <div className="pt-16">
+      <div className="pt-8">
         <span className="grid h-12 w-12 place-items-center rounded-2xl bg-sunken text-ink-2">
           <Icon name="receipt" size={24} />
         </span>
         <h1 className="mt-5 font-display text-[28px] font-semibold tracking-[-0.02em]">Order dinner</h1>
         <p className="mt-2 text-[15px] leading-relaxed text-ink-2">
-          Browse the restaurants and choose a meal the way you normally would. You can change options on each dish.
+          Conventional ordering: browse the restaurants and choose a meal yourself. You can change options on each dish.
         </p>
       </div>
       <Card className="mt-6 p-5">
-        <Eyebrow>Your task</Eyebrow>
+        <Eyebrow>Task</Eyebrow>
         <TaskText />
-        <p className="mt-3 text-[12.5px] text-ink-3">
-          {SCENARIOS[scenarioId].label} · timing starts when you press Start.
-        </p>
+        <p className="mt-3 text-[12.5px] text-ink-3">{SCENARIOS[scenarioId].label}</p>
       </Card>
-      <p className="mt-6 text-[12.5px] text-ink-3">Study prototype — restaurants and orders are simulated.</p>
+      <p className="mt-4 flex gap-2 text-[12.5px] leading-snug text-ink-3">
+        <Icon name="info" size={15} className="mt-px shrink-0" />
+        Preview mode — nothing is recorded. Participant trials start from an experiment link created on the Research screen.
+      </p>
     </Screen>
   );
 }
@@ -101,13 +93,7 @@ function TaskText() {
   );
 }
 
-function useRequireSession() {
-  const { session } = useAppState();
-  return session?.mode === "baseline";
-}
-
 export function BaselineBrowse() {
-  if (!useRequireSession()) return <Navigate to="/baseline" replace />;
   return (
     <BaselineScreen title="Restaurants" back="/baseline">
       <ul className="mb-6 space-y-3">
@@ -136,8 +122,6 @@ export function BaselineRestaurant() {
   const { restaurantId } = useParams();
   const r = getRestaurant(restaurantId);
   const { settings } = useAppState();
-  const ok = useRequireSession();
-  if (!ok) return <Navigate to="/baseline" replace />;
   if (!r) return <NotFound />;
   return (
     <BaselineScreen title={r.name} back="/baseline/browse">
@@ -178,17 +162,15 @@ export function BaselineMeal() {
   const found = getMeal(mealId);
   const { selection, selectMeal, setOption, log, settings } = useAppState();
   const navigate = useNavigate();
-  const ok = useRequireSession();
   const synced = selection?.mealId === mealId;
 
   useEffect(() => {
-    if (!found || !ok) return;
+    if (!found) return;
     log("meal_viewed", { mealId: found.meal.id });
     if (!synced) selectMeal({ mealId: found.meal.id, selections: defaultSelections(found.meal) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mealId, ok]);
+  }, [mealId]);
 
-  if (!ok) return <Navigate to="/baseline" replace />;
   if (!found || !orderable(found.meal)) return <NotFound />;
   const { meal, restaurant } = found;
   const selections = synced ? selection!.selections : defaultSelections(meal);
@@ -243,11 +225,9 @@ export function BaselineMeal() {
 }
 
 export function BaselineReview() {
-  const { selection, placeOrder, settings, target } = useAppState();
+  const { selection, placeOrder, settings } = useAppState();
   const navigate = useNavigate();
-  const ok = useRequireSession();
   const found = getMeal(selection?.mealId);
-  if (!ok) return <Navigate to="/baseline" replace />;
   if (!found || !selection) return <Navigate to="/baseline/browse" replace />;
   const { meal, restaurant } = found;
   const { nutrition, price } = computeConfiguration(meal, selection.selections);
@@ -259,8 +239,8 @@ export function BaselineReview() {
       footer={
         <Button
           onClick={() => {
-            const o = placeOrder();
-            if (o) navigate(`/baseline/done/${o.orderNumber}`, { replace: true });
+            const r = placeOrder();
+            if (r) navigate(r.research ? "/experiment/done" : `/baseline/done/${r.order.orderNumber}`, { replace: true });
           }}
         >
           Place order · {euro(price)}
@@ -282,9 +262,6 @@ export function BaselineReview() {
           <span className="tnum text-[18px] font-semibold">{euro(price)}</span>
         </div>
       </Card>
-      {!withinBudget(price, target) && (
-        <p className="mt-3 px-1 text-[13px] text-ink-3">Note: this is above {euroShort(target.maxBudget)}.</p>
-      )}
       <p className="mt-4 px-1 text-[12.5px] text-ink-3">Simulated — no payment is taken.</p>
     </BaselineScreen>
   );
@@ -295,7 +272,7 @@ export function BaselineDone() {
   const order = getOrders().find((o) => o.orderNumber === orderNumber);
   const found = order && getMeal(order.mealId);
   return (
-    <Screen footer={<ButtonLink to="/research" variant="ghost">Researcher: view results</ButtonLink>}>
+    <Screen footer={<ButtonLink to="/baseline" variant="secondary">Done</ButtonLink>}>
       <div className="flex flex-col items-center pt-24 text-center">
         <span className="grid h-16 w-16 place-items-center rounded-full bg-ink text-white">
           <Icon name="check" size={32} stroke={2.6} />
@@ -307,7 +284,7 @@ export function BaselineDone() {
           </p>
         )}
         <p className="mt-8 max-w-[270px] text-[14px] leading-relaxed text-ink-3">
-          Thank you — the task is complete. Please hand the device back to the researcher.
+          Preview only — this order wasn't recorded. Recorded trials start from an experiment link.
         </p>
       </div>
     </Screen>

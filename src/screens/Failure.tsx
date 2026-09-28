@@ -20,6 +20,27 @@ export function Failure() {
   const navigate = useNavigate();
   const c = r.closest;
   const where = r.scope ? r.scope.name : "any restaurant nearby";
+  // Which hard constraint failed first: diet → budget → macro match.
+  const kind: "diet" | "budget" | "match" = r.stats.matchingDiet === 0 ? "diet" : r.ranked.length === 0 ? "budget" : "match";
+  const cheapest = r.meals
+    .map((m) => m.cheapestOverBudget)
+    .filter((x): x is NonNullable<typeof x> => !!x)
+    .sort((a, b) => a.price - b.price)[0];
+  const dietLabel = prefs.diet === "none" ? "" : prefs.diet;
+  const title = {
+    diet: `No ${dietLabel || "matching"} meals${r.scope ? ` at ${r.scope.name}` : ""}`,
+    budget: `Nothing fits ${euroShort(target.maxBudget)}`,
+    match: "No exact configuration available",
+  }[kind];
+  const body = {
+    diet: `None of the available dishes${r.scope ? ` at ${r.scope.name}` : ""} match your preferences${
+      prefs.diet !== "none" ? ` (${prefs.diet}${prefs.noSpicy ? ", no spicy food" : ""})` : prefs.noSpicy ? " (no spicy food)" : ""
+    }. MacroTable only uses the restaurant's own dietary labels and doesn't guess.`,
+    budget: cheapest
+      ? `Every supported configuration${r.scope ? ` at ${r.scope.name}` : ""} costs more than ${euroShort(target.maxBudget)}. The cheapest is ${cheapest.meal.name} at ${euro(cheapest.price)}.`
+      : `Nothing is available within ${euroShort(target.maxBudget)}.`,
+    match: `No supported configuration at ${where} reaches ${target.calories} kcal (±10%) with at least ${target.protein} g protein within ${euroShort(target.maxBudget)}. MacroTable won't invent modifications to get there.`,
+  }[kind];
 
   const showClosest = () => {
     if (!c) return;
@@ -35,11 +56,16 @@ export function Failure() {
       footer={
         <div className="space-y-2">
           {c && <Button onClick={showClosest}>Show closest option</Button>}
+          {kind !== "match" && (
+            <Button icon="sliders" onClick={() => navigate(`/macrotable/preferences${scope ? `?scope=${scope}` : ""}`)}>
+              {kind === "budget" ? "Adjust budget" : "Adjust preferences"}
+            </Button>
+          )}
           {r.scope ? (
             <Button variant="secondary" onClick={() => navigate("/macrotable/discover")}>
               Choose another restaurant
             </Button>
-          ) : (
+          ) : kind !== "match" ? null : (
             <Button variant="secondary" icon="sliders" onClick={() => navigate("/macrotable/preferences")}>
               Adjust my targets
             </Button>
@@ -51,11 +77,8 @@ export function Failure() {
         <span className="grid h-12 w-12 place-items-center rounded-2xl bg-warn-soft text-warn" aria-hidden="true">
           <Icon name="ban" size={24} />
         </span>
-        <h2 className="mt-4 font-display text-[25px] leading-tight font-semibold tracking-[-0.02em]">No exact configuration available</h2>
-        <p className="mt-2 text-[14.5px] leading-relaxed text-ink-2">
-          No supported configuration at {where} reaches {target.calories} kcal (±10%) with at least {target.protein} g protein
-          within {euroShort(target.maxBudget)}. MacroTable won't invent modifications to get there.
-        </p>
+        <h2 className="mt-4 font-display text-[25px] leading-tight font-semibold tracking-[-0.02em]">{title}</h2>
+        <p className="mt-2 text-[14.5px] leading-relaxed text-ink-2">{body}</p>
       </div>
 
       {c ? (
@@ -106,9 +129,7 @@ export function Failure() {
           </section>
         </>
       ) : (
-        <Card className="mt-6 p-5 text-[14px] text-ink-2">
-          Nothing on the menu is available within your budget and preferences. Try raising your budget or relaxing a preference.
-        </Card>
+        <p className="mt-6 text-[13.5px] text-ink-3">Try relaxing a preference or choosing another restaurant.</p>
       )}
     </Screen>
   );

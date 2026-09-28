@@ -8,7 +8,6 @@ import { useSheet } from "../components/Sheet";
 import { Button, Card, Eyebrow } from "../components/ui";
 import { getRestaurant, RESTAURANTS } from "../data/restaurants";
 import { euro } from "../lib/format";
-import { useAppState } from "../state/AppState";
 import { NotFound } from "./NotFound";
 
 export function Discover() {
@@ -50,7 +49,6 @@ export function RestaurantPage() {
   const { restaurantId } = useParams();
   const r = getRestaurant(restaurantId);
   const navigate = useNavigate();
-  const { startSession } = useAppState();
   const { openLevel } = useSheet();
   if (!r) return <NotFound />;
   return (
@@ -59,10 +57,7 @@ export function RestaurantPage() {
       back="/macrotable/discover"
       footer={
         <Button
-          onClick={() => {
-            startSession("macrotable");
-            navigate(`/macrotable/preferences?scope=${r.id}`);
-          }}
+          onClick={() => navigate(`/macrotable/preferences?scope=${r.id}`)}
         >
           Find what fits my macros here
         </Button>

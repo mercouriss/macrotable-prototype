@@ -7,11 +7,11 @@ import { ProvenanceBadge } from "../components/ProvenanceBadge";
 import { DeliveryTime, RestaurantBadge } from "../components/RestaurantBadge";
 import { Screen } from "../components/Screen";
 import { useSheet } from "../components/Sheet";
-import { Button, Callout, Card, Eyebrow, ReasonLine } from "../components/ui";
+import { Button, Callout, Card, Eyebrow } from "../components/ui";
 import { EXCLUSION_TEXT } from "../lib/feasibility";
 import { euro } from "../lib/format";
 import { changesFromDefault, describeChange } from "../lib/nutrition";
-import { fitReasons } from "../lib/optimizer";
+import { Explanation } from "../components/Explanation";
 import { useAppState } from "../state/AppState";
 import { useMealSelection } from "../state/useMealSelection";
 import { NotFound } from "./NotFound";
@@ -76,7 +76,6 @@ export function MealDetail() {
   }
 
   const changes = changesFromDefault(meal, config.selections);
-  const reasons = fitReasons(config, target, { includeData: true });
 
   // Level 1: recommend + estimate + hand off. No optimisation or configuration.
   if (level === 1) {
@@ -116,13 +115,9 @@ export function MealDetail() {
             <p className="mt-3 text-[12.5px] text-ink-3">Estimate based on available menu information. Actual nutrition may differ.</p>
           </Card>
         )}
-        <ul className="mt-5 mb-6 space-y-2">
-          {reasons.map((r) => (
-            <ReasonLine key={r.text} tone={r.tone}>
-              {r.text}
-            </ReasonLine>
-          ))}
-        </ul>
+        <div className="mt-6 mb-6">
+          <Explanation config={config} target={target} />
+        </div>
       </Screen>
     );
   }
@@ -173,16 +168,10 @@ export function MealDetail() {
       )}
 
       <section className="mt-6" aria-labelledby="why-h">
-        <h3 id="why-h" className="text-[15px] font-semibold">
+        <h3 id="why-h" className="mb-3 text-[15px] font-semibold">
           Why MacroTable chose this
         </h3>
-        <ul className="mt-2.5 space-y-2">
-          {reasons.map((r) => (
-            <ReasonLine key={r.text} tone={r.tone}>
-              {r.text}
-            </ReasonLine>
-          ))}
-        </ul>
+        <Explanation config={config} target={target} />
       </section>
 
       <button

@@ -1,171 +1,408 @@
-import { useReducer } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useReducer, useState, type ReactNode } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Icon } from "../components/Icon";
+import { QRCode } from "../components/QRCode";
 import { Screen } from "../components/Screen";
 import { Button, Card, Eyebrow } from "../components/ui";
-import { getMeal } from "../data/restaurants";
+import { getMeal, RESTAURANTS } from "../data/restaurants";
 import { SCENARIO_IDS, SCENARIOS } from "../data/scenarios";
-import { clearResearchData, exportResearchData, getEvents, getOrders, summarizeTrials } from "../lib/experiment";
+import { clearOrders } from "../lib/experiment";
 import { clock, duration, euro } from "../lib/format";
-import { changesFromDefault, describeChange } from "../lib/nutrition";
 import { weightsFor } from "../lib/optimizer";
+import {
+  assignmentPath,
+  downloadText,
+  nextParticipantId,
+  researchStore,
+  sessionStatus,
+  sessionsToCSV,
+  sessionsToJSON,
+  summarize,
+  type ConditionSummary,
+  type ParticipantSession,
+} from "../lib/research";
+import { appUrl, copyText, shareLink } from "../lib/share";
 import { useAppState } from "../state/AppState";
+import type { Mode, ScenarioId } from "../types";
 
-/** Hidden researcher screen: scenario switching, trial summaries, local event log. */
+const COND_LABEL: Record<Mode, string> = { baseline: "Baseline", macrotable: "MacroTable" };
+const pct = (v?: number) => (v === undefined ? "—" : `${Math.round(v * 100)}%`);
+const kcal = (v?: number) => (v === undefined ? "—" : `${Math.round(v)} kcal`);
+
+/** Researcher dashboard: participant links, trials, descriptive summaries, export/reset. */
 export function Research() {
-  const { scenarioId, setScenario, settings, setSettings, prefs } = useAppState();
+  const { scenarioId, setScenario, settings, setSettings, prefs, lock, abortExperiment } = useAppState();
   const [, refresh] = useReducer((x: number) => x + 1, 0);
-  const events = getEvents();
-  const trials = summarizeTrials(events, getOrders());
+  const sessions = [...researchStore.list()].sort((a, b) => b.startedAt - a.startedAt);
+  const summary = summarize(sessions);
   const w = weightsFor(prefs);
+  const stamp = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
+
+  // Keep the elapsed timer / list fresh while a trial runs on this device.
+  useEffect(() => {
+    if (!lock) return;
+    const t = setInterval(refresh, 5000);
+    return () => clearInterval(t);
+  }, [lock]);
 
   return (
     <Screen title="Research" back="/macrotable/profile">
-      <Eyebrow className="mt-2">Scenario</Eyebrow>
-      <div className="mt-2 space-y-2">
-        {SCENARIO_IDS.map((id) => {
-          const s = SCENARIOS[id];
-          const on = id === scenarioId;
-          return (
-            <button
-              key={id}
-              onClick={() => setScenario(id)}
-              aria-pressed={on}
-              className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left ${on ? "border-ink bg-surface" : "border-line bg-surface hover:bg-sunken/60"}`}
+      {lock && (
+        <Card className="mt-2 border-brand/30 p-4">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-brand" aria-hidden="true" />
+            <p className="text-[14px] font-semibold">Trial in progress on this device</p>
+          </div>
+          <p className="tnum mt-1 text-[13px] text-ink-2">
+            {lock.participantId} · {COND_LABEL[lock.condition]} · Scenario {lock.scenarioId} · started {clock(lock.startedAt)} (
+            {duration(Date.now() - lock.startedAt)} ago)
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Link
+              to={lock.condition === "baseline" ? "/baseline/browse" : "/macrotable"}
+              className="flex min-h-11 items-center justify-center rounded-xl border border-line bg-surface text-[13.5px] font-semibold"
             >
-              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-[14px] font-bold ${on ? "bg-ink text-white" : "bg-sunken text-ink-2"}`}>
-                {id}
-              </span>
-              <span className="flex-1 text-[13.5px] leading-snug">
-                <span className="block font-semibold">{s.label}</span>
-                <span className="tnum block text-ink-3">{s.summary}</span>
-              </span>
+              Back to task
+            </Link>
+            <button
+              onClick={() => {
+                if (window.confirm(`Abort ${lock.participantId}'s trial? It will be kept as "aborted".`)) {
+                  abortExperiment();
+                  refresh();
+                }
+              }}
+              className="min-h-11 rounded-xl bg-warn-soft text-[13.5px] font-semibold text-warn"
+            >
+              Abort trial
             </button>
-          );
-        })}
-      </div>
-      <p className="mt-2 text-[12px] text-ink-3">
-        Selecting a scenario resets targets and preferences. URL shortcut: <code>?scenario=B</code> on any page.
-      </p>
-
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <Link to="/macrotable" className="rounded-2xl border border-line bg-surface p-3.5 text-[13.5px] font-semibold shadow-card hover:bg-sunken/40">
-          MacroTable
-          <span className="block text-[12px] font-normal text-ink-3">Treatment · /macrotable</span>
-        </Link>
-        <Link to="/baseline" className="rounded-2xl border border-line bg-surface p-3.5 text-[13.5px] font-semibold shadow-card hover:bg-sunken/40">
-          Baseline
-          <span className="block text-[12px] font-normal text-ink-3">Conventional · /baseline</span>
-        </Link>
-      </div>
-
-      <Card className="mt-4 p-4">
-        <label className="flex items-center justify-between gap-3 text-[14px]">
-          <span>
-            <span className="block font-medium">Show nutrition in baseline</span>
-            <span className="block text-[12px] text-ink-3">Menu nutrition as a conventional app might list it</span>
-          </span>
-          <input
-            type="checkbox"
-            className="h-5 w-5 accent-[var(--color-brand)]"
-            checked={settings.baselineShowNutrition}
-            onChange={(e) => setSettings({ baselineShowNutrition: e.target.checked })}
-          />
-        </label>
-      </Card>
-
-      <div className="mt-7 flex items-center justify-between">
-        <Eyebrow>Trials ({trials.length})</Eyebrow>
-        <button onClick={refresh} className="inline-flex min-h-9 items-center gap-1 text-[12.5px] font-medium text-ink-2">
-          <Icon name="refresh" size={14} /> Refresh
-        </button>
-      </div>
-      {trials.length === 0 ? (
-        <p className="mt-2 text-[13.5px] text-ink-3">No trials yet. Start one from MacroTable or Baseline.</p>
-      ) : (
-        <ul className="mt-2 space-y-2">
-          {trials.map((t) => {
-            const f = t.order && getMeal(t.order.mealId);
-            return (
-              <li key={t.sessionId}>
-                <Card className="p-4 text-[13px]">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold">
-                      {t.mode === "macrotable" ? "MacroTable" : "Baseline"} · Scenario {t.scenario}
-                    </span>
-                    <span className="tnum font-semibold">{t.completedAt ? duration(t.durationMs) : "incomplete"}</span>
-                  </div>
-                  <p className="text-ink-3">
-                    Started {clock(t.startedAt)} · {t.mealsViewed} {t.mealsViewed === 1 ? "meal" : "meals"} viewed · {t.modifierChanges}{" "}
-                    {t.modifierChanges === 1 ? "modifier change" : "modifier changes"}
-                  </p>
-                  {t.order && f && (
-                    <div className="mt-2 border-t border-line-2 pt-2">
-                      <p className="font-medium">
-                        {f.meal.name} <span className="font-normal text-ink-3">· {f.restaurant.name}</span>
-                      </p>
-                      {changesFromDefault(f.meal, t.order.selections).length > 0 && (
-                        <p className="text-ink-3">{changesFromDefault(f.meal, t.order.selections).map(describeChange).join(", ")}</p>
-                      )}
-                      <p className="tnum mt-0.5">
-                        {t.order.nutrition.calories} kcal · P {t.order.nutrition.protein} · C {t.order.nutrition.carbs} · F {t.order.nutrition.fat} ·{" "}
-                        {euro(t.order.price)}
-                      </p>
-                      <p className={`mt-0.5 inline-flex items-center gap-1 font-medium ${t.order.meetsTarget ? "text-brand" : "text-warn"}`}>
-                        <Icon name={t.order.meetsTarget ? "check" : "alert"} size={13} stroke={2.4} />
-                        {t.order.meetsTarget ? "Reached target range" : "Outside target range"}
-                      </p>
-                    </div>
-                  )}
-                </Card>
-              </li>
-            );
-          })}
-        </ul>
+          </div>
+        </Card>
       )}
 
-      <div className="mt-4 grid grid-cols-2 gap-2">
-        <Button variant="secondary" icon="download" onClick={exportResearchData}>
-          Export JSON
-        </Button>
+      <LinkBuilder sessions={sessions} disabled={!!lock} />
+
+      <Section title="Summary" note="Descriptive only — no significance testing. Completed trials only.">
+        <div className="grid grid-cols-2 gap-2">
+          {summary.map((s) => (
+            <SummaryCard key={s.condition} s={s} />
+          ))}
+        </div>
+      </Section>
+
+      <Section title={`Sessions (${sessions.length})`} action={<RefreshButton onClick={refresh} />}>
+        {sessions.length === 0 ? (
+          <p className="text-[13.5px] text-ink-3">No sessions yet. Create a participant link above.</p>
+        ) : (
+          <ul className="space-y-2">
+            {sessions.map((s) => (
+              <li key={s.sessionId}>
+                <SessionCard s={s} />
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <Button variant="secondary" icon="download" disabled={!sessions.length} onClick={() => downloadText(`macrotable-research-${stamp}.csv`, sessionsToCSV(sessions), "text/csv;charset=utf-8")}>
+            Export CSV
+          </Button>
+          <Button variant="secondary" icon="download" disabled={!sessions.length} onClick={() => downloadText(`macrotable-research-${stamp}.json`, sessionsToJSON(sessions), "application/json")}>
+            Export JSON
+          </Button>
+        </div>
         <Button
-          variant="secondary"
+          variant="ghost"
           icon="x"
+          className="mt-1"
+          disabled={!!lock}
           onClick={() => {
-            if (window.confirm("Delete all locally stored trials, events and orders on this device?")) {
-              clearResearchData();
+            if (window.confirm(`Delete all ${sessions.length} research sessions and simulated orders stored on this device? Export first — this can't be undone.`)) {
+              researchStore.clear();
+              clearOrders();
               refresh();
             }
           }}
         >
-          Clear data
+          Clear local research data
         </Button>
-      </div>
+        <p className="mt-1 text-[12px] leading-snug text-ink-3">
+          Data is stored only in this browser on this device and disappears if site data is cleared. Export after every session.
+        </p>
+      </Section>
 
-      <details className="mt-6 rounded-2xl border border-line bg-surface p-4 text-[13px]">
+      <Section title="Demo settings">
+        <div className="grid grid-cols-4 gap-1 rounded-xl bg-sunken p-1">
+          {SCENARIO_IDS.map((id) => (
+            <button
+              key={id}
+              disabled={!!lock}
+              onClick={() => setScenario(id)}
+              aria-pressed={scenarioId === id}
+              className={`h-10 rounded-lg text-[13.5px] font-semibold ${scenarioId === id ? "bg-surface text-ink shadow-card" : "text-ink-3"}`}
+            >
+              {id}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1.5 text-[12px] text-ink-3">
+          {SCENARIOS[scenarioId].summary} · also via <code>?scenario=B</code> on any page, or <Link className="underline" to="/demo">/demo</Link> to reset.
+        </p>
+        <Card className="mt-3 p-4">
+          <label className="flex items-center justify-between gap-3 text-[14px]">
+            <span>
+              <span className="block font-medium">Show nutrition in baseline</span>
+              <span className="block text-[12px] text-ink-3">Menu nutrition as some conventional apps list it</span>
+            </span>
+            <input
+              type="checkbox"
+              className="h-5 w-5 accent-[var(--color-brand)]"
+              checked={settings.baselineShowNutrition}
+              onChange={(e) => setSettings({ baselineShowNutrition: e.target.checked })}
+            />
+          </label>
+        </Card>
+      </Section>
+
+      <details className="mt-4 rounded-2xl border border-line bg-surface p-4">
+        <summary className="cursor-pointer text-[14px] font-semibold">Printable demo QR codes</summary>
+        <p className="mt-2 text-[12.5px] text-ink-3">
+          Each code opens the restaurant's page in the app — scan with the in-app scanner or the phone's own camera.
+        </p>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          {RESTAURANTS.map((r) => (
+            <figure key={r.id} className="flex flex-col items-center rounded-xl border border-line-2 p-3">
+              <QRCode text={appUrl(`r/${r.id}`)} size={132} label={`QR code for ${r.name}`} />
+              <figcaption className="mt-1.5 text-[12.5px] font-semibold">{r.name}</figcaption>
+            </figure>
+          ))}
+          <figure className="flex flex-col items-center rounded-xl border border-line-2 p-3">
+            <QRCode text="https://example.com/some-other-menu.pdf" size={132} label="QR code with no MacroTable data" />
+            <figcaption className="mt-1.5 text-[12.5px] font-semibold">Unknown code</figcaption>
+          </figure>
+        </div>
+      </details>
+
+      <details className="mt-3 rounded-2xl border border-line bg-surface p-4 text-[13px]">
         <summary className="cursor-pointer font-semibold">Ranking heuristic (current preferences)</summary>
         <p className="mt-2 text-ink-2">
           D = {w.calories}·|kcal error| + {w.proteinShortfall}·protein shortfall + {w.carbs}·|carb error| + {w.fat}·
-          {w.fatExcessOnly ? "fat excess" : "|fat error|"} (each relative to target). Configurations reaching the target range
-          (kcal ±10%, protein ≥ target) rank first. Prototype heuristic — not a validated nutrition model; scores are never shown to
-          participants.
+          {w.fatExcessOnly ? "fat excess" : "|fat error|"} (each relative to target). Configurations reaching the target range (kcal ±10%,
+          protein ≥ target) rank first. Prototype heuristic — not a validated nutrition model; never shown to participants.
         </p>
       </details>
 
       <details className="mt-3 mb-8 rounded-2xl border border-line bg-surface p-4 text-[12px]">
-        <summary className="cursor-pointer text-[13px] font-semibold">Event log ({events.length})</summary>
+        <summary className="cursor-pointer text-[13px] font-semibold">Event log</summary>
         <ol className="tnum mt-2 max-h-72 space-y-1 overflow-y-auto font-mono text-ink-2">
-          {[...events]
-            .reverse()
-            .slice(0, 80)
+          {sessions
+            .flatMap((s) => s.events.map((e) => ({ ...e, p: s.participantId })))
+            .sort((a, b) => b.timestamp - a.timestamp)
+            .slice(0, 100)
             .map((e, i) => (
-              <li key={i}>
-                {clock(e.timestamp)} {e.mode === "macrotable" ? "MT" : "BL"}/{e.scenario} {e.event}
+              <li key={i} className="break-words">
+                {clock(e.timestamp)} {e.p} {e.mode === "macrotable" ? "MT" : "BL"}/{e.scenario} {e.event}
                 {e.mealId ? ` · ${e.mealId}` : ""}
               </li>
             ))}
         </ol>
       </details>
     </Screen>
+  );
+}
+
+function Section({ title, note, action, children }: { title: string; note?: string; action?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="mt-7">
+      <div className="mb-2 flex items-center justify-between">
+        <Eyebrow>{title}</Eyebrow>
+        {action}
+      </div>
+      {children}
+      {note && <p className="mt-1.5 text-[12px] text-ink-3">{note}</p>}
+    </section>
+  );
+}
+
+function RefreshButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="inline-flex min-h-9 items-center gap-1 text-[12.5px] font-medium text-ink-2">
+      <Icon name="refresh" size={14} /> Refresh
+    </button>
+  );
+}
+
+function LinkBuilder({ sessions, disabled }: { sessions: ParticipantSession[]; disabled: boolean }) {
+  const suggested = nextParticipantId(sessions);
+  const [participant, setParticipant] = useState(suggested);
+  const [condition, setCondition] = useState<Mode>(sessions[0]?.condition === "baseline" ? "macrotable" : "baseline");
+  const [scenario, setScenarioId] = useState<ScenarioId>("A");
+  const [status, setStatus] = useState<string | null>(null);
+  const [showQR, setShowQR] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => setParticipant(suggested), [suggested]);
+
+  const valid = /^[A-Za-z]{1,4}\d{1,5}$/.test(participant.trim());
+  const path = assignmentPath({ participantId: participant.trim().toUpperCase(), condition, scenarioId: scenario });
+  const url = appUrl(path);
+  const flash = (s: string) => {
+    setStatus(s);
+    setTimeout(() => setStatus(null), 2200);
+  };
+
+  return (
+    <Section title="New participant link">
+      <Card className="p-4">
+        <div className="grid grid-cols-[1fr_auto] gap-3">
+          <label className="text-[12.5px] font-medium text-ink-3">
+            Anonymous participant code
+            <input
+              value={participant}
+              onChange={(e) => setParticipant(e.target.value)}
+              autoCapitalize="characters"
+              autoComplete="off"
+              aria-invalid={!valid}
+              className={`tnum mt-1 block h-11 w-full rounded-xl border bg-surface px-3 text-[16px] font-semibold text-ink outline-none focus:border-ink ${valid ? "border-line" : "border-warn"}`}
+            />
+          </label>
+          <label className="text-[12.5px] font-medium text-ink-3">
+            Scenario
+            <select
+              value={scenario}
+              onChange={(e) => setScenarioId(e.target.value as ScenarioId)}
+              className="mt-1 block h-11 rounded-xl border border-line bg-surface px-3 text-[16px] font-semibold text-ink"
+            >
+              {SCENARIO_IDS.map((id) => (
+                <option key={id} value={id}>
+                  {id}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        {!valid && <p className="mt-1 text-[12px] font-medium text-warn">Use a code like P001 — never a name, email or student number.</p>}
+        <div role="radiogroup" aria-label="Condition" className="mt-3 grid grid-cols-2 gap-1 rounded-xl bg-sunken p-1">
+          {(["baseline", "macrotable"] as Mode[]).map((c) => (
+            <button
+              key={c}
+              role="radio"
+              aria-checked={condition === c}
+              onClick={() => setCondition(c)}
+              className={`h-10 rounded-lg text-[13.5px] font-semibold ${condition === c ? "bg-surface text-ink shadow-card" : "text-ink-3"}`}
+            >
+              {COND_LABEL[c]}
+            </button>
+          ))}
+        </div>
+        <p className="mt-3 rounded-xl bg-sunken px-3 py-2 font-mono text-[11.5px] break-all text-ink-2">{url}</p>
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          <Button variant="secondary" full disabled={!valid} onClick={async () => flash((await copyText(url)) ? "Copied" : "Copy failed")} className="px-2 text-[13.5px]">
+            Copy
+          </Button>
+          <Button
+            variant="secondary"
+            disabled={!valid}
+            onClick={async () => {
+              const r = await shareLink(url, "MacroTable study task", `Study task for ${participant.toUpperCase()}`);
+              if (r === "copied") flash("Copied");
+              if (r === "failed") flash("Couldn't share");
+            }}
+            className="px-2 text-[13.5px]"
+          >
+            Share
+          </Button>
+          <Button variant="secondary" disabled={!valid} onClick={() => setShowQR((s) => !s)} className="px-2 text-[13.5px]" aria-expanded={showQR}>
+            QR
+          </Button>
+        </div>
+        {showQR && valid && (
+          <div className="mt-3 flex justify-center">
+            <QRCode text={url} size={200} label={`QR code for participant ${participant.toUpperCase()} link`} />
+          </div>
+        )}
+        <Button className="mt-2" disabled={!valid || disabled} onClick={() => navigate(`/${path}`)}>
+          Start on this device
+        </Button>
+        <p className="mt-2 text-[12px] leading-snug text-ink-3" aria-live="polite">
+          {status ?? (disabled ? "Finish or abort the running trial first." : "Tip: alternate conditions between participants to counterbalance.")}
+        </p>
+      </Card>
+    </Section>
+  );
+}
+
+function SummaryCard({ s }: { s: ConditionSummary }) {
+  const rows: [string, string][] = [
+    ["Completed", `${s.completed} / ${s.started}`],
+    ["Median time", s.medianTimeMs === undefined ? "—" : duration(s.medianTimeMs)],
+    ["Mean |kcal dev|", kcal(s.meanAbsCalorieDeviation)],
+    ["Median |kcal dev|", kcal(s.medianAbsCalorieDeviation)],
+    ["Protein met", pct(s.proteinSuccessRate)],
+    ["Feasible order", pct(s.feasibleOrderRate)],
+    ["In target range", pct(s.targetRangeRate)],
+  ];
+  return (
+    <Card className="p-3.5">
+      <p className="text-[13.5px] font-semibold">{COND_LABEL[s.condition]}</p>
+      <dl className="tnum mt-2 space-y-1 text-[12.5px]">
+        {rows.map(([k, v]) => (
+          <div key={k} className="flex justify-between gap-2">
+            <dt className="text-ink-3">{k}</dt>
+            <dd className="font-semibold">{v}</dd>
+          </div>
+        ))}
+      </dl>
+    </Card>
+  );
+}
+
+function Check({ ok, label }: { ok?: boolean; label: string }) {
+  if (ok === undefined) return null;
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] font-semibold ${ok ? "bg-brand-soft text-brand" : "bg-warn-soft text-warn"}`}>
+      <Icon name={ok ? "check" : "x"} size={11} stroke={3} />
+      {label}
+    </span>
+  );
+}
+
+function SessionCard({ s }: { s: ParticipantSession }) {
+  const st = sessionStatus(s);
+  const f = s.selectedMealId ? getMeal(s.selectedMealId) : undefined;
+  const n = s.finalNutrition;
+  const o = s.outcome;
+  const changes = s.events.filter((e) => e.event === "modifier_changed").length;
+  return (
+    <Card className="p-4 text-[13px]">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-semibold">
+          {s.participantId} · {COND_LABEL[s.condition]} · {s.scenarioId}
+        </span>
+        <span className={`tnum text-[12.5px] font-semibold ${st === "completed" ? "" : st === "aborted" ? "text-warn" : "text-ink-3"}`}>
+          {st === "completed" ? duration(s.completionTimeMs) : st}
+        </span>
+      </div>
+      <p className="text-[12px] text-ink-3">
+        {new Date(s.startedAt).toLocaleString([], { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })} ·{" "}
+        {s.events.filter((e) => e.event === "meal_viewed").length} meals viewed · {changes} modifier {changes === 1 ? "change" : "changes"}
+      </p>
+      {f && n && (
+        <div className="mt-2 border-t border-line-2 pt-2">
+          <p className="font-medium">
+            {f.meal.name} <span className="font-normal text-ink-3">· {f.restaurant.name} · {s.provenance?.toUpperCase()}</span>
+          </p>
+          {!!s.modifierLabels?.length && <p className="text-ink-3">{s.modifierLabels.join(", ")}</p>}
+          <p className="tnum mt-0.5">
+            {n.calories} kcal ({o && (o.calorieDeviation >= 0 ? "+" : "−") + Math.abs(o.calorieDeviation)}) · P {n.protein} · C {n.carbs} · F {n.fat} ·{" "}
+            {euro(s.finalPrice ?? 0)}
+          </p>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            <Check ok={o?.withinBudget} label="Budget" />
+            <Check ok={o?.dietOk} label="Diet" />
+            <Check ok={o?.proteinMet} label="Protein" />
+            <Check ok={o?.caloriesWithinRange} label="kcal ±10%" />
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }

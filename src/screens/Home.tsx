@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { Icon } from "../components/Icon";
 import { MacroSummary } from "../components/MacroSummary";
 import { Screen } from "../components/Screen";
@@ -8,12 +8,16 @@ import { euroShort, greeting } from "../lib/format";
 import { useAppState } from "../state/AppState";
 
 export function Home() {
-  const { target, startSession } = useAppState();
+  const { target, settings, lock, log } = useAppState();
   const navigate = useNavigate();
-  const go = (to: string) => {
-    startSession("macrotable");
-    navigate(to);
+  /** `userTap` lets the scan screen open the camera straight away — permission is only ever requested after a tap. */
+  const scan = (type: "menu" | "qr") => {
+    log(type === "menu" ? "scan_menu_opened" : "scan_qr_opened");
+    navigate(`/macrotable/scan?type=${type}`, { state: { userTap: true } });
   };
+
+  // First run: short onboarding (skipped during research trials to keep timing comparable).
+  if (!settings.onboardingDone && !lock) return <Navigate to="/welcome" replace />;
 
   return (
     <Screen nav>
@@ -53,14 +57,14 @@ export function Home() {
       </button>
 
       <div className="mt-6 space-y-2.5">
-        <Button onClick={() => go("/macrotable/preferences")} className="min-h-14 text-[16px]">
+        <Button onClick={() => navigate("/macrotable/preferences")} className="min-h-14 text-[16px]">
           Find me a meal
         </Button>
         <div className="grid grid-cols-2 gap-2.5">
-          <Button variant="secondary" icon="camera" onClick={() => go("/macrotable/scan?type=menu")}>
+          <Button variant="secondary" icon="camera" onClick={() => scan("menu")}>
             Scan menu
           </Button>
-          <Button variant="secondary" icon="qr" onClick={() => go("/macrotable/scan?type=qr")}>
+          <Button variant="secondary" icon="qr" onClick={() => scan("qr")}>
             Scan QR
           </Button>
         </div>

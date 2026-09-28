@@ -2,9 +2,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { getMeal } from "../data/restaurants";
 import { SCENARIOS } from "../data/scenarios";
 import { meetsTarget } from "../lib/feasibility";
-import { appendEvent, newSessionId, nextOrderNumber, readJSON, saveOrder, STORAGE_KEYS, writeJSON } from "../lib/experiment";
+import { nextOrderNumber, readJSON, saveOrder, STORAGE_KEYS, writeJSON } from "../lib/experiment";
 import { computeConfiguration, configurationId, isSelectionSupported } from "../lib/nutrition";
-import type { Mode, PlacedOrder, Preferences, ScenarioId, Selections, UserTarget } from "../types";
+import { researchStore, type Assignment, type ExperimentLock } from "../lib/research";
+import type { ExperimentEvent, PlacedOrder, Preferences, ScenarioId, Selections, UserTarget } from "../types";
 
 export interface MealSelection {
   mealId: string;
@@ -15,6 +16,7 @@ export interface MealSelection {
 
 export interface Settings {
   baselineShowNutrition: boolean;
+  onboardingDone: boolean;
 }
 
 interface PersistedState {
@@ -22,79 +24,105 @@ interface PersistedState {
   target: UserTarget;
   prefs: Preferences;
   selection: MealSelection | null;
-  session: { id: string; mode: Mode; startedAt: number } | null;
+  /** Set only while an assigned research trial is running (after "Begin"). */
+  lock: ExperimentLock | null;
+}
+
+export interface PlaceOrderResult {
+  order: PlacedOrder;
+  /** True when this order completed a research trial — show the neutral completion screen. */
+  research: boolean;
 }
 
 interface AppStateValue extends PersistedState {
   settings: Settings;
   setSettings: (patch: Partial<Settings>) => void;
+  /** Ignored while a research trial is locked. */
   setScenario: (id: ScenarioId) => void;
   setTarget: (patch: Partial<UserTarget>) => void;
   setPrefs: (patch: Partial<Preferences>) => void;
+  /** Restore the current scenario's canonical targets and preferences. */
+  resetTargets: () => void;
   selectMeal: (sel: MealSelection) => void;
   setOption: (groupId: string, optionId: string) => void;
   resetSelection: () => void;
-  startSession: (mode: Mode) => void;
-  log: (event: string, extra?: { mealId?: string; configurationId?: string; detail?: Record<string, unknown> }) => void;
-  placeOrder: () => PlacedOrder | null;
-  resetDemo: () => void;
+  beginExperiment: (a: Assignment) => ExperimentLock;
+  abortExperiment: () => void;
+  /** Research logging — a no-op outside an assigned trial (demo mode never logs). */
+  log: (event: string, extra?: Partial<Pick<ExperimentEvent, "mealId" | "configurationId" | "detail">>) => void;
+  placeOrder: () => PlaceOrderResult | null;
+  /** Demo lock: Scenario A, canonical data, no selection. Refused during a research trial. */
+  resetDemo: () => boolean;
 }
 
 const Ctx = createContext<AppStateValue | null>(null);
+const DEFAULT_SETTINGS: Settings = { baselineShowNutrition: true, onboardingDone: false };
 
 function initialFor(id: ScenarioId): PersistedState {
   const s = SCENARIOS[id];
-  return { scenarioId: id, target: { ...s.target }, prefs: { ...s.preferences }, selection: null, session: null };
+  return { scenarioId: id, target: { ...s.target }, prefs: { ...s.preferences }, selection: null, lock: null };
 }
 
 function dietToRestrictions(diet: Preferences["diet"]): string[] {
   return diet === "none" ? [] : [diet];
 }
 
+/** Guard against stale/partial persisted state from an older version. */
+function loadState(): PersistedState {
+  const raw = readJSON<Partial<PersistedState> | null>(STORAGE_KEYS.state, null);
+  if (!raw || !raw.scenarioId || !(raw.scenarioId in SCENARIOS) || !raw.target || !raw.prefs) return initialFor("A");
+  const lock = raw.lock && researchStore.get(raw.lock.sessionId)?.completedAt === undefined ? raw.lock : null;
+  return { ...initialFor(raw.scenarioId), ...raw, lock } as PersistedState;
+}
+
 export function AppStateProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<PersistedState>(() => readJSON(STORAGE_KEYS.state, initialFor("A")));
-  const [settings, setSettingsState] = useState<Settings>(() =>
-    readJSON(STORAGE_KEYS.settings, { baselineShowNutrition: true }),
-  );
+  const [state, setState] = useState<PersistedState>(loadState);
+  const [settings, setSettingsState] = useState<Settings>(() => ({
+    ...DEFAULT_SETTINGS,
+    ...readJSON<Partial<Settings>>(STORAGE_KEYS.settings, {}),
+  }));
   const stateRef = useRef(state);
   stateRef.current = state;
 
   useEffect(() => writeJSON(STORAGE_KEYS.state, state), [state]);
   useEffect(() => writeJSON(STORAGE_KEYS.settings, settings), [settings]);
 
-  const log = useCallback<AppStateValue["log"]>((event, extra) => {
-    const s = stateRef.current;
-    if (!s.session) return;
-    appendEvent({
-      timestamp: Date.now(),
-      mode: s.session.mode,
-      scenario: s.scenarioId,
-      sessionId: s.session.id,
-      event,
-      ...extra,
-    });
-  }, []);
-
-  const startSession = useCallback((mode: Mode) => {
-    const s = stateRef.current;
-    if (s.session && s.session.mode === mode) return;
-    const session = { id: newSessionId(), mode, startedAt: Date.now() };
-    const next = { ...s, session };
+  const commit = (next: PersistedState) => {
     stateRef.current = next;
     setState(next);
-    appendEvent({ timestamp: session.startedAt, mode, scenario: s.scenarioId, sessionId: session.id, event: "experiment_started" });
+  };
+
+  const log = useCallback<AppStateValue["log"]>((event, extra) => {
+    const lock = stateRef.current.lock;
+    if (lock) researchStore.log(lock.sessionId, event, extra);
   }, []);
 
-  const placeOrder = useCallback((): PlacedOrder | null => {
+  const beginExperiment = useCallback((a: Assignment): ExperimentLock => {
+    const current = stateRef.current.lock;
+    if (current) researchStore.abort(current.sessionId);
+    const session = researchStore.start(a);
+    const lock: ExperimentLock = { ...a, sessionId: session.sessionId, startedAt: session.startedAt };
+    commit({ ...initialFor(a.scenarioId), lock });
+    return lock;
+  }, []);
+
+  const abortExperiment = useCallback(() => {
+    const s = stateRef.current;
+    if (!s.lock) return;
+    researchStore.abort(s.lock.sessionId);
+    commit({ ...initialFor(s.scenarioId), lock: null });
+  }, []);
+
+  const placeOrder = useCallback((): PlaceOrderResult | null => {
     const s = stateRef.current;
     if (!s.selection) return null;
     const found = getMeal(s.selection.mealId);
-    if (!found || !isSelectionSupported(found.meal, s.selection.selections)) return null;
+    if (!found || !found.meal.nutrition || !isSelectionSupported(found.meal, s.selection.selections)) return null;
     const { nutrition, price } = computeConfiguration(found.meal, s.selection.selections);
     const order: PlacedOrder = {
       orderNumber: nextOrderNumber(),
       placedAt: Date.now(),
-      mode: s.session?.mode ?? "macrotable",
+      mode: s.lock?.condition ?? "macrotable",
       scenario: s.scenarioId,
       restaurantId: found.restaurant.id,
       mealId: found.meal.id,
@@ -103,19 +131,24 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       nutrition,
       price,
       handoff: found.restaurant.integrationLevel === 1,
-      sessionId: s.session?.id,
+      sessionId: s.lock?.sessionId,
       meetsTarget: meetsTarget(nutrition, s.target),
     };
     saveOrder(order);
-    if (s.session) {
-      const base = { mode: s.session.mode, scenario: s.scenarioId, sessionId: s.session.id, mealId: order.mealId, configurationId: order.configurationId };
-      appendEvent({ ...base, timestamp: order.placedAt, event: "order_confirmed", detail: { orderNumber: order.orderNumber, price, ...nutrition } });
-      appendEvent({ ...base, timestamp: order.placedAt, event: "experiment_completed", detail: { durationMs: order.placedAt - s.session.startedAt } });
+    if (s.lock) {
+      researchStore.complete(s.lock.sessionId, {
+        meal: found.meal,
+        restaurant: found.restaurant,
+        selections: order.selections,
+        nutrition,
+        price,
+        orderNumber: order.orderNumber,
+        at: order.placedAt,
+      });
+      commit({ ...s, selection: null, lock: null });
+      return { order, research: true };
     }
-    const next = { ...s, session: null };
-    stateRef.current = next;
-    setState(next);
-    return order;
+    return { order, research: false };
   }, []);
 
   const value = useMemo<AppStateValue>(
@@ -123,13 +156,18 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       ...state,
       settings,
       setSettings: (patch) => setSettingsState((p) => ({ ...p, ...patch })),
-      setScenario: (id) => setState(initialFor(id)),
+      setScenario: (id) => {
+        if (stateRef.current.lock) return;
+        commit(initialFor(id));
+      },
       setTarget: (patch) => setState((s) => ({ ...s, target: { ...s.target, ...patch } })),
       setPrefs: (patch) =>
         setState((s) => {
           const prefs = { ...s.prefs, ...patch };
           return { ...s, prefs, target: { ...s.target, dietaryRestrictions: dietToRestrictions(prefs.diet) } };
         }),
+      resetTargets: () =>
+        setState((s) => ({ ...s, target: { ...SCENARIOS[s.scenarioId].target }, prefs: { ...SCENARIOS[s.scenarioId].preferences } })),
       selectMeal: (selection) => setState((s) => ({ ...s, selection })),
       setOption: (groupId, optionId) =>
         setState((s) =>
@@ -139,12 +177,17 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         setState((s) =>
           s.selection?.recommended ? { ...s, selection: { ...s.selection, selections: { ...s.selection.recommended } } } : s,
         ),
-      startSession,
+      beginExperiment,
+      abortExperiment,
       log,
       placeOrder,
-      resetDemo: () => setState(initialFor(stateRef.current.scenarioId)),
+      resetDemo: () => {
+        if (stateRef.current.lock) return false;
+        commit(initialFor("A"));
+        return true;
+      },
     }),
-    [state, settings, startSession, log, placeOrder],
+    [state, settings, beginExperiment, abortExperiment, log, placeOrder],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
@@ -154,4 +197,13 @@ export function useAppState(): AppStateValue {
   const v = useContext(Ctx);
   if (!v) throw new Error("useAppState outside provider");
   return v;
+}
+
+/** Wipe only the app's UI state (never research data) — used by the error boundary. */
+export function hardResetUiState(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEYS.state);
+  } catch {
+    /* ignore */
+  }
 }

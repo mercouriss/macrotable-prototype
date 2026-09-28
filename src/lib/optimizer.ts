@@ -279,3 +279,62 @@ export function selectionLabel(meal: Meal, selections: Selections, groupId: stri
   if (!g) return "";
   return getOption(g, selections[groupId] ?? g.defaultOptionId)?.label ?? "";
 }
+
+// ─── Structured explanation: Meets · Trade-offs · Confidence ──────────────
+
+export interface Explanation {
+  meets: string[];
+  misses: string[];
+  tradeoffs: string[];
+  confidence: { provenance: Configuration["meal"]["provenance"]; text: string };
+}
+
+/**
+ * Plain-language explanation of a configuration against the target.
+ * States explicit differences only — no health percentages or scores.
+ */
+export function explainConfiguration(c: Configuration, target: UserTarget): Explanation {
+  const n = c.nutrition;
+  const est = c.meal.provenance === "estimated";
+  const ap = est ? "≈ " : "";
+  const meets: string[] = [];
+  const misses: string[] = [];
+  const tradeoffs: string[] = [];
+
+  if (n.protein >= target.protein) meets.push(`${est ? "Likely meets" : "Meets"} protein target (${ap}${n.protein} g vs ≥${target.protein} g)`);
+  else misses.push(`${ap}${target.protein - n.protein} g short of protein target`);
+
+  const calDiff = n.calories - target.calories;
+  if (Math.abs(calDiff) <= target.calories * 0.1) meets.push(`Calories within ±10% of ${target.calories} kcal`);
+  else misses.push(`${ap}${Math.abs(calDiff)} kcal ${calDiff > 0 ? "over" : "under"} your calorie range`);
+
+  const spare = Math.round((target.maxBudget - c.price) * 100) / 100;
+  if (spare >= 0) meets.push(spare === 0 ? "Exactly on budget" : `Within budget (€${spare.toFixed(2)} to spare)`);
+  else misses.push(`€${Math.abs(spare).toFixed(2)} over budget`);
+
+  const changes = changesFromDefault(c.meal, c.selections).length;
+  if (c.restaurant.integrationLevel === 1) misses.push("No modifications possible — restaurant not integrated");
+  else meets.push(changes ? `All ${changes} modifications supported by ${c.restaurant.name}` : "No modifications needed");
+
+  const diff = (v: number, unit: string, more: string, less: string, what: string) =>
+    v === 0 ? null : `${ap}${Math.abs(v)}${unit} ${v > 0 ? more : less} ${what}`;
+  const t = [
+    calDiff !== 0 && Math.abs(calDiff) <= target.calories * 0.1 ? diff(calDiff, " kcal", "above", "below", "your calorie target") : null,
+    n.protein > target.protein ? `${ap}${n.protein - target.protein} g more protein than your minimum` : null,
+    diff(n.carbs - target.carbs, " g", "more", "fewer", "carbs than your target"),
+    diff(n.fat - target.fat, " g", "more", "less", "fat than your target"),
+  ];
+  for (const x of t) if (x) tradeoffs.push(x);
+
+  const r = c.restaurant.name;
+  const confidence = {
+    provenance: c.meal.provenance,
+    text:
+      c.meal.provenance === "verified"
+        ? `Verified recipe data from ${r}: nutrition is calculated from the configured ingredients. Actual preparation may vary.`
+        : c.meal.provenance === "official"
+          ? `Official nutrition published by ${r}, combined with its published modifier values. Actual preparation may vary.`
+          : `Estimated from ${r}'s public menu — not verified by the restaurant. Actual nutrition may differ.`,
+  };
+  return { meets, misses, tradeoffs, confidence };
+}

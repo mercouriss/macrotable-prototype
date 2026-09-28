@@ -1,9 +1,13 @@
 import { Navigate, Route, Routes } from "react-router-dom";
-import { AppFrame } from "./components/AppFrame";
+import { AppFrame, DemoReset } from "./components/AppFrame";
 import { BaselineBrowse, BaselineDone, BaselineMeal, BaselineRestaurant, BaselineReview, BaselineStart } from "./baseline/Baseline";
 import { Orders, Profile } from "./screens/Account";
 import { Configure } from "./screens/Configure";
 import { Discover, RestaurantPage } from "./screens/Discover";
+import { Experiment, ExperimentDone } from "./screens/Experiment";
+import { Onboarding } from "./screens/Onboarding";
+import { Privacy } from "./screens/Privacy";
+import { RestaurantEntry } from "./screens/RestaurantEntry";
 import { Failure } from "./screens/Failure";
 import { Home } from "./screens/Home";
 import { MealDetail } from "./screens/MealDetail";
@@ -51,7 +55,16 @@ export function App() {
           <Route path="done/:orderNumber" element={<BaselineDone />} />
         </Route>
 
+        {/* Research: assignment links, neutral completion, dashboard */}
+        <Route path="experiment" element={<Experiment />} />
+        <Route path="experiment/done" element={<ExperimentDone />} />
         <Route path="research" element={<Research />} />
+
+        <Route path="welcome" element={<Onboarding />} />
+        <Route path="privacy" element={<Privacy />} />
+        <Route path="demo" element={<DemoReset />} />
+        {/* Table QR landing — demo QR codes encode this URL */}
+        <Route path="r/:restaurantId" element={<RestaurantEntry />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

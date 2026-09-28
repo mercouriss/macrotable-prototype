@@ -22,8 +22,9 @@ export function Review() {
   const ap = approx(meal.provenance);
 
   const confirm = () => {
-    const order = placeOrder();
-    if (order) navigate(`/macrotable/success/${order.orderNumber}`, { replace: true });
+    const result = placeOrder();
+    if (!result) return;
+    navigate(result.research ? "/experiment/done" : `/macrotable/success/${result.order.orderNumber}`, { replace: true });
   };
 
   return (
