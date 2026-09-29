@@ -1,4 +1,5 @@
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
+import { AcceptanceSequence } from "../components/AcceptanceSequence";
 import { Icon } from "../components/Icon";
 import { KitchenTicket } from "../components/KitchenTicket";
 import { SaveMealButton } from "../components/SaveMealButton";
@@ -22,6 +23,7 @@ function useOrder() {
 /** Screen 9 — order sent (or hand-off prepared for a non-integrated restaurant). */
 export function Success() {
   const order = useOrder();
+  const location = useLocation();
   const found = order && getMeal(order.mealId);
   if (!order || !found) return <NotFound />;
   const { meal, restaurant } = found;
@@ -55,36 +57,39 @@ export function Success() {
     );
   }
 
+  const fresh = !!(location.state as { fresh?: boolean } | null)?.fresh;
   return (
     <Screen
       footer={
         <div className="space-y-2">
-          <ButtonLink to={`/macrotable/ticket/${order.orderNumber}`} icon="receipt">
-            View kitchen ticket
-          </ButtonLink>
-          <ButtonLink to="/macrotable" variant="ghost">
+          <ButtonLink to="/macrotable" variant="secondary">
             Back to home
           </ButtonLink>
         </div>
       }
     >
-      <div className="flex flex-col items-center pt-20 text-center">
-        <span className="grid h-20 w-20 animate-rise place-items-center rounded-full bg-brand text-white shadow-[0_12px_30px_-10px_rgb(30_107_82/0.6)]">
-          <Icon name="check" size={38} stroke={2.6} />
-        </span>
-        <h1 className="mt-6 font-display text-[28px] font-semibold tracking-[-0.02em]">Order sent</h1>
-        <p className="mt-2 max-w-[290px] text-[15px] leading-relaxed text-ink-2">
-          {restaurant.name} received your approved order exactly as configured
-          {order.serviceMode === "in-store" ? " — show your code at the counter." : "."}
-        </p>
-        <p className="tnum mt-6 rounded-full bg-sunken px-4 py-2 text-[13px] font-medium text-ink-2">
-          {order.serviceMode === "in-store" ? "In-store" : "Pickup"} code <span className="font-bold text-ink">{order.pickupCode}</span>
-          {order.serviceMode === "pickup" ? ` · ready in ~${restaurant.pickupMinutes} min` : ""}
+      <div className="pt-10">
+        <h1 className="font-display text-[26px] font-semibold tracking-[-0.02em]">Order approved</h1>
+        <p className="mt-1 text-[14px] text-ink-2">
+          {meal.name} · {restaurant.name}
         </p>
         <div className="mt-6">
-          <SaveMealButton mealId={meal.id} selections={order.selections} />
+          <AcceptanceSequence order={order} restaurant={restaurant} animate={fresh}>
+            <div className="text-center">
+              <p className="tnum inline-block rounded-full bg-brand-soft px-4 py-2 text-[13.5px] font-medium text-brand">
+                {order.serviceMode === "in-store" ? "In-store" : "Pickup"} code <span className="font-bold">{order.pickupCode}</span>
+                {order.serviceMode === "pickup" ? ` · ready in ~${restaurant.pickupMinutes} min` : ""}
+              </p>
+              <div className="mt-6">
+                <KitchenTicket order={order} />
+              </div>
+              <div className="mt-6">
+                <SaveMealButton mealId={meal.id} selections={order.selections} />
+              </div>
+            </div>
+          </AcceptanceSequence>
         </div>
-        <p className="mt-8 text-[12.5px] text-ink-3">Simulated order — no real kitchen received it and nothing was charged.</p>
+        <p className="mt-8 mb-6 text-center text-[12.5px] text-ink-3">Simulated order — no real kitchen received it and nothing was charged.</p>
       </div>
     </Screen>
   );

@@ -417,6 +417,9 @@ export const CSV_COLUMNS = [
   "baseline_nutrition_visible",
   "agent_mode",
   "agent_proxy_configured",
+  // Which live/offline engines answered (never message text): primary / secondary / offline, joined by "+"
+  "agent_engine",
+  "agent_models",
 ] as const;
 
 /** Which agent engine answered in a session: gemini / mock / mixed, or "" if the agent wasn't used. */
@@ -425,6 +428,33 @@ export function agentProvider(s: ParticipantSession): string {
     s.events.filter((e) => e.event === "agent_reply").map((e) => (e.detail as { provider?: string } | undefined)?.provider).filter((x) => x === "gemini" || x === "mock"),
   );
   return p.size === 2 ? "mixed" : ([...p][0] ?? "");
+}
+
+/**
+ * Engine identity across a session's agent replies: "primary" (proxy's primary Gemini model),
+ * "secondary" (proxy's fallback Gemini model), "offline" (deterministic offline demo agent).
+ * Joined with "+" when a session mixes them; "" if the agent never replied. Context turns built
+ * directly from tool results ("tools") are deterministic and don't count as an engine.
+ */
+export function agentEngine(s: ParticipantSession): string {
+  const used = new Set<string>();
+  for (const e of s.events) {
+    if (e.event !== "agent_reply") continue;
+    const d = (e.detail ?? {}) as { provider?: string; modelFallback?: boolean };
+    if (d.provider === "gemini") used.add(d.modelFallback ? "secondary" : "primary");
+    else if (d.provider === "mock") used.add("offline");
+  }
+  return ["primary", "secondary", "offline"].filter((x) => used.has(x)).join("+");
+}
+
+/** Distinct live model ids that answered in a session (from the proxy / Gemini response). */
+export function agentModels(s: ParticipantSession): string {
+  const m = new Set<string>();
+  for (const e of s.events) if (e.event === "agent_reply") {
+    const model = (e.detail as { model?: string } | undefined)?.model;
+    if (model) m.add(model);
+  }
+  return [...m].sort().join(";");
 }
 
 export function csvCell(v: unknown): string {
@@ -484,6 +514,8 @@ export function sessionsToCSV(sessions: ParticipantSession[]): string {
       baseline_nutrition_visible: s.build?.baselineNutritionVisible,
       agent_mode: s.build?.agentMode,
       agent_proxy_configured: s.build?.agentProxyConfigured,
+      agent_engine: agentEngine(s),
+      agent_models: agentModels(s),
     };
     return CSV_COLUMNS.map((c) => csvCell(row[c])).join(",");
   });

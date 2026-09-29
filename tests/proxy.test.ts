@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import worker, { DEFAULT_MODEL, sanitizeRequest, SERVER_POLICY, type Env } from "../proxy/src/index";
+import worker, { DEFAULT_MODEL, isRetryable, sanitizeRequest, SERVER_POLICY, type Env } from "../proxy/src/index";
 
 const ORIGIN = "https://mercouriss.github.io";
 const env = (over: Partial<Env> = {}): Env => ({ GEMINI_API_KEY: "test-secret-key", ALLOWED_ORIGINS: `${ORIGIN},http://localhost:5173`, ...over });
@@ -26,7 +26,7 @@ describe("agent proxy (Cloudflare Worker)", () => {
     const res = await worker.fetch(new Request("https://proxy.test/v1/health", { headers: { Origin: ORIGIN } }), env());
     expect(res.status).toBe(200);
     const text = await res.text();
-    expect(JSON.parse(text)).toEqual({ ok: true, model: DEFAULT_MODEL });
+    expect(JSON.parse(text)).toEqual({ ok: true, model: DEFAULT_MODEL, fallbackModel: null });
     expect(text).not.toContain("test-secret-key");
     expect(res.headers.get("Access-Control-Allow-Origin")).toBe(ORIGIN);
   });
@@ -83,5 +83,97 @@ describe("agent proxy (Cloudflare Worker)", () => {
     await worker.fetch(post({ contents: [] }, ORIGIN, "5.5.5.5"), e);
     const r3 = await worker.fetch(post({ contents: [] }, ORIGIN, "5.5.5.5"), e);
     expect(await r3.json()).toEqual({ error: "Too many requests" });
+  });
+});
+
+// ─── Primary → secondary model fallback ────────────────────────────────────
+
+const FALLBACK = "gemini-2.5-flash";
+const OK_BODY = { candidates: [{ content: { role: "model", parts: [{ text: "hi" }] } }] };
+
+/** Scripted upstream: one response per call, in order; records which model each call hit. */
+function scriptUpstream(...responses: ({ status: number; body: unknown } | "network-error")[]) {
+  const models: string[] = [];
+  vi.stubGlobal("fetch", async (url: string) => {
+    models.push(decodeURIComponent(url.split("/models/")[1].split(":")[0]));
+    const r = responses[models.length - 1];
+    if (!r || r === "network-error") throw new TypeError("fetch failed");
+    return new Response(JSON.stringify(r.body), { status: r.status });
+  });
+  return models;
+}
+const fbEnv = (over: Partial<Env> = {}) => env({ GEMINI_MODEL: "gemini-3.8-flash", GEMINI_FALLBACK_MODEL: FALLBACK, ...over });
+let ipN = 0;
+const gen = (e: Env) => worker.fetch(post({ contents: [{ role: "user", parts: [{ text: "hi" }] }] }, ORIGIN, `10.0.0.${++ipN}`), e);
+
+describe("agent proxy: primary → secondary model fallback", () => {
+  it("health reports primary and fallback model ids, never the key", async () => {
+    const res = await worker.fetch(new Request("https://proxy.test/v1/health", { headers: { Origin: ORIGIN } }), fbEnv());
+    const text = await res.text();
+    expect(JSON.parse(text)).toEqual({ ok: true, model: "gemini-3.8-flash", fallbackModel: FALLBACK });
+    expect(text).not.toContain("test-secret-key");
+  });
+
+  it("primary success: the secondary is never called; metadata says primary", async () => {
+    const models = scriptUpstream({ status: 200, body: OK_BODY });
+    const res = await gen(fbEnv());
+    expect(res.status).toBe(200);
+    expect(models).toEqual(["gemini-3.8-flash"]);
+    expect(res.headers.get("X-MacroTable-Model")).toBe("gemini-3.8-flash");
+    expect(res.headers.get("X-MacroTable-Model-Fallback")).toBe("0");
+    expect(res.headers.get("Access-Control-Expose-Headers")).toContain("X-MacroTable-Model-Fallback");
+  });
+
+  it.each([
+    ["429 rate/quota", { status: 429, body: { error: { status: "RESOURCE_EXHAUSTED", message: "quota" } } }],
+    ["503 high demand", { status: 503, body: { error: { status: "UNAVAILABLE", message: "The model is overloaded" } } }],
+    ["500 internal", { status: 500, body: { error: { status: "INTERNAL" } } }],
+    ["504 deadline", { status: 504, body: { error: { status: "DEADLINE_EXCEEDED" } } }],
+    ["network error / timeout", "network-error" as const],
+  ])("retryable primary failure (%s) → one secondary call, returned normally", async (_label, first) => {
+    const models = scriptUpstream(first, { status: 200, body: OK_BODY });
+    const res = await gen(fbEnv());
+    expect(res.status).toBe(200);
+    expect(models).toEqual(["gemini-3.8-flash", FALLBACK]);
+    expect(res.headers.get("X-MacroTable-Model")).toBe(FALLBACK);
+    expect(res.headers.get("X-MacroTable-Model-Fallback")).toBe("1");
+    expect(await res.json()).toEqual(OK_BODY);
+  });
+
+  it.each([
+    ["400 malformed request / invalid tool schema", 400, "INVALID_ARGUMENT"],
+    ["401 auth", 401, "UNAUTHENTICATED"],
+    ["403 permission / policy", 403, "PERMISSION_DENIED"],
+    ["404 unknown model", 404, "NOT_FOUND"],
+  ])("non-retryable primary failure (%s) → no secondary call", async (_label, status, errorStatus) => {
+    const models = scriptUpstream({ status, body: { error: { status: errorStatus, message: "nope" } } }, { status: 200, body: OK_BODY });
+    const res = await gen(fbEnv());
+    expect(models).toEqual(["gemini-3.8-flash"]);
+    expect(res.status).toBe(502);
+    expect(res.headers.get("X-MacroTable-Model-Fallback")).toBe("0");
+  });
+
+  it("both live models unavailable → error (the app's offline agent then answers); exactly two calls, no loop", async () => {
+    const models = scriptUpstream({ status: 503, body: { error: { status: "UNAVAILABLE" } } }, { status: 429, body: { error: { status: "RESOURCE_EXHAUSTED" } } });
+    const res = await gen(fbEnv());
+    expect(models).toEqual(["gemini-3.8-flash", FALLBACK]);
+    expect(res.ok).toBe(false);
+    expect(res.headers.get("X-MacroTable-Model-Fallback")).toBe("1");
+  });
+
+  it("no fallback model configured (or same as primary) → single attempt", async () => {
+    const m1 = scriptUpstream({ status: 503, body: {} });
+    await gen(fbEnv({ GEMINI_FALLBACK_MODEL: undefined }));
+    expect(m1).toEqual(["gemini-3.8-flash"]);
+    const m2 = scriptUpstream({ status: 503, body: {} });
+    await gen(fbEnv({ GEMINI_FALLBACK_MODEL: "gemini-3.8-flash" }));
+    expect(m2).toEqual(["gemini-3.8-flash"]);
+  });
+
+  it("classifies statuses conservatively", () => {
+    for (const s of [0, 429, 500, 502, 503, 504]) expect(isRetryable(s)).toBe(true);
+    for (const s of [400, 401, 403, 404, 413, 422]) expect(isRetryable(s, "UNAVAILABLE")).toBe(false);
+    expect(isRetryable(501)).toBe(false);
+    expect(isRetryable(501, "UNAVAILABLE")).toBe(true);
   });
 });

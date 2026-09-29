@@ -158,7 +158,7 @@ export function Explore() {
         <ul className="mt-3 mb-6 space-y-3 px-5" aria-label={`${visible.length} restaurants`}>
           {visible.map((p) => (
             <li key={p.r.id} ref={(el) => void (cardRefs.current[p.r.id] = el)} className="scroll-mt-4">
-              <PlaceCard place={p} selected={selected === p.r.id} onSelect={() => setSelected(p.r.id)} />
+              <PlaceCard place={p} selected={selected === p.r.id} />
             </li>
           ))}
         </ul>
@@ -167,25 +167,40 @@ export function Explore() {
   );
 }
 
-function PlaceCard({ place, selected, onSelect }: { place: Place; selected: boolean; onSelect: () => void }) {
+/**
+ * The whole card opens the restaurant (single tap/click): the name link's ::after covers the card.
+ * Inner actions (badge, View menu, Ask Agent, Scan menu) sit above that overlay (relative z-10), so
+ * they do only their own thing and no interactive element is nested inside another.
+ */
+function PlaceCard({ place, selected }: { place: Place; selected: boolean }) {
   const { r, km, best } = place;
   return (
-    <Card className={`p-4 transition-shadow ${selected ? "ring-2 ring-ink/70" : ""}`}>
-      <button className="flex w-full items-center gap-3 text-left" onClick={onSelect} aria-pressed={selected}>
+    <Card
+      className={`relative p-4 transition-[box-shadow,transform,background-color] duration-150 hover:bg-surface hover:shadow-lift active:scale-[0.99] has-[[data-card-link]:focus-visible]:ring-2 has-[[data-card-link]:focus-visible]:ring-brand ${selected ? "ring-2 ring-ink/70" : ""}`}
+    >
+      <div className="flex w-full items-center gap-3">
         <BrandMark restaurant={r} size={42} />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[16px] font-semibold tracking-tight">{r.name}</span>
+          <Link
+            to={`/macrotable/explore/${r.id}`}
+            data-card-link
+            aria-label={`${r.name}: open ${r.identity === "real" ? "details (real restaurant, not affiliated)" : "menu (demo restaurant)"}`}
+            className="block truncate text-[16px] font-semibold tracking-tight outline-none after:absolute after:inset-0 after:rounded-[22px] after:content-['']"
+          >
+            {r.name}
+          </Link>
           <span className="tnum block truncate text-[12.5px] text-ink-3">
             {r.cuisine} · {formatDistance(km)}
             {r.priceRange ? ` · ${r.priceRange}` : ""}
           </span>
         </span>
-      </button>
+        <Icon name="chevronRight" size={18} className="shrink-0 text-ink-3" />
+      </div>
       {r.identity === "real" ? (
         <RealBody r={r} />
       ) : (
         <>
-          <div className="mt-2.5">
+          <div className="relative z-10 mt-2.5 w-fit">
             <RestaurantBadge restaurant={r} size="sm" />
           </div>
           <DemoBody r={r} best={best} />
@@ -216,7 +231,7 @@ function DemoBody({ r, best }: { r: Restaurant; best?: ScoredConfiguration }) {
       ) : (
         <p className="mt-2.5 text-[13px] text-ink-3">Nothing here within €{target.maxBudget} for your preferences</p>
       )}
-      <div className="mt-3 grid grid-cols-2 gap-2">
+      <div className="relative z-10 mt-3 grid grid-cols-2 gap-2">
         <Link
           to={`/macrotable/explore/${r.id}`}
           className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-2xl border border-line bg-surface text-[14px] font-semibold text-ink-2 hover:bg-sunken"
@@ -234,11 +249,13 @@ function RealBody({ r }: { r: Restaurant }) {
   return (
     <>
       <div className="mt-2.5 flex items-center justify-between gap-2">
-        <RestaurantBadge restaurant={r} size="sm" />
+        <span className="relative z-10">
+          <RestaurantBadge restaurant={r} size="sm" />
+        </span>
         <button
           onClick={() => navigate(`/macrotable/scan?type=menu&restaurant=${r.id}`, { state: { userTap: true } })}
           aria-label={`Scan the menu at ${r.name}`}
-          className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border border-brand/30 bg-brand-soft/60 px-3 text-[13px] font-semibold text-brand hover:bg-brand-soft"
+          className="relative z-10 inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-full border border-brand/30 bg-brand-soft/60 px-3 text-[13px] font-semibold text-brand hover:bg-brand-soft"
         >
           <Icon name="camera" size={15} /> Scan menu
         </button>

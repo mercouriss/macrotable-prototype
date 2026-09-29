@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import type { ServiceMode } from "../types";
 import { BrandMark } from "../components/BrandMark";
 import { Icon } from "../components/Icon";
@@ -26,11 +26,12 @@ export function Review() {
   const changes = changesFromDefault(meal, config.selections);
   const ap = approx(meal.provenance);
 
+  const placed = selection?.placedOrderNumber;
   const confirm = () => {
     const result = placeOrder(mode);
     if (!result) return;
     if (result.research) navigate("/experiment/done", { replace: true, state: { completed: true } });
-    else navigate(`/macrotable/success/${result.order.orderNumber}`, { replace: true });
+    else navigate(`/macrotable/success/${result.order.orderNumber}`, { replace: true, state: { fresh: true } });
   };
 
   return (
@@ -39,9 +40,20 @@ export function Review() {
       back={handoff ? `/macrotable/meal/${meal.id}` : `/macrotable/configure/${meal.id}`}
       footer={
         <div className="space-y-2">
-          <Button disabled={!inBudget} onClick={confirm} icon={handoff ? "handoff" : "check"}>
-            {handoff ? "Approve hand-off summary" : "Approve order"}
-          </Button>
+          {placed ? (
+            <>
+              <Button disabled aria-disabled="true" icon="check" variant="secondary">
+                Order completed
+              </Button>
+              <Link to={handoff ? `/macrotable/success/${placed}` : `/macrotable/ticket/${placed}`} className="flex min-h-10 items-center justify-center text-[13.5px] font-semibold text-brand">
+                View order {placed}
+              </Link>
+            </>
+          ) : (
+            <Button disabled={!inBudget} onClick={confirm} icon={handoff ? "handoff" : "check"}>
+              {handoff ? "Approve hand-off summary" : "Approve order"}
+            </Button>
+          )}
           <p className="text-center text-[12.5px] text-ink-3">Nothing is ordered until you approve · simulated, no payment</p>
         </div>
       }

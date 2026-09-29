@@ -6,6 +6,7 @@ import { SCENARIOS } from "../data/scenarios";
 import { meetsTarget } from "../lib/feasibility";
 import { nextOrderNumber, readJSON, saveOrder, STORAGE_KEYS, writeJSON } from "../lib/experiment";
 import { computeConfiguration, configurationId, isSelectionSupported } from "../lib/nutrition";
+import { canPlaceSelection } from "../lib/orderState";
 import { clearSaved } from "../lib/saved";
 import { researchStore, type Assignment, type ExperimentLock } from "../lib/research";
 import type { ExperimentEvent, PlacedOrder, Preferences, ScenarioId, Selections, ServiceMode, UserTarget } from "../types";
@@ -15,6 +16,10 @@ export interface MealSelection {
   selections: Selections;
   /** The optimiser's configuration for this meal, used for "Reset to MacroTable version". */
   recommended?: Selections;
+  /** Agent recommendation card this attempt started from (so that card can show "Order completed"). */
+  origin?: string;
+  /** Set once this exact attempt has been ordered: the attempt is immutable and can't be submitted again. */
+  placedOrderNumber?: string;
 }
 
 export interface Settings {
@@ -147,6 +152,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const placeOrder = useCallback((mode: ServiceMode = "pickup", explicit?: MealSelection): PlaceOrderResult | null => {
     const s = explicit ? { ...stateRef.current, selection: explicit } : stateRef.current;
     if (!s.selection) return null;
+    // Idempotent: an attempt that was already ordered can never be submitted again (double tap,
+    // browser back, programmatic call). Changing the configuration starts a new attempt.
+    if (!canPlaceSelection(s.selection) || (explicit && !canPlaceSelection(stateRef.current.selection, explicit))) return null;
     const found = getMeal(s.selection.mealId);
     if (!found || !found.meal.nutrition || !isSelectionSupported(found.meal, s.selection.selections)) return null;
     // Study boundary: during a trial only the frozen study restaurants can complete it.
@@ -167,9 +175,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       serviceMode: found.restaurant.integrationLevel === 1 ? "handoff" : mode,
       pickupCode: pickupCodeFor(nextOrderNumber()),
       sessionId: s.lock?.sessionId,
+      ...(s.selection.origin ? { origin: s.selection.origin } : {}),
       meetsTarget: meetsTarget(nutrition, s.target),
     };
     saveOrder(order);
+    const placedSelection = { ...s.selection, placedOrderNumber: order.orderNumber };
     if (s.lock) {
       researchStore.complete(s.lock.sessionId, {
         meal: found.meal,
@@ -182,9 +192,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       });
       // Keep `selection`: clearing it here makes the review screen's own "no selection" guard
       // redirect after we navigate to the neutral completion screen. Begin resets state anyway.
-      commit({ ...s, lock: null });
+      commit({ ...s, selection: placedSelection, lock: null });
       return { order, research: true };
     }
+    commit({ ...s, selection: placedSelection });
     return { order, research: false };
   }, []);
 
@@ -208,11 +219,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       selectMeal: (selection) => setState((s) => ({ ...s, selection })),
       setOption: (groupId, optionId) =>
         setState((s) =>
-          s.selection ? { ...s, selection: { ...s.selection, selections: { ...s.selection.selections, [groupId]: optionId } } } : s,
+          s.selection
+            ? { ...s, selection: { ...s.selection, selections: { ...s.selection.selections, [groupId]: optionId }, placedOrderNumber: undefined } }
+            : s,
         ),
       resetSelection: () =>
         setState((s) =>
-          s.selection?.recommended ? { ...s, selection: { ...s.selection, selections: { ...s.selection.recommended } } } : s,
+          s.selection?.recommended ? { ...s, selection: { ...s.selection, selections: { ...s.selection.recommended }, placedOrderNumber: undefined } } : s,
         ),
       beginExperiment,
       abortExperiment,

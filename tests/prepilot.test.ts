@@ -82,6 +82,8 @@ describe("pre-pilot: freeze fingerprint", () => {
 
   it("matches the V3.5 candidate (a change here means a NEW treatment version)", () => {
     const hex = createHash("sha256").update(agentConfigDocument()).digest("hex");
-    expect(hex).toBe("24e9ac493899deaa7502d7029993892725f96769f03bb7ddfa59013b9cc5501c");
+    // Re-pinned before the pilot (nothing frozen yet): the fallback policy now includes the proxy's
+    // secondary Gemini model. Previous candidate: 24e9ac493899deaa7502d7029993892725f96769f03bb7ddfa59013b9cc5501c.
+    expect(hex).toBe("e6b5839d0b2fd1eea48b7bf20c9609e0837640e0fada10996a68138b876df811");
   });
 });

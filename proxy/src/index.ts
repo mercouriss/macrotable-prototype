@@ -7,6 +7,13 @@
  * output-token caps, field allow-list, a server policy preamble that keeps the
  * model on MacroTable's task, and a best-effort per-IP rate limit. Request
  * bodies (chat text, menu photos) are never logged or stored.
+ *
+ * Model fallback: the PRIMARY model (GEMINI_MODEL) is always called first. Only
+ * if it fails with a retryable, temporary upstream condition (see isRetryable)
+ * is the SECONDARY model (GEMINI_FALLBACK_MODEL) called — exactly once, no loops.
+ * Every response says which model answered (X-MacroTable-Model) and whether the
+ * secondary was used (X-MacroTable-Model-Fallback: 0/1). If both fail, the app's
+ * own offline demo agent takes over, as before.
  */
 
 export interface Env {
@@ -14,11 +21,18 @@ export interface Env {
   /** Comma-separated origins, e.g. "https://mercouriss.github.io,http://localhost:5173". */
   ALLOWED_ORIGINS?: string;
   GEMINI_MODEL?: string;
+  GEMINI_FALLBACK_MODEL?: string;
   MAX_BODY_BYTES?: string;
   RATE_LIMIT_PER_MINUTE?: string;
 }
 
 export const DEFAULT_MODEL = "gemini-3.8-flash";
+/** Per-attempt upstream budget. Primary + secondary stay under the app's 25 s per-round timeout. */
+export const PRIMARY_TIMEOUT_MS = 14_000;
+export const SECONDARY_TIMEOUT_MS = 9_000;
+/** Response headers readable by the app (non-sensitive: model id + fallback flag). */
+export const MODEL_HEADER = "X-MacroTable-Model";
+export const FALLBACK_HEADER = "X-MacroTable-Model-Fallback";
 const UPSTREAM = "https://generativelanguage.googleapis.com/v1beta/models";
 
 export const SERVER_POLICY =
@@ -33,6 +47,7 @@ function cors(origin: string | null, allowed: string[]): Record<string, string> 
     h["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
     h["Access-Control-Allow-Headers"] = "content-type";
     h["Access-Control-Max-Age"] = "600";
+    h["Access-Control-Expose-Headers"] = `${MODEL_HEADER}, ${FALLBACK_HEADER}`;
   }
   return h;
 }
@@ -71,6 +86,56 @@ export function sanitizeRequest(body: Record<string, unknown>) {
   return out;
 }
 
+/** Gemini error statuses that mean "temporarily unavailable", independent of the HTTP code. */
+const RETRYABLE_STATUS = new Set(["RESOURCE_EXHAUSTED", "UNAVAILABLE", "DEADLINE_EXCEEDED"]);
+
+/**
+ * Retry on the secondary model ONLY for temporary upstream availability problems:
+ * 429 (rate/quota/capacity), 500/502/503/504, Gemini's RESOURCE_EXHAUSTED / UNAVAILABLE /
+ * DEADLINE_EXCEEDED, or a network error/timeout reaching Gemini (status 0).
+ * NOT retried: 400 (malformed request, invalid tool schema), 401/403 (auth/permission),
+ * 404 (unknown model/misconfiguration), 413, and any 2xx (including safety-blocked answers).
+ */
+export function isRetryable(status: number, errorStatus?: string): boolean {
+  if (status === 0 || status === 429 || status === 500 || status === 502 || status === 503 || status === 504) return true;
+  if (status >= 400 && status < 500) return false;
+  return !!errorStatus && RETRYABLE_STATUS.has(errorStatus);
+}
+
+interface Attempt {
+  ok: boolean;
+  status: number;
+  text: string;
+  errorStatus?: string;
+  message?: string;
+}
+
+async function callModel(model: string, key: string, payload: string, timeoutMs: number): Promise<Attempt> {
+  let res: Response;
+  try {
+    res = await fetch(`${UPSTREAM}/${encodeURIComponent(model)}:generateContent`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-goog-api-key": key },
+      body: payload,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch {
+    return { ok: false, status: 0, text: "", message: "Upstream unreachable or timed out" };
+  }
+  const text = await res.text();
+  if (res.ok) return { ok: true, status: res.status, text };
+  let message = `Upstream error ${res.status}`;
+  let errorStatus: string | undefined;
+  try {
+    const e = (JSON.parse(text) as { error?: { message?: string; status?: string } }).error;
+    message = e?.message?.slice(0, 300) ?? message;
+    errorStatus = e?.status;
+  } catch {
+    /* keep generic */
+  }
+  return { ok: false, status: res.status, text, errorStatus, message };
+}
+
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const allowed = (env.ALLOWED_ORIGINS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -78,9 +143,10 @@ export default {
     const h = cors(origin, allowed);
     const url = new URL(req.url);
     const model = env.GEMINI_MODEL || DEFAULT_MODEL;
+    const fallbackModel = env.GEMINI_FALLBACK_MODEL && env.GEMINI_FALLBACK_MODEL !== model ? env.GEMINI_FALLBACK_MODEL : null;
 
     if (req.method === "OPTIONS") return new Response(null, { status: origin && allowed.includes(origin) ? 204 : 403, headers: h });
-    if (url.pathname === "/v1/health" && req.method === "GET") return json({ ok: !!env.GEMINI_API_KEY, model }, env.GEMINI_API_KEY ? 200 : 503, h);
+    if (url.pathname === "/v1/health" && req.method === "GET") return json({ ok: !!env.GEMINI_API_KEY, model, fallbackModel }, env.GEMINI_API_KEY ? 200 : 503, h);
     if (url.pathname !== "/v1/generate" || req.method !== "POST") return json({ error: "Not found" }, 404, h);
 
     if (!origin || !allowed.includes(origin)) return json({ error: "Origin not allowed" }, 403, h);
@@ -103,21 +169,15 @@ export default {
       return json({ error: "Invalid JSON" }, 400, h);
     }
 
-    const upstream = await fetch(`${UPSTREAM}/${encodeURIComponent(model)}:generateContent`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
-      body: JSON.stringify(sanitizeRequest(body)),
-    });
-    const text = await upstream.text();
-    if (!upstream.ok) {
-      let message = `Upstream error ${upstream.status}`;
-      try {
-        message = (JSON.parse(text) as { error?: { message?: string } }).error?.message?.slice(0, 300) ?? message;
-      } catch {
-        /* keep generic */
-      }
-      return json({ error: message }, upstream.status === 429 ? 429 : 502, h);
+    const payload = JSON.stringify(sanitizeRequest(body));
+    let used = model;
+    let attempt = await callModel(model, env.GEMINI_API_KEY, payload, PRIMARY_TIMEOUT_MS);
+    if (!attempt.ok && fallbackModel && isRetryable(attempt.status, attempt.errorStatus)) {
+      used = fallbackModel;
+      attempt = await callModel(fallbackModel, env.GEMINI_API_KEY, payload, SECONDARY_TIMEOUT_MS); // one attempt, no loop
     }
-    return new Response(text, { status: 200, headers: { ...h, "content-type": "application/json", "cache-control": "no-store" } });
+    const meta = { [MODEL_HEADER]: used, [FALLBACK_HEADER]: used === model ? "0" : "1" };
+    if (!attempt.ok) return json({ error: attempt.message }, attempt.status === 429 ? 429 : 502, { ...h, ...meta });
+    return new Response(attempt.text, { status: 200, headers: { ...h, ...meta, "content-type": "application/json", "cache-control": "no-store" } });
   },
 };

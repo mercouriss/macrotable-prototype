@@ -82,6 +82,20 @@ def agent_provider(s):
     return "mixed" if len(p) == 2 else (p.pop() if p else "")
 
 
+def agent_engine(s):
+    """primary / secondary (proxy fallback model) / offline, joined by '+'; '' if the agent never replied."""
+    used = set()
+    for e in s["events"]:
+        if e["event"] != "agent_reply":
+            continue
+        d = e.get("detail") or {}
+        if d.get("provider") == "gemini":
+            used.add("secondary" if d.get("modelFallback") else "primary")
+        elif d.get("provider") == "mock":
+            used.add("offline")
+    return "+".join(x for x in ("primary", "secondary", "offline") if x in used)
+
+
 def num(x):
     return "" if x is None else x
 
@@ -166,6 +180,7 @@ def build_observations(sessions, survey, treatment="V3.5"):
                 "agent_messages": ev.count("agent_message_sent"),
                 "agent_tool_calls": ev.count("agent_tool_called"),
                 "agent_provider": agent_provider(s),
+                "agent_engine": agent_engine(s),
                 "agent_fallbacks": ev.count("agent_fallback"),
                 "agent_order_approved": int("order_approved_in_agent" in ev),
                 "treatment_version": treatment_of(s),
@@ -303,14 +318,17 @@ def main():
     if mt:
         L.append("")
         used = [r for r in mt if r["agent_messages"] or r["agent_tool_calls"]]
-        prov = defaultdict(int)
+        prov, eng = defaultdict(int), defaultdict(int)
         for r in mt:
             prov[r["agent_provider"] or "not used"] += 1
+            eng[r["agent_engine"] or "not used"] += 1
         L.append(
             f"MacroAgent use (MacroTable observations): {len(used)}/{len(mt)} used the agent · "
             f"median messages {statistics.median(r['agent_messages'] for r in mt):g} · "
             f"engine: " + ", ".join(f"{k} {v}" for k, v in sorted(prov.items())) +
             f" · sessions with a live→offline fallback: {sum(1 for r in mt if r['agent_fallbacks'])}"
+            f" · engine mix (primary / secondary / offline; decide pooling per the freeze record): "
+            + ", ".join(f"{k} {v}" for k, v in sorted(eng.items()))
         )
     L.append("")
     L.append("Dimension errors (mean |error|, all completed): " + " · ".join(

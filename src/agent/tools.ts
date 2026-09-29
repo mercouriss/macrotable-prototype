@@ -448,6 +448,7 @@ const prepareOrder: ToolDef = {
       mode,
       readyInMinutes: mode === "pickup" ? r?.pickupMinutes : undefined,
       status: "awaiting-approval",
+      createdAt: Date.now(),
     };
     state.orderDrafts = [...state.orderDrafts.filter((d) => d.status !== "awaiting-approval"), draft];
     return {

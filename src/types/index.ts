@@ -170,4 +170,6 @@ export interface PlacedOrder {
   pickupCode: string;
   sessionId?: string;
   meetsTarget: boolean;
+  /** Agent recommendation card the order came from, if any (drives that card's "Order completed" state). */
+  origin?: string;
 }

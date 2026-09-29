@@ -5,6 +5,8 @@ import type { AgentMessage, QuickAction } from "../agent/types";
 import { AgentCardView } from "../components/agent/AgentCards";
 import { Icon } from "../components/Icon";
 import { Screen } from "../components/Screen";
+import { getOrders } from "../lib/experiment";
+import { completedOrderFor } from "../lib/orderState";
 import { useAppState } from "../state/AppState";
 
 export interface AgentContextRequest {
@@ -171,6 +173,10 @@ const PROVIDER_LABEL = { gemini: "Gemini", mock: "Offline demo agent", tools: "M
 
 function MessageView({ m, last, onAction }: { m: AgentMessage; last: boolean; onAction: (a: QuickAction) => void }) {
   const [showTools, setShowTools] = useState(false);
+  const { state } = useAgent();
+  // A recommendation that was already ordered can't be prepared again from its quick replies.
+  const rec = state.currentRecommendation;
+  const recCompleted = !!rec && !!completedOrderFor(rec, { since: m.createdAt }, getOrders());
   if (m.role === "user")
     return (
       <li className="flex justify-end">
@@ -194,7 +200,7 @@ function MessageView({ m, last, onAction }: { m: AgentMessage; last: boolean; on
       <p className="max-w-[92%] animate-rise rounded-2xl rounded-bl-md bg-surface px-3.5 py-2.5 text-[14.5px] leading-snug whitespace-pre-wrap shadow-card">{m.text}</p>
       {m.cards?.map((c, i) => (
         <div key={i} className="animate-rise" style={{ animationDelay: `${80 + i * 60}ms` }}>
-          <AgentCardView card={c} />
+          <AgentCardView card={c} since={m.createdAt} originId={`${m.id}:${i}`} />
         </div>
       ))}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-ink-3">
@@ -216,7 +222,7 @@ function MessageView({ m, last, onAction }: { m: AgentMessage; last: boolean; on
       )}
       {last && !!m.actions?.length && (
         <div className="flex flex-wrap gap-2 pt-1">
-          {m.actions.map((a) => (
+          {m.actions.filter((a) => !(a.kind === "prepare" && recCompleted)).map((a) => (
             <button
               key={a.label}
               onClick={() => onAction(a)}

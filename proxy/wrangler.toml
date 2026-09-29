@@ -3,9 +3,14 @@ main = "src/index.ts"
 compatibility_date = "2026-09-01"
 
 [vars]
-# Browser origins allowed to call the proxy (no trailing slash).
 ALLOWED_ORIGINS = "https://mercouriss.github.io,http://localhost:5173,http://localhost:4173"
+
+# Primary live model
 GEMINI_MODEL = "gemini-3.8-flash"
+
+# Used only if the primary has a retryable temporary failure
+GEMINI_FALLBACK_MODEL = "gemini-2.5-flash"
+
 RATE_LIMIT_PER_MINUTE = "30"
 
 # The API key is a secret — set it with:  npx wrangler secret put GEMINI_API_KEY

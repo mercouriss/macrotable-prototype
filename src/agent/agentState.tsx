@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getMeal } from "../data/restaurants";
+import { getOrders } from "../lib/experiment";
+import { completedOrderFor } from "../lib/orderState";
 import { useAppState } from "../state/AppState";
 import type { PlacedOrder, ServiceMode } from "../types";
 import { checkProxyHealth, PROXY_URL } from "./gemini";
@@ -100,7 +102,15 @@ export function AgentStateProvider({ children }: { children: ReactNode }) {
     const { log } = appRef.current;
     for (const r of o.toolRuns) log("agent_tool_called", { detail: { name: r.name, ok: r.ok } });
     log("agent_reply", {
-      detail: { provider: o.message.provider, model: o.message.model, fallback: !!o.message.fallbackReason, latencyMs: o.latencyMs, tools: o.toolRuns.map((r) => r.name) },
+      detail: {
+        provider: o.message.provider,
+        model: o.message.model,
+        /** Engine identity: gemini + modelFallback=false → primary; true → secondary; mock → offline. */
+        modelFallback: !!o.message.modelFallback,
+        fallback: !!o.message.fallbackReason,
+        latencyMs: o.latencyMs,
+        tools: o.toolRuns.map((r) => r.name),
+      },
     });
     if (o.message.fallbackReason) log("agent_fallback", { detail: { reason: o.message.fallbackReason } });
     void extraMessages;
@@ -149,12 +159,18 @@ export function AgentStateProvider({ children }: { children: ReactNode }) {
         runContext(kind, id);
       },
       prepare: (mode) => {
+        // Never draft a second order for a recommendation that was already ordered in this session.
+        const rec = ref.current.currentRecommendation;
+        const since = ref.current.messages.find((m) => m.cards?.some((c) => c.kind === "recommendation" && c.rec.mealId === rec?.mealId))?.createdAt ?? 0;
+        if (rec && completedOrderFor(rec, { since }, getOrders())) return;
         appRef.current.log("order_prepared", { detail: { mode } });
         runContext("prepare", mode === "handoff" ? "pickup" : mode);
       },
       approveDraft: (draftId) => {
         const d = ref.current.orderDrafts.find((x) => x.id === draftId);
         if (!d || d.status !== "awaiting-approval") return null;
+        // Already ordered through another path after this draft was prepared → no duplicate.
+        if (completedOrderFor(d, { since: d.createdAt ?? Number.MAX_SAFE_INTEGER }, getOrders())) return null;
         const markDone = (patch: Partial<typeof d>) =>
           commit({ ...ref.current, orderDrafts: ref.current.orderDrafts.map((x) => (x.id === draftId ? { ...x, status: "approved", ...patch } : x)) });
         if (!getMeal(d.mealId)) {

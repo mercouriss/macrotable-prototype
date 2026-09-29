@@ -27,6 +27,8 @@ export interface GeminiTurn {
   text: string;
   toolRuns: ToolRun[];
   model?: string;
+  /** True if any round of this turn was answered by the proxy's SECONDARY (fallback) model. */
+  modelFallback: boolean;
   /** This turn's contents (user text, model calls, function responses, final answer) for history. */
   contents: Content[];
 }
@@ -43,6 +45,7 @@ export async function runGeminiTurn(
   const turn: Content[] = [{ role: "user", parts: [{ text: userText }] }];
   const toolRuns: ToolRun[] = [];
   let model: string | undefined;
+  let modelFallback = false;
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     opts.onProgress?.(round === 0 ? UNDERSTANDING : COMPOSING);
@@ -63,8 +66,10 @@ export async function runGeminiTurn(
       throw new ProviderError(`Network: ${(e as Error).message}`);
     }
     if (!res.ok) throw new ProviderError(`Proxy HTTP ${res.status}`);
+    // Proxy metadata (non-sensitive): which model answered, and whether it was the secondary.
+    if (res.headers.get("X-MacroTable-Model-Fallback") === "1") modelFallback = true;
     const data = (await res.json()) as { candidates?: { content?: Content; finishReason?: string }[]; modelVersion?: string };
-    model = data.modelVersion ?? model;
+    model = data.modelVersion ?? res.headers.get("X-MacroTable-Model") ?? model;
     const cand = data.candidates?.[0];
     const content = cand?.content;
     if (!content?.parts?.length) throw new ProviderError(`Empty response (${cand?.finishReason ?? "no candidate"})`);
@@ -78,7 +83,7 @@ export async function runGeminiTurn(
         .join("")
         .trim();
       if (!text) throw new ProviderError("No text in final answer");
-      return { text, toolRuns, model, contents: turn };
+      return { text, toolRuns, model, modelFallback, contents: turn };
     }
     const responses: Part[] = calls.map((p) => {
       const fc = p.functionCall!;

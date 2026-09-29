@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAgent } from "../../agent/agentState";
 import type { AgentCard, RecommendationCardData, StoreSummary } from "../../agent/types";
 import { formatDistance } from "../../data/geo";
 import { getRestaurant } from "../../data/restaurants";
+import { getOrders } from "../../lib/experiment";
+import { completedOrderFor } from "../../lib/orderState";
+import { AcceptanceSequence } from "../AcceptanceSequence";
 import { BrandMark } from "../BrandMark";
 import { MacroFit } from "../MacroFit";
 import { euro } from "../../lib/format";
@@ -11,12 +15,12 @@ import { approx, ProvenanceBadge } from "../ProvenanceBadge";
 import { useAppState } from "../../state/AppState";
 
 /** Cards render ONLY deterministic tool results — the model's text never feeds them. */
-export function AgentCardView({ card }: { card: AgentCard }) {
+export function AgentCardView({ card, since = 0, originId }: { card: AgentCard; since?: number; originId?: string }) {
   switch (card.kind) {
     case "stores":
       return <StoresCard stores={card.stores} otherReal={card.otherReal} />;
     case "recommendation":
-      return <RecommendationCard rec={card.rec} />;
+      return <RecommendationCard rec={card.rec} since={since} originId={originId} />;
     case "order":
       return <OrderCard draftId={card.draftId} />;
     case "scan":
@@ -96,8 +100,10 @@ function StoresCard({ stores, otherReal = 0 }: { stores: StoreSummary[]; otherRe
   );
 }
 
-function RecommendationCard({ rec }: { rec: RecommendationCardData }) {
-  const { target: appTarget, prefs, selectMeal } = useAppState();
+function RecommendationCard({ rec, since, originId }: { rec: RecommendationCardData; since: number; originId?: string }) {
+  const { target: appTarget, prefs, selectMeal, lock } = useAppState();
+  // Derived from the stored orders, so the state survives scrolling, remounts and reloads.
+  const completed = completedOrderFor(rec, { origin: originId, since }, getOrders());
   const navigate = useNavigate();
   const ap = approx(rec.provenance);
   const n = rec.nutrition;
@@ -152,11 +158,30 @@ function RecommendationCard({ rec }: { rec: RecommendationCardData }) {
           ))}
         </ul>
       )}
-      {r && (
+      {r && completed ? (
+        <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            className="inline-flex min-h-11 cursor-not-allowed items-center justify-center gap-1.5 rounded-xl bg-sunken px-4 text-[14px] font-semibold text-ink-3"
+          >
+            <Icon name="check" size={15} stroke={2.6} /> Order completed
+          </button>
+          {!lock && (
+            <Link
+              to={completed.handoff ? `/macrotable/success/${completed.orderNumber}` : `/macrotable/ticket/${completed.orderNumber}`}
+              className="inline-flex min-h-11 items-center rounded-xl border border-line px-3.5 text-[13.5px] font-medium text-ink-2 hover:bg-sunken"
+            >
+              View order
+            </Link>
+          )}
+        </div>
+      ) : r ? (
         <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
           <button
             onClick={() => {
-              selectMeal({ mealId: rec.mealId, selections: rec.selections, recommended: rec.selections });
+              selectMeal({ mealId: rec.mealId, selections: rec.selections, recommended: rec.selections, origin: originId });
               navigate(configurable ? `/macrotable/configure/${rec.mealId}` : `/macrotable/meal/${rec.mealId}`);
             }}
             className="min-h-11 rounded-xl bg-brand px-4 text-[14px] font-semibold text-white hover:bg-brand-hover"
@@ -166,14 +191,14 @@ function RecommendationCard({ rec }: { rec: RecommendationCardData }) {
           {configurable && (
             <Link
               to={`/macrotable/meal/${rec.mealId}`}
-              onClick={() => selectMeal({ mealId: rec.mealId, selections: rec.selections, recommended: rec.selections })}
+              onClick={() => selectMeal({ mealId: rec.mealId, selections: rec.selections, recommended: rec.selections, origin: originId })}
               className="inline-flex min-h-11 items-center rounded-xl border border-line px-3.5 text-[13.5px] font-medium text-ink-2 hover:bg-sunken"
             >
               Why?
             </Link>
           )}
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -182,9 +207,14 @@ function OrderCard({ draftId }: { draftId: string }) {
   const { state, approveDraft, cancelDraft } = useAgent();
   const navigate = useNavigate();
   const { lock } = useAppState();
+  const [justApproved, setJustApproved] = useState(false);
   const d = state.orderDrafts.find((x) => x.id === draftId);
   if (!d) return null;
   const handoff = d.mode === "handoff";
+  // Ordered through another path (e.g. Configure → Review) after this draft was prepared?
+  const elsewhere = d.status === "awaiting-approval" ? completedOrderFor(d, { since: d.createdAt ?? Number.MAX_SAFE_INTEGER }, getOrders()) : undefined;
+  const placed = d.orderNumber ? getOrders().find((o) => o.orderNumber === d.orderNumber) : undefined;
+  const restaurant = getRestaurant(d.restaurantId);
   return (
     <div className="rounded-2xl border border-ink/15 bg-surface p-4 shadow-card">
       <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-3">
@@ -199,13 +229,18 @@ function OrderCard({ draftId }: { draftId: string }) {
         {d.nutrition.calories} kcal · {approx(d.provenance)}
         {d.nutrition.protein} g protein · <span className="font-semibold text-ink">{euro(d.price)}</span>
       </p>
-      {d.status === "awaiting-approval" ? (
+      {elsewhere ? (
+        <p className="mt-3 flex items-center gap-1.5 rounded-xl bg-sunken px-3 py-2 text-[13px] font-semibold text-ink-3">
+          <Icon name="check" size={14} stroke={2.6} /> Order completed ({elsewhere.orderNumber})
+        </p>
+      ) : d.status === "awaiting-approval" ? (
         <>
           <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
             <button
               onClick={() => {
                 const r = approveDraft(d.id);
                 if (r?.research) navigate("/experiment/done", { replace: true, state: { completed: true } });
+                else if (r) setJustApproved(true);
               }}
               className="min-h-11 rounded-xl bg-brand px-4 text-[14px] font-semibold text-white hover:bg-brand-hover"
             >
@@ -219,6 +254,19 @@ function OrderCard({ draftId }: { draftId: string }) {
             {handoff ? "This restaurant isn't connected — nothing is sent." : "Nothing is ordered until you approve. Simulated — no payment."}
           </p>
         </>
+      ) : d.status === "approved" && placed && restaurant && !handoff && !lock ? (
+        <div className="mt-3 rounded-xl bg-sunken/70 px-3 py-2.5">
+          <AcceptanceSequence order={placed} restaurant={restaurant} animate={justApproved} compact>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[13px] font-semibold text-brand">
+                {d.mode === "in-store" ? "Counter" : "Pickup"} code {placed.pickupCode}
+              </p>
+              <Link to={`/macrotable/ticket/${placed.orderNumber}`} className="text-[12.5px] font-semibold text-brand underline underline-offset-2">
+                Kitchen ticket
+              </Link>
+            </div>
+          </AcceptanceSequence>
+        </div>
       ) : d.status === "approved" ? (
         <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-brand-soft px-3 py-2">
           <p className="text-[13px] font-semibold text-brand">

@@ -72,6 +72,8 @@ export interface OrderDraft {
   mode: ServiceMode | "handoff";
   readyInMinutes?: number;
   status: "awaiting-approval" | "approved" | "cancelled";
+  /** When the draft was prepared (an identical order placed after this makes it "completed"). */
+  createdAt?: number;
   orderNumber?: string;
   pickupCode?: string;
 }
@@ -123,6 +125,8 @@ export interface AgentMessage {
   steps?: string[];
   provider?: AgentProviderId;
   model?: string;
+  /** Live reply produced by the proxy's secondary (fallback) Gemini model, not the primary. */
+  modelFallback?: boolean;
   /** Set when the live model failed and the offline agent answered instead. */
   fallbackReason?: string;
 }

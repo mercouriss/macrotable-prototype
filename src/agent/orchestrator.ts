@@ -94,6 +94,7 @@ export async function runAgentTurn(
   let text: string;
   let runs: ToolRun[];
   let model: string | undefined;
+  let modelFallback = false;
   let historyAppend: unknown[] | undefined;
   const snapshot = structuredClone(ctx.state);
 
@@ -104,6 +105,7 @@ export async function runAgentTurn(
       text = g.text;
       runs = g.toolRuns;
       model = g.model;
+      modelFallback = !!g.modelFallback;
       historyAppend = g.contents;
     } catch (e) {
       fallbackReason = (e as Error).message || "Live model unavailable";
@@ -137,6 +139,7 @@ export async function runAgentTurn(
       steps: stepsFor(runs.map((r) => r.name), cards.some((c) => c.kind === "recommendation" || c.kind === "order")),
       provider,
       model,
+      ...(modelFallback ? { modelFallback } : {}),
       fallbackReason,
     },
     historyAppend,
