@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { getMeal } from "../src/data/restaurants";
 import { SCENARIOS } from "../src/data/scenarios";
@@ -245,5 +246,70 @@ describe("visible agent steps map 1:1 to real activity", () => {
     });
     expect(seen).toEqual(["Understanding request", "Checking restaurants", "Optimizing supported configuration", "Writing reply", "Checking constraints"]);
     expect(out.message.steps).toEqual(["Checked restaurants", "Optimized supported configuration", "Checked constraints"]);
+  });
+});
+
+describe("proxy engine metadata (X-MacroTable-Model / X-MacroTable-Model-Fallback)", () => {
+  const answer = { candidates: [{ content: { role: "model", parts: [{ text: "FitKitchen, 682 kcal." }] } }] };
+  const call = { candidates: [{ content: { role: "model", parts: [{ functionCall: { id: "c1", name: "optimizeMeal", args: {} } }] } }] };
+  /** One scripted proxy response per model round, each with its own headers. */
+  const proxy = (...rounds: { body: unknown; headers?: Record<string, string> }[]) => {
+    let i = 0;
+    return (async () => {
+      const r = rounds[i++];
+      return new Response(JSON.stringify(r.body), { status: 200, headers: r.headers });
+    }) as unknown as typeof fetch;
+  };
+  const turn = (fetchImpl: typeof fetch) => runGeminiTurn("near me?", ctxA(), [], { proxyUrl: "https://proxy.test", fetchImpl });
+
+  it("primary model: reads the model id from the header and records no fallback", async () => {
+    const g = await turn(proxy({ body: answer, headers: { "X-MacroTable-Model": "gemini-3.8-flash", "X-MacroTable-Model-Fallback": "0" } }));
+    expect(g.model).toBe("gemini-3.8-flash");
+    expect(g.modelFallback).toBe(false);
+  });
+
+  it("secondary model: header fallback=1 marks the turn as answered by the fallback model", async () => {
+    const g = await turn(proxy({ body: answer, headers: { "X-MacroTable-Model": "gemini-2.5-flash", "X-MacroTable-Model-Fallback": "1" } }));
+    expect(g.model).toBe("gemini-2.5-flash");
+    expect(g.modelFallback).toBe(true);
+  });
+
+  it("a fallback in any round of a multi-round turn marks the whole turn", async () => {
+    const g = await turn(
+      proxy(
+        { body: call, headers: { "X-MacroTable-Model": "gemini-2.5-flash", "X-MacroTable-Model-Fallback": "1" } },
+        { body: answer, headers: { "X-MacroTable-Model": "gemini-3.8-flash", "X-MacroTable-Model-Fallback": "0" } },
+      ),
+    );
+    expect(g.toolRuns.map((r) => r.name)).toEqual(["optimizeMeal"]);
+    expect(g.modelFallback).toBe(true);
+  });
+
+  it("Gemini's own modelVersion wins over the header; no headers (older Worker) → primary, no fallback", async () => {
+    const withVersion = await turn(proxy({ body: { ...answer, modelVersion: "gemini-3.8-flash-001" }, headers: { "X-MacroTable-Model": "gemini-3.8-flash", "X-MacroTable-Model-Fallback": "0" } }));
+    expect(withVersion.model).toBe("gemini-3.8-flash-001");
+    const bare = await turn(proxy({ body: answer }));
+    expect(bare.model).toBeUndefined();
+    expect(bare.modelFallback).toBe(false);
+  });
+
+  it("reaches the agent message: provider gemini + modelFallback (what agent_reply logs); offline stays distinct", async () => {
+    const f = proxy({ body: answer, headers: { "X-MacroTable-Model": "gemini-2.5-flash", "X-MacroTable-Model-Fallback": "1" } });
+    const live = await runAgentTurn("near me?", ctxA(), [], "auto", { gemini: (t, c, h, o) => runGeminiTurn(t, c, h, { ...o, proxyUrl: "https://proxy.test", fetchImpl: f }) });
+    expect(live.message.provider).toBe("gemini");
+    expect(live.message.model).toBe("gemini-2.5-flash");
+    expect(live.message.modelFallback).toBe(true);
+    const primary = await runAgentTurn("near me?", ctxA(), [], "auto", {
+      gemini: (t, c, h, o) => runGeminiTurn(t, c, h, { ...o, proxyUrl: "https://proxy.test", fetchImpl: proxy({ body: answer, headers: { "X-MacroTable-Model-Fallback": "0" } }) }),
+    });
+    expect(primary.message.modelFallback).toBeUndefined();
+    const offline = await runAgentTurn("near me?", ctxA(), [], "offline");
+    expect(offline.message.provider).toBe("mock");
+    expect(offline.message.modelFallback).toBeUndefined();
+  });
+
+  it("agent_reply logs the flag, so research data can separate primary / secondary / offline", () => {
+    const src = readFileSync("src/agent/agentState.tsx", "utf8");
+    expect(src).toMatch(/modelFallback: !!o\.message\.modelFallback/);
   });
 });

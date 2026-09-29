@@ -146,9 +146,9 @@ interface AgentSessionState { messages; currentRestaurantId; scannedMenu; curren
 interface OrderDraft { …; mode: "pickup"|"in-store"|"handoff"; status: "awaiting-approval"|"approved"|"cancelled" }
 ```
 
-New research events: `agent_opened`, `agent_message_sent` (`chars` and `source` only, **never text**), `agent_tool_called`, `agent_reply` (provider, model, fallback, latency, tool names), `agent_fallback`, `order_prepared`, `order_approved_in_agent`, `scan_menu_opened`, `scan_qr_opened`, `menu_photo_taken`, `scan_image_sent_to_model`, `scan_extraction_failed`, `scan_deleted`.
+New research events: `agent_opened`, `agent_message_sent` (`chars` and `source` only, **never text**), `agent_tool_called`, `agent_reply` (provider, model, `modelFallback` = answered by the proxy's secondary model, fallback = live attempt failed → offline, latency, tool names), `agent_fallback`, `order_prepared`, `order_approved_in_agent`, `scan_menu_opened`, `scan_qr_opened`, `menu_photo_taken`, `scan_image_sent_to_model`, `scan_extraction_failed`, `scan_deleted`.
 
-New CSV columns: `agent_messages`, `agent_tool_calls`, `agent_provider` (gemini / mock / mixed / blank), `agent_fallbacks`.
+New CSV columns: `agent_messages`, `agent_tool_calls`, `agent_provider` (gemini / mock / mixed / blank), `agent_fallbacks`. Added in `fdd863f`, at the end: `agent_engine` (`primary` / `secondary` / `offline`, joined with `+` when a session mixes them; blank if the agent never replied) and `agent_models` (model ids that answered, `;`-separated).
 
 ## V3.1: real vs demo restaurants
 

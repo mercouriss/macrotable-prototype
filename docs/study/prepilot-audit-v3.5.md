@@ -16,9 +16,9 @@ Neither fix changes the optimizer, feasibility rules, scenarios, the study data,
 | Input | Current value | Source of truth | Frozen? | Validity impact if changed | Before pilot | Before main |
 |---|---|---|---|---|---|---|
 | Commit | Latest `main` after this audit (deployed by CI) | `git rev-parse --short HEAD`; `/research` → Freeze record values; `build.appCommit` in every session | no | A different build is a different treatment | Pilot on the deployed commit; note it | Record the commit after the post-pilot fixes |
-| Model ID | None in use: the proxy isn't deployed, so production runs the offline demo agent only. Planned: `gemini-3.8-flash` | `proxy/wrangler.toml` `GEMINI_MODEL` (server-side, **changeable without an app change**); per live reply in the `agent_reply.detail.model` log | no | Different reasoning/wording in the treatment arm | Decide the engine (see Fallback policy) | Record the model, and check the exports show one model |
-| Freeze fingerprint | `24e9ac493899deaa7502d7029993892725f96769f03bb7ddfa59013b9cc5501c` (V3.1 was `9207dca2…`) | `agentConfigDocument()` in `src/lib/freeze.ts`; pinned by `tests/prepilot.test.ts` | candidate | The agent's instructions/tools changed | none | Re-confirm after any post-pilot fix |
-| Fallback policy | Live Gemini when configured and reachable. On error or timeout (25 s) the offline agent answers the same turn (labelled in the UI, logged as `agent_fallback`). If the proxy is unreachable at load, **every** turn is offline, recorded only as `provider: mock` | `FALLBACK_POLICY` in `src/lib/freeze.ts`; `orchestrator.ts`; `agentState.tsx` | no | Participants would get different agent mechanisms | **Researcher decision** (below) | Record it, plus the exclusion rule |
+| Model ID | Primary `gemini-3.8-flash`; secondary `gemini-2.5-flash`. The proxy is deployed and `AGENT_PROXY_URL` is set, so production calls the live primary. The updated Worker, which adds the secondary, is **not yet deployed** | `proxy/wrangler.toml` `GEMINI_MODEL` / `GEMINI_FALLBACK_MODEL` (server-side, **changeable without an app change**); `/v1/health` reports both; per live reply in `agent_reply.detail.model` + `modelFallback` | no | Different reasoning/wording in the treatment arm | Deploy the Worker; decide how secondary/offline sessions are treated | Record both model ids; check `agent_models` in the exports |
+| Freeze fingerprint | `e6b5839d0b2fd1eea48b7bf20c9609e0837640e0fada10996a68138b876df811`: re-pinned at `fdd863f` because the fallback-policy text now includes the secondary model. Earlier candidate `24e9ac49…`; V3.1 was `9207dca2…` | `agentConfigDocument()` in `src/lib/freeze.ts`; pinned by `tests/prepilot.test.ts` | candidate | The agent's instructions, tools or fallback policy changed | none | Re-confirm after any post-pilot fix |
+| Fallback policy | Primary Gemini → (retryable failure only) secondary Gemini, once → offline agent if both fail or on any other error/timeout (25 s). If the proxy is unreachable at load, **every** turn is offline, recorded as `provider: mock` | `FALLBACK_POLICY` in `src/lib/freeze.ts`; `proxy/src/index.ts` (`isRetryable`); `orchestrator.ts`; `agentState.tsx` | no | Participants would get three different agent mechanisms | **Researcher decision** (below) | Record it, plus the rule for secondary and offline sessions |
 | Baseline nutrition visibility | Default **visible**; a per-device setting | `settings.baselineShowNutrition` (`/research` → Demo settings); now stamped as `build.baselineNutritionVisible` | no | Changes the information the control arm gets | **Researcher decision** (below); set it on every device | Record the decision; the exports must show one value |
 | Protein and primary outcome | Primary = \|kcal − target\| among feasible orders (budget + diet); protein is secondary | `EXPERIMENT.md`, [scenario-difficulty.md](scenario-difficulty.md), `analyze.py` | no | Changing it after seeing data = analytic flexibility | none (the pilot doesn't test the hypothesis) | **Researcher decision** (below), recorded before the first main participant |
 
@@ -41,13 +41,24 @@ The fingerprint hashes:
 ## Decisions the researcher must make (bounded)
 
 1. **Agent engine and fallback. Pick one before the pilot.**
-   - **(a) Offline agent only.** Deterministic, no model ID, no free-tier data sharing. This is today's production. The agent has limited language understanding.
-   - **(b) Live Gemini**, with the proxy deployed and the `AGENT_PROXY_URL` repo variable set. Also choose how to treat sessions whose `agent_provider` is `mock` or `mixed`, or whose `agent_fallbacks` > 0:
-     - (b1) exclude them;
-     - (b2) analyse them separately;
-     - (b3) pool them with the rest.
+   - **(a) Offline agent only.** Deterministic, no model ID, no free-tier data sharing. The agent has limited language understanding.
+   - **(b) Live Gemini** (now deployed, with `AGENT_PROXY_URL` set). Choose how to treat sessions by `agent_engine`, separately for each non-primary state:
+     - sessions containing **`secondary`** (Gemini 2.5 answered after a primary failure): exclude / analyse separately / pool with primary;
+     - sessions containing **`offline`** (the offline agent answered): exclude / analyse separately / pool.
 
-   Either way, keep every study device on `agentMode = auto`. The value is stamped per session.
+   If you choose (b) but don't want a secondary model at all, set `GEMINI_FALLBACK_MODEL = ""` before deploying. The proxy then calls only the primary.
+
+   **Three distinct engine states** (never pooled silently):
+
+   | State | What answers | How it's recorded |
+   |---|---|---|
+   | **Primary** | Gemini `gemini-3.8-flash` (`GEMINI_MODEL`) through the proxy | `agent_reply.detail`: `provider: "gemini"`, `modelFallback: false`, `model` → CSV `agent_engine` = `primary` |
+   | **Secondary** | Gemini `gemini-2.5-flash` (`GEMINI_FALLBACK_MODEL`), called by the proxy **once**, only after a retryable primary failure (429; 500/502/503/504; `RESOURCE_EXHAUSTED` / `UNAVAILABLE` / `DEADLINE_EXCEEDED`; network error or timeout). Never after 400/401/403/404 or a safety-blocked answer | `provider: "gemini"`, `modelFallback: true`, `model` → `agent_engine` = `secondary` |
+   | **Offline** | the deterministic offline demo agent (same tools), when both live models fail, the proxy is unreachable, or the device is set to offline | `provider: "mock"` (plus an `agent_fallback` event when a live attempt failed) → `agent_engine` = `offline` |
+
+   A session that mixes states exports e.g. `primary+secondary` or `primary+offline`. `agent_models` lists the model ids that answered. Context turns built directly from tool results (`provider: "tools"`) are deterministic and aren't an engine.
+
+   Whichever option you pick, keep every study device on `agentMode = auto`. The value is stamped per session.
 2. **Baseline nutrition visibility. Pick one; it applies to all devices.**
    - **(a) Visible.** The control arm sees per-dish macros, per-option macro deltas and the configured total. This tests MacroTable's *optimization/agency* against a nutrition-labelled menu.
    - **(b) Hidden.** The control arm sees only names, descriptions, prices and option labels. This tests MacroTable against a typical menu, so it also measures the value of *information*.

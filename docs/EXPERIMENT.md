@@ -17,6 +17,19 @@ What did not change:
 - **The rest of the study.** The baseline UI, scenarios, optimizer, feasibility rules, outcome definitions and logging events are all unchanged. The only addition is an optional `detail.entry` on `recommendation_selected`.
 - **Premium concept and saved meals** are hidden during trials.
 - **Freeze fingerprint.** It changes (tool descriptions changed), so re-copy it at freeze.
+- **Agent engine states.** From `fdd863f` the proxy can answer with a secondary model, so the treatment has three engine states that must never be pooled silently.
+
+**Three distinct engine states** (never pooled silently):
+
+| State | What answers | How it's recorded |
+|---|---|---|
+| **Primary** | Gemini `gemini-3.8-flash` (`GEMINI_MODEL`) through the proxy | `agent_reply.detail`: `provider: "gemini"`, `modelFallback: false`, `model` → CSV `agent_engine` = `primary` |
+| **Secondary** | Gemini `gemini-2.5-flash` (`GEMINI_FALLBACK_MODEL`), called by the proxy **once**, only after a retryable primary failure (429; 500/502/503/504; `RESOURCE_EXHAUSTED` / `UNAVAILABLE` / `DEADLINE_EXCEEDED`; network error or timeout). Never after 400/401/403/404 or a safety-blocked answer | `provider: "gemini"`, `modelFallback: true`, `model` → `agent_engine` = `secondary` |
+| **Offline** | the deterministic offline demo agent (same tools), when both live models fail, the proxy is unreachable, or the device is set to offline | `provider: "mock"` (plus an `agent_fallback` event when a live attempt failed) → `agent_engine` = `offline` |
+
+A session that mixes states exports e.g. `primary+secondary` or `primary+offline`. `agent_models` lists the model ids that answered. Context turns built directly from tool results (`provider: "tools"`) are deterministic and aren't an engine.
+
+`analyze.py` writes `agent_engine` per observation and reports the engine mix. Record in [study/freeze-record.md](study/freeze-record.md) how secondary and offline sessions are treated.
 - **Treatment identity (pre-pilot audit).** Every session is stamped at *Begin* with `build`: treatment version, commit, baseline nutrition setting, agent mode, whether a proxy is configured, and the study restaurant ids. `analyze.py` analyses only V3.5 sessions by default. Deep links can't leave the study set during a trial. See [study/prepilot-audit-v3.5.md](study/prepilot-audit-v3.5.md) for the freeze inputs and the three decisions still open.
 
 ## V3.1 note
@@ -36,7 +49,7 @@ V3 materially changes the treatment, so **don't combine V2 pilot observations wi
 - **Baseline:** unchanged. Normal restaurant browsing and configuration with the same menus, prices and supported modifiers.
 - **MacroTable (treatment):** agent-guided restaurant, meal and configuration decisions. Participants may use the Agent tab, Explore, the guided flow or the menus. The final order is placed from an agent order card or the approval screen. Either way it completes the trial.
 - **Revised hypothesis:** *Does an agent that gathers context, invokes deterministic optimization tools, explains trade-offs and guides execution improve the user's food-ordering decision?*
-- **Engine:** live Gemini with the offline agent as fallback. Every session records which engine answered (`agent_provider`: gemini / mock / mixed) and its `agent_fallbacks`. Decide at freeze whether sessions with fallbacks are analysed separately. The analysis script lists them as failure cases.
+- **Engine:** live Gemini with the offline agent as fallback. Every session records which engine answered (`agent_provider`: gemini / mock / mixed; since V3.5 `agent_engine`: primary / secondary / offline, see the V3.5 note) and its `agent_fallbacks`. Decide at freeze whether sessions with fallbacks are analysed separately. The analysis script lists them as failure cases.
 - **Privacy:** research logs never store message text. Live messages go to Gemini (Google may use free-tier content), and the Agent tab tells participants not to share personal information.
 - **Camera:** not part of the task. Leave menu scanning out of trials unless the protocol adds it.
 
