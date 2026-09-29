@@ -17,6 +17,7 @@ What did not change:
 - **The rest of the study.** The baseline UI, scenarios, optimizer, feasibility rules, outcome definitions and logging events are all unchanged. The only addition is an optional `detail.entry` on `recommendation_selected`.
 - **Premium concept and saved meals** are hidden during trials.
 - **Freeze fingerprint.** It changes (tool descriptions changed), so re-copy it at freeze.
+- **Treatment identity (pre-pilot audit).** Every session is stamped at *Begin* with `build`: treatment version, commit, baseline nutrition setting, agent mode, whether a proxy is configured, and the study restaurant ids. `analyze.py` analyses only V3.5 sessions by default. Deep links can't leave the study set during a trial. See [study/prepilot-audit-v3.5.md](study/prepilot-audit-v3.5.md) for the freeze inputs and the three decisions still open.
 
 ## V3.1 note
 

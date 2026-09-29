@@ -4,7 +4,7 @@ import { Icon } from "../components/Icon";
 import { Screen } from "../components/Screen";
 import { Button, Callout, Card, Eyebrow } from "../components/ui";
 import { decodeQR, decodeQRFromFile, frameImageData, useCamera, type CameraStatus } from "../components/useCamera";
-import { catalog, getRestaurant } from "../data/restaurants";
+import { catalog, getScopedRestaurant } from "../data/restaurants";
 import type { Restaurant } from "../types";
 import { useAgent } from "../agent/agentState";
 import { PROXY_URL } from "../agent/gemini";
@@ -36,7 +36,7 @@ export function Scan() {
   }, [location, navigate]);
 
   if (!type) return <ScanHub />;
-  const at = getRestaurant(params.get("restaurant") ?? undefined);
+  const at = getScopedRestaurant(params.get("restaurant") ?? undefined);
   return type === "menu" ? <MenuScan key="menu" autoStart={autoStart} at={at} /> : <QrScan key="qr" autoStart={autoStart} />;
 }
 

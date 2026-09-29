@@ -3,7 +3,7 @@
 MacroTable study analysis — descriptive, per protocol §19–21.
 
 Usage:
-    python3 analyze.py EXPORT.json [EXPORT2.json ...] [--survey survey.csv] [--out OUTDIR]
+    python3 analyze.py EXPORT.json [EXPORT2.json ...] [--survey survey.csv] [--out OUTDIR] [--treatment V3.5]
 
 Inputs
   EXPORT.json   JSON exports from /research ("Export JSON"), one or more devices.
@@ -15,6 +15,9 @@ Outputs (in OUTDIR, default ./analysis-output)
   observations.csv   one row per completed participant-condition observation (derived data)
   within.csv         one row per participant with both conditions: delta = dev_baseline - dev_macrotable
   report.md          descriptive summary, within-participant table, failure cases, excluded sessions
+
+Treatment versions are never pooled: only sessions stamped with --treatment (default V3.5) are
+analysed; older/unstamped sessions are listed as excluded. Use --treatment any to inspect everything.
 
 Deliberately NOT included: significance tests, a weighted "macro score". Positive delta = MacroTable closer.
 Python 3.8+, standard library only.
@@ -101,7 +104,12 @@ def fmt(d, key, digits=1):
     return "—" if v is None else (f"{v:.{digits}f}" if isinstance(v, float) else str(v))
 
 
-def build_observations(sessions, survey):
+def treatment_of(s):
+    """V3.5+ sessions carry build.treatmentVersion; older sessions have none."""
+    return (s.get("build") or {}).get("treatmentVersion") or "unrecorded (pre-V3.5)"
+
+
+def build_observations(sessions, survey, treatment="V3.5"):
     by_pid = defaultdict(list)
     for s in sessions:
         by_pid[s["participantId"]].append(s)
@@ -112,6 +120,9 @@ def build_observations(sessions, survey):
         first = completed[0]["condition"] if completed else None
         sequence = {"baseline": "AB", "macrotable": "BA"}.get(first, "")
         for s in ss:
+            if treatment != "any" and treatment_of(s) != treatment:
+                excluded.append((pid, s["condition"], s["scenarioId"], f"treatment {treatment_of(s)} (analysing {treatment} only)", s["_source"]))
+                continue
             if not s.get("completedAt"):
                 excluded.append((pid, s["condition"], s["scenarioId"], "aborted" if s.get("abortedAt") else "not completed", s["_source"]))
                 continue
@@ -157,6 +168,10 @@ def build_observations(sessions, survey):
                 "agent_provider": agent_provider(s),
                 "agent_fallbacks": ev.count("agent_fallback"),
                 "agent_order_approved": int("order_approved_in_agent" in ev),
+                "treatment_version": treatment_of(s),
+                "app_commit": (s.get("build") or {}).get("appCommit", ""),
+                "baseline_nutrition_visible": (s.get("build") or {}).get("baselineNutritionVisible", ""),
+                "agent_mode": (s.get("build") or {}).get("agentMode", ""),
                 "started_at_utc": datetime.fromtimestamp(s["startedAt"] / 1000, tz=timezone.utc).isoformat(timespec="seconds"),
                 "source_export": s["_source"],
             }
@@ -174,11 +189,15 @@ def main():
     ap.add_argument("exports", nargs="+")
     ap.add_argument("--survey")
     ap.add_argument("--out", default="analysis-output")
+    ap.add_argument("--treatment", default="V3.5", help='treatment version to analyse (default V3.5; "any" = no filter)')
     a = ap.parse_args()
 
     sessions = load_sessions(a.exports)
     survey = load_survey(a.survey)
-    obs, excluded = build_observations(sessions, survey)
+    obs, excluded = build_observations(sessions, survey, a.treatment)
+    commits = sorted({r["app_commit"] for r in obs})
+    if len(commits) > 1:
+        print(f"WARNING: observations come from {len(commits)} app commits {commits}; check the freeze record before pooling.", file=sys.stderr)
     os.makedirs(a.out, exist_ok=True)
 
     if obs:

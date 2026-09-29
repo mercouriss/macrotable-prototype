@@ -190,4 +190,21 @@ Demo brands carry `brand: { color, mark }`, an original monogram (no photos, no 
 - Cleared by Profile → Prototype & research, or by Reset demo.
 - Hidden during trials.
 
+**Session build stamp (pre-pilot audit).**
+
+```ts
+interface SessionBuild {
+  treatmentVersion: "V3.5";
+  appCommit: string;
+  baselineNutritionVisible: boolean;
+  agentMode: "auto" | "offline";
+  agentProxyConfigured: boolean;
+  studyRestaurants: string[];
+}
+```
+
+- `ParticipantSession.build` is set once, at *Begin*, and is absent on sessions recorded before V3.5.
+- New CSV columns, appended at the end: `treatment_version`, `app_commit`, `baseline_nutrition_visible`, `agent_mode`, `agent_proxy_configured`.
+- The JSON export adds `exportedBy`. The schema string is unchanged (`macrotable.research.v2`).
+
 **New event detail.** `recommendation_selected` may carry `detail.entry` (`"home"` or `"restaurant"`), recording where the recommendation was opened. No new event names.

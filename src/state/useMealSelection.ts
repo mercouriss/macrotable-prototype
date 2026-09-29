@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { getMeal, isStudyScope } from "../data/restaurants";
+import { getScopedMeal, isStudyScope } from "../data/restaurants";
 import { runSearch, optimizeMeal } from "../lib/optimizer";
 import { computeConfiguration, defaultSelections, isSelectionSupported } from "../lib/nutrition";
 import { meetsTarget, withinBudget } from "../lib/feasibility";
@@ -13,7 +13,10 @@ import type { Configuration } from "../types";
  */
 export function useMealSelection(mealId: string | undefined) {
   const { selection, selectMeal, target, prefs } = useAppState();
-  const found = useMemo(() => getMeal(mealId), [mealId]);
+  const study = isStudyScope();
+  // Scoped: during a trial a deep link to a non-study dish resolves to nothing.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const found = useMemo(() => getScopedMeal(mealId), [mealId, study]);
   const result = useMemo(
     () => (found ? optimizeMeal(found.meal, found.restaurant, target, prefs) : undefined),
     [found, target, prefs],

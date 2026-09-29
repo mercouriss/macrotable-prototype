@@ -18,10 +18,11 @@ import type { Selections } from "../types";
 import { useAppState } from "../state/AppState";
 
 export function Orders() {
-  const { selectMeal } = useAppState();
+  const { selectMeal, lock } = useAppState();
   const navigate = useNavigate();
-  // Demo orders only — participant orders belong to the research dashboard.
-  const orders = [...getOrders()].filter((o) => o.mode === "macrotable" && !o.sessionId).reverse();
+  // Demo orders only — participant orders belong to the research dashboard. During a trial
+  // nothing is listed: earlier demo orders could name non-study restaurants or be re-ordered.
+  const orders = lock ? [] : [...getOrders()].filter((o) => o.mode === "macrotable" && !o.sessionId).reverse();
   return (
     <Screen nav title="Your orders" back="/macrotable/profile">
       {orders.length === 0 ? (

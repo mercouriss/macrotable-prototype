@@ -14,6 +14,7 @@ import type {
 } from "../types";
 import { CALORIE_TOLERANCE, mealExclusion, withinBudget } from "./feasibility";
 import { changesFromDefault, describeChange } from "./nutrition";
+import { APP_COMMIT, TREATMENT_VERSION } from "./version";
 
 /*
  * Anonymous participant sessions for the baseline-vs-MacroTable study.
@@ -38,6 +39,23 @@ export interface SessionOutcome {
   targetRange: boolean;
 }
 
+/**
+ * What produced this session — recorded once, when the trial begins. Sessions from before
+ * V3.5 have no `build` and must be treated as an unknown/older treatment, never as V3.5.
+ */
+export interface SessionBuild {
+  treatmentVersion: string;
+  appCommit: string;
+  /** Device setting that changes what the baseline shows (/research → Demo settings). */
+  baselineNutritionVisible: boolean;
+  /** Device setting: "offline" forces the offline demo agent for the whole trial. */
+  agentMode: "auto" | "offline";
+  /** Whether this build can reach a live model at all (VITE_AGENT_PROXY_URL set). */
+  agentProxyConfigured: boolean;
+  /** Restaurant ids the participant could order from (the frozen study dataset). */
+  studyRestaurants: string[];
+}
+
 export interface ParticipantSession {
   participantId: string;
   sessionId: string;
@@ -46,6 +64,8 @@ export interface ParticipantSession {
   /** The assigned scenario target — outcomes are always scored against this. */
   target: UserTarget;
   startedAt: number;
+  /** V3.5+: build / treatment identity (absent on older sessions). */
+  build?: SessionBuild;
   completedAt?: number;
   abortedAt?: number;
   selectedMealId?: string;
@@ -234,7 +254,7 @@ export function createResearchStore(kv: KV | null) {
     list: read,
     get: (id: string) => read().find((s) => s.sessionId === id),
 
-    start(a: Assignment, at = Date.now()): ParticipantSession {
+    start(a: Assignment, at = Date.now(), build?: SessionBuild): ParticipantSession {
       const base: ParticipantSession = {
         participantId: a.participantId,
         sessionId: newSessionId(at),
@@ -242,6 +262,7 @@ export function createResearchStore(kv: KV | null) {
         scenarioId: a.scenarioId,
         target: { ...SCENARIOS[a.scenarioId].target },
         startedAt: at,
+        ...(build ? { build } : {}),
         events: [],
       };
       const s = { ...base, events: [event(base, "experiment_started", at)] };
@@ -390,6 +411,12 @@ export const CSV_COLUMNS = [
   "agent_provider",
   "agent_fallbacks",
   "event_count",
+  // V3.5 treatment identity (blank = session recorded before V3.5: never pool it as V3.5)
+  "treatment_version",
+  "app_commit",
+  "baseline_nutrition_visible",
+  "agent_mode",
+  "agent_proxy_configured",
 ] as const;
 
 /** Which agent engine answered in a session: gemini / mock / mixed, or "" if the agent wasn't used. */
@@ -452,6 +479,11 @@ export function sessionsToCSV(sessions: ParticipantSession[]): string {
       agent_provider: agentProvider(s),
       agent_fallbacks: count(s, "agent_fallback"),
       event_count: s.events.length,
+      treatment_version: s.build?.treatmentVersion,
+      app_commit: s.build?.appCommit,
+      baseline_nutrition_visible: s.build?.baselineNutritionVisible,
+      agent_mode: s.build?.agentMode,
+      agent_proxy_configured: s.build?.agentProxyConfigured,
     };
     return CSV_COLUMNS.map((c) => csvCell(row[c])).join(",");
   });
@@ -459,7 +491,11 @@ export function sessionsToCSV(sessions: ParticipantSession[]): string {
 }
 
 export function sessionsToJSON(sessions: ParticipantSession[], now = new Date()): string {
-  return JSON.stringify({ schema: RESEARCH_SCHEMA, exportedAt: now.toISOString(), summary: summarize(sessions), sessions }, null, 2);
+  return JSON.stringify(
+    { schema: RESEARCH_SCHEMA, exportedAt: now.toISOString(), exportedBy: { treatmentVersion: TREATMENT_VERSION, appCommit: APP_COMMIT }, summary: summarize(sessions), sessions },
+    null,
+    2,
+  );
 }
 
 export function downloadText(filename: string, text: string, type: string): void {

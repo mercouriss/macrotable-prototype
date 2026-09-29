@@ -5,7 +5,7 @@ import { Icon } from "../components/Icon";
 import { LEVEL_META } from "../components/RestaurantBadge";
 import { Screen } from "../components/Screen";
 import { Button, Card } from "../components/ui";
-import { getRestaurant } from "../data/restaurants";
+import { getScopedRestaurant } from "../data/restaurants";
 import type { IntegrationLevel } from "../types";
 import { useAppState } from "../state/AppState";
 import { NotFound } from "./NotFound";
@@ -34,7 +34,7 @@ const CHECKS: Record<IntegrationLevel, { ok: boolean; text: string }[]> = {
  */
 export function RestaurantEntry() {
   const { restaurantId } = useParams();
-  const r = getRestaurant(restaurantId);
+  const r = getScopedRestaurant(restaurantId);
   const navigate = useNavigate();
   const { log } = useAppState();
 

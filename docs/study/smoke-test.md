@@ -35,4 +35,17 @@ Before starting, clear the site's data or use a private tab, so onboarding shows
 | 23 | **V3** Menu photo → consent → Gemini extraction → agent shows MENU-READ/ESTIMATED; Delete scan works | NOT TESTED | NOT TESTED |
 | 24 | **V3** Airplane mode → Agent shows "Offline demo agent" and still answers | NOT TESTED | NOT TESTED |
 
+| 27 | **V3.5** Home → *Find my next meal* → Recommendation (fit bars, "MacroTable changed") → Configure order → Review order → Approve → pickup code → Save meal | NOT TESTED | NOT TESTED |
+| 28 | **V3.5** Explore: map drag/pinch, tap a pin → its card; search field (keyboard doesn't push layout off-screen); each filter chip | NOT TESTED | NOT TESTED |
+| 29 | **V3.5** Real restaurant detail (e.g. Toko Smoor) → *Scan the menu here* opens the camera/file chooser | NOT TESTED | NOT TESTED |
+| 30 | **V3.5** Profile → Premium concept page: "Prototype pricing / concept — no billing"; nothing can be bought | NOT TESTED | NOT TESTED |
+| 31 | **V3.5** In a trial: Explore shows **3 places**; Profile has no Premium, Saved or research section; *Your orders* is empty | NOT TESTED | NOT TESTED |
+| 32 | **V3.5** After a trial, the JSON export shows `build.treatmentVersion: "V3.5"` and the deployed commit | NOT TESTED | NOT TESTED |
+| 33 | **V3.5** Refresh mid-trial keeps the task; touch targets usable; no sideways scrolling | NOT TESTED | NOT TESTED |
+| 34 | **V3.5** Installed PWA picks up a new deploy after one reopen (compare the commit on `/research` → Freeze record values) | NOT TESTED | NOT TESTED |
+
+Record the model, the iOS / Android version and the browser version in the column headers.
+
+**Go/no-go (V3.5):** rows 1, 11–14, 27, 31 and 32 must PASS on each phone type used in the pilot. If the pilot uses the live agent, rows 18, 19 and 21 must also pass.
+
 **Go/no-go (V3):** rows 1, 2, 11–14, 18, 19 and 21 must PASS on at least one phone type used by participants before recruiting. Camera rows (3–9) affect demo credibility, not the main experiment, because the experiment doesn't use the camera.

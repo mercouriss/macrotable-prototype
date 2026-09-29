@@ -16,6 +16,7 @@ Real-device check → Pilot → Fix protocol → Freeze → Main experiment → 
 | [questionnaire.md](questionnaire.md) · [responses template](questionnaire-responses-template.csv) | Post-task 1–7 questions and final open questions |
 | [observation-sheet.md](observation-sheet.md) | One per participant, plus the after-participant data check |
 | [pilot-issue-log.md](pilot-issue-log.md) | Issues, severity, fixes |
+| [prepilot-audit-v3.5.md](prepilot-audit-v3.5.md) | **V3.5:** freeze inputs, the three open researcher decisions, pilot scope |
 | [freeze-record.md](freeze-record.md) | Fill in at freeze, and log any deviations |
 | [analysis/analyze.py](analysis/analyze.py) | Descriptive analysis from JSON exports + questionnaire CSV |
 

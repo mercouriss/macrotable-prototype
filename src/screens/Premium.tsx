@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { Navigate } from "react-router-dom";
+import { useAppState } from "../state/AppState";
 import { Icon } from "../components/Icon";
 import { Screen } from "../components/Screen";
 import { ButtonLink, Card } from "../components/ui";
@@ -31,7 +33,10 @@ const PREMIUM: [string, string, Status][] = [
 ];
 
 export function Premium() {
+  const { lock } = useAppState();
   const [plan, setPlan] = useState<"month" | "year">("month");
+  // Not part of the study: never shown during a locked trial, also not via a deep link.
+  if (lock) return <Navigate to="/macrotable" replace />;
   return (
     <Screen title="MacroTable Premium" back="/macrotable/profile" footer={<ButtonLink to="/macrotable" variant="secondary">Back to MacroTable</ButtonLink>}>
       <div className="mt-2 overflow-hidden rounded-[24px] bg-ink p-6 text-white shadow-lift">

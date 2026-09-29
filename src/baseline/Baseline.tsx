@@ -5,7 +5,14 @@ import { ModifierSelector } from "../components/ModifierSelector";
 import { Plate } from "../components/Plate";
 import { Screen } from "../components/Screen";
 import { Button, ButtonLink, Card, Eyebrow } from "../components/ui";
-import { getMeal, getRestaurant, STUDY_RESTAURANTS } from "../data/restaurants";
+import { getMeal as getAnyMeal, STUDY_RESTAURANTS } from "../data/restaurants";
+
+/** The baseline only ever resolves the frozen study dataset — also for deep links. */
+const getRestaurant = (id: string | undefined) => STUDY_RESTAURANTS.find((r) => r.id === id);
+const getMeal = (id: string | undefined) => {
+  const f = getAnyMeal(id);
+  return f && STUDY_RESTAURANTS.includes(f.restaurant) ? f : undefined;
+};
 import { SCENARIOS } from "../data/scenarios";
 import { getOrders } from "../lib/experiment";
 import { taskConstraints } from "../lib/research";

@@ -5,6 +5,9 @@ Complete this **after** the pilot fixes and the final smoke test, and **before**
 | Item | Frozen value |
 |---|---|
 | Version | **V3.5 (product-candidate treatment)**. Don't pool with V2, V3 or V3.1 data |
+| Treatment identity in data | Every session has `build.treatmentVersion` (V3.5) and `build.appCommit`. `analyze.py --treatment V3.5` (the default) excludes anything else. Logging schema: `macrotable.research.v2`, with the optional `build` stamp and 5 appended CSV columns |
+| Agent config fingerprint (candidate) | `24e9ac493899deaa7502d7029993892725f96769f03bb7ddfa59013b9cc5501c`: pinned in `tests/prepilot.test.ts`; confirm at freeze |
+| Exclusion criteria | Sessions without `build.treatmentVersion = V3.5`; aborted/incomplete sessions. Per the engine decision: sessions with `agent_provider` mock/mixed or `agent_fallbacks` > 0 → exclude / separate / pool (**decide**) |
 | Study restaurant dataset | `STUDY_RESTAURANTS` in `src/data/restaurants.ts`: FitKitchen (L3), Urban Bowl (L2), Local Grill (L1), used by `/baseline` and by the treatment while a trial runs. Public-only demo brands and real restaurants are never shown in trials |
 | Prototype commit | `________` (`git rev-parse --short HEAD` on `main`) |
 | Agent engine | Proxy URL `________` · model `________` (from `/research` → Freeze record values) · Gemini tier: free / paid |

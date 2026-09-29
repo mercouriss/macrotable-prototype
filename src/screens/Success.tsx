@@ -8,10 +8,14 @@ import { getMeal } from "../data/restaurants";
 import { getOrders } from "../lib/experiment";
 import { euro } from "../lib/format";
 import { changesFromDefault, describeChange } from "../lib/nutrition";
+import { useAppState } from "../state/AppState";
 import { NotFound } from "./NotFound";
 
 function useOrder() {
   const { orderNumber } = useParams();
+  const { lock } = useAppState();
+  // Trial orders end on the neutral /experiment/done screen; demo orders are not shown mid-trial.
+  if (lock) return undefined;
   return getOrders().find((o) => o.orderNumber === orderNumber);
 }
 

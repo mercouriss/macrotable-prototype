@@ -9,7 +9,7 @@ import { DeliveryTime, LEVEL_META, RealRestaurantInfo, RestaurantBadge } from ".
 import { Screen } from "../components/Screen";
 import { useSheet } from "../components/Sheet";
 import { Button, Card, Eyebrow } from "../components/ui";
-import { getRestaurant } from "../data/restaurants";
+import { getScopedRestaurant } from "../data/restaurants";
 import { euro } from "../lib/format";
 import { useAppState } from "../state/AppState";
 import { useSearch } from "../state/useMealSelection";
@@ -18,7 +18,7 @@ import { NotFound } from "./NotFound";
 
 export function RestaurantPage() {
   const { restaurantId } = useParams();
-  const r = getRestaurant(restaurantId);
+  const r = getScopedRestaurant(restaurantId);
   if (!r) return <NotFound />;
   return r.identity === "real" ? <RealRestaurantPage r={r} /> : <DemoRestaurantPage r={r} />;
 }

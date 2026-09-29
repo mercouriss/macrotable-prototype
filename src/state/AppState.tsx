@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { getMeal, setStudyScope } from "../data/restaurants";
+import { getMeal, setStudyScope, STUDY_RESTAURANT_IDS } from "../data/restaurants";
+import { PROXY_URL } from "../agent/gemini";
+import { APP_COMMIT, TREATMENT_VERSION } from "../lib/version";
 import { SCENARIOS } from "../data/scenarios";
 import { meetsTarget } from "../lib/feasibility";
 import { nextOrderNumber, readJSON, saveOrder, STORAGE_KEYS, writeJSON } from "../lib/experiment";
@@ -115,10 +117,21 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     if (lock) researchStore.log(lock.sessionId, event, extra);
   }, []);
 
+  const settingsRef = useRef(settings);
+  settingsRef.current = settings;
+
   const beginExperiment = useCallback((a: Assignment): ExperimentLock => {
     const current = stateRef.current.lock;
     if (current) researchStore.abort(current.sessionId);
-    const session = researchStore.start(a);
+    const st = settingsRef.current;
+    const session = researchStore.start(a, Date.now(), {
+      treatmentVersion: TREATMENT_VERSION,
+      appCommit: APP_COMMIT,
+      baselineNutritionVisible: st.baselineShowNutrition,
+      agentMode: st.agentMode,
+      agentProxyConfigured: !!PROXY_URL,
+      studyRestaurants: [...STUDY_RESTAURANT_IDS],
+    });
     const lock: ExperimentLock = { ...a, sessionId: session.sessionId, startedAt: session.startedAt };
     commit({ ...initialFor(a.scenarioId), lock });
     return lock;
@@ -136,6 +149,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     if (!s.selection) return null;
     const found = getMeal(s.selection.mealId);
     if (!found || !found.meal.nutrition || !isSelectionSupported(found.meal, s.selection.selections)) return null;
+    // Study boundary: during a trial only the frozen study restaurants can complete it.
+    if (s.lock && !(STUDY_RESTAURANT_IDS as readonly string[]).includes(found.restaurant.id)) return null;
     const { nutrition, price } = computeConfiguration(found.meal, s.selection.selections);
     const order: PlacedOrder = {
       orderNumber: nextOrderNumber(),

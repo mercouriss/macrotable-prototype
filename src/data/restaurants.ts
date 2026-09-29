@@ -841,5 +841,16 @@ export function getMeal(id: string | undefined) {
   return { meal, restaurant: getRestaurant(meal.restaurantId)! };
 }
 
+/** Like getRestaurant, but undefined for restaurants outside the current scope (deep links during a trial). */
+export function getScopedRestaurant(id: string | undefined): Restaurant | undefined {
+  return catalog().find((r) => r.id === id);
+}
+
+/** Like getMeal, but undefined for dishes outside the current scope (deep links during a trial). */
+export function getScopedMeal(id: string | undefined) {
+  const f = getMeal(id);
+  return f && catalog().includes(f.restaurant) ? f : undefined;
+}
+
 /** The Demo Day hero meal. */
 export const DEMO_MEAL_ID = "fk-chicken-power-bowl";
