@@ -8,24 +8,24 @@ export const LEVEL_META: Record<
   { short: string; title: string; detail: (r?: string) => string; data: string[]; can: string[] }
 > = {
   3: {
-    short: "Demo partner",
-    title: "Demo partner (simulated integration)",
+    short: "Full integration",
+    title: "Full kitchen integration (simulated)",
     detail: (r) =>
       `${r ?? "This restaurant"} is a fictional demo brand showing the deepest integration level: shared recipes, ingredient quantities and chef-approved modification rules, so MacroTable can configure dishes at recipe level and send a kitchen ticket. All of it is simulated.`,
     data: ["Verified recipes", "Ingredient quantities", "Chef-approved modifiers"],
     can: ["Optimise at recipe level", "Configure", "Send kitchen ticket"],
   },
   2: {
-    short: "Demo integration",
-    title: "Structured integration (simulated)",
+    short: "Menu data",
+    title: "Structured menu data (simulated)",
     detail: (r) =>
       `${r ?? "This restaurant"} is a fictional demo brand showing a structured-menu integration: published nutrition and supported modifiers, so MacroTable can filter, optimise within those modifiers and create an order. All of it is simulated.`,
     data: ["Structured menu", "Official nutrition", "Supported modifiers"],
     can: ["Filter", "Optimise", "Configure", "Create order"],
   },
   1: {
-    short: "Not integrated",
-    title: "Not integrated (demo)",
+    short: "Menu only",
+    title: "Menu only · not integrated (demo)",
     detail: (r) =>
       `${r ?? "This restaurant"} is a fictional demo brand showing an unaffiliated restaurant: nutrition is estimated from its menu and no modifications can be sent. MacroTable can recommend a dish and hand you off to order it at the counter.`,
     data: ["Public, unstructured menu", "No modifier data"],

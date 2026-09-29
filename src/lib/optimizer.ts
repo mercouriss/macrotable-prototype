@@ -1,5 +1,5 @@
 import { distanceFromUser } from "../data/geo";
-import { MENU_RESTAURANTS } from "../data/restaurants";
+import { menuRestaurants } from "../data/restaurants";
 import type { Configuration, Meal, Nutrition, Preferences, Restaurant, Selections, UserTarget } from "../types";
 import {
   enumerateConfigurations,
@@ -145,7 +145,8 @@ export interface SearchResult {
 }
 
 export function runSearch(target: UserTarget, prefs: Preferences, restaurantId?: string): SearchResult {
-  const restaurants = restaurantId ? MENU_RESTAURANTS.filter((r) => r.id === restaurantId) : MENU_RESTAURANTS;
+  const pool = menuRestaurants();
+  const restaurants = restaurantId ? pool.filter((r) => r.id === restaurantId) : pool;
   const meals = restaurants.flatMap((r) => r.meals.map((m) => optimizeMeal(m, r, target, prefs)));
   const ranked = meals
     .map((m) => m.best)
@@ -215,8 +216,8 @@ export function fitReasons(c: Configuration, target: UserTarget, opts: { include
     } else {
       out.push({ tone: "good", text: "No modifications needed" });
     }
-    if (c.meal.provenance === "verified") out.push({ tone: "good", text: "Verified recipe data" });
-    if (c.meal.provenance === "official") out.push({ tone: "good", text: "Official restaurant nutrition" });
+    if (c.meal.provenance === "verified") out.push({ tone: "good", text: "Demo recipe data (simulated)" });
+    if (c.meal.provenance === "official") out.push({ tone: "good", text: "Demo published nutrition (simulated)" });
     if (c.meal.provenance === "estimated") out.push({ tone: "warn", text: "Nutrition is an estimate" });
   }
   return out;
@@ -332,9 +333,9 @@ export function explainConfiguration(c: Configuration, target: UserTarget): Expl
     provenance: c.meal.provenance,
     text:
       c.meal.provenance === "verified"
-        ? `Verified recipe data from ${r}: nutrition is calculated from the configured ingredients. Actual preparation may vary.`
+        ? `Demo recipe data for ${r} (simulated): nutrition is calculated from the configured ingredients. Real preparation varies.`
         : c.meal.provenance === "official"
-          ? `Official nutrition published by ${r}, combined with its published modifier values. Actual preparation may vary.`
+          ? `Demo published nutrition for ${r} (simulated), combined with its listed modifier values. Real preparation varies.`
           : `Estimated from ${r}'s public menu — not verified by the restaurant. Actual nutrition may differ.`,
   };
   return { meets, misses, tradeoffs, confidence };

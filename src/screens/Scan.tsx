@@ -4,7 +4,7 @@ import { Icon } from "../components/Icon";
 import { Screen } from "../components/Screen";
 import { Button, Callout, Card, Eyebrow } from "../components/ui";
 import { decodeQR, decodeQRFromFile, frameImageData, useCamera, type CameraStatus } from "../components/useCamera";
-import { getRestaurant, RESTAURANTS } from "../data/restaurants";
+import { catalog, getRestaurant } from "../data/restaurants";
 import type { Restaurant } from "../types";
 import { useAgent } from "../agent/agentState";
 import { PROXY_URL } from "../agent/gemini";
@@ -417,7 +417,7 @@ function QrScan({ autoStart }: { autoStart: boolean }) {
 
   const handle = (text: string, source: "camera" | "upload" | "demo") => {
     cam.stop();
-    const parsed = parseRestaurantQR(text, RESTAURANTS.map((r) => r.id));
+    const parsed = parseRestaurantQR(text, catalog().map((r) => r.id));
     log("qr_scanned", { detail: { source, known: parsed.kind === "restaurant" } });
     if (parsed.kind === "restaurant")
       navigate("/macrotable/agent", { replace: true, state: { agentContext: { kind: "restaurant", id: parsed.restaurantId, entry: "qr" } } });

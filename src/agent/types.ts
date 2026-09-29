@@ -51,6 +51,10 @@ export interface RecommendationCardData {
   meetsTarget: boolean;
   gaps: string[];
   rejectedRequests: string[];
+  /** The target the optimizer used for this card (may include overrides the user just stated). */
+  targetUsed?: { calories: number; protein: number; carbs: number; fat: number; maxBudget: number };
+  /** Up to two "why it fits" lines from the deterministic explanation. */
+  reasons?: string[];
 }
 
 export interface OrderDraft {
@@ -96,7 +100,7 @@ export interface ScannedMenu {
 }
 
 export type AgentCard =
-  | { kind: "stores"; stores: StoreSummary[] }
+  | { kind: "stores"; stores: StoreSummary[]; otherReal?: number }
   | { kind: "recommendation"; rec: RecommendationCardData }
   | { kind: "order"; draftId: string }
   | { kind: "scan"; scanId: string }

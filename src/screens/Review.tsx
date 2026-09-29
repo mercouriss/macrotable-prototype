@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import type { ServiceMode } from "../types";
+import { BrandMark } from "../components/BrandMark";
 import { Icon } from "../components/Icon";
+import { MacroFit } from "../components/MacroFit";
 import { Plate } from "../components/Plate";
 import { approx, ProvenanceBadge } from "../components/ProvenanceBadge";
 import { Screen } from "../components/Screen";
@@ -13,7 +15,7 @@ import { useMealSelection } from "../state/useMealSelection";
 
 /** Screen 8 — explicit approval. Nothing is ordered automatically. */
 export function Review() {
-  const { selection, placeOrder } = useAppState();
+  const { selection, placeOrder, target, prefs } = useAppState();
   const navigate = useNavigate();
   const { found, config, inBudget } = useMealSelection(selection?.mealId);
   const [mode, setMode] = useState<ServiceMode>("pickup");
@@ -33,18 +35,21 @@ export function Review() {
 
   return (
     <Screen
-      title="Approval"
+      title="Review order"
       back={handoff ? `/macrotable/meal/${meal.id}` : `/macrotable/configure/${meal.id}`}
       footer={
         <div className="space-y-2">
           <Button disabled={!inBudget} onClick={confirm} icon={handoff ? "handoff" : "check"}>
-            {handoff ? "Confirm & prepare hand-off" : "Confirm configuration"}
+            {handoff ? "Approve hand-off summary" : "Approve order"}
           </Button>
-          <p className="text-center text-[12.5px] text-ink-3">You always approve before ordering. Simulated — no payment is taken.</p>
+          <p className="text-center text-[12.5px] text-ink-3">Nothing is ordered until you approve · simulated, no payment</p>
         </div>
       }
     >
       <h2 className="mt-2 font-display text-[26px] font-semibold tracking-[-0.02em]">{handoff ? "Ready to hand off" : "Ready to order"}</h2>
+      <p className="mt-1 flex items-center gap-1.5 text-[14px] text-ink-2">
+        <BrandMark restaurant={restaurant} size={20} /> {restaurant.name} · {handoff ? "order at the counter" : "pickup or in-store"}
+      </p>
 
       <Card className="mt-5 p-5">
         <div className="flex items-center gap-3.5">
@@ -81,6 +86,9 @@ export function Review() {
           {config.nutrition.carbs} g carbs · {ap}
           {config.nutrition.fat} g fat
         </p>
+        <div className="mt-4 border-t border-line-2 pt-4">
+          <MacroFit nutrition={config.nutrition} target={target} prefs={prefs} provenance={meal.provenance} compact />
+        </div>
         <div className="mt-4">
           <ProvenanceBadge provenance={meal.provenance} restaurantName={restaurant.name} showSub size="sm" />
         </div>

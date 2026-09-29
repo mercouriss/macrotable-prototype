@@ -5,7 +5,7 @@ import { QRCode } from "../components/QRCode";
 import { Screen } from "../components/Screen";
 import { AgentModeToggle } from "./Account";
 import { Button, Card, Eyebrow } from "../components/ui";
-import { getMeal, MENU_RESTAURANTS } from "../data/restaurants";
+import { getMeal, STUDY_RESTAURANTS } from "../data/restaurants";
 import { SCENARIO_IDS, SCENARIOS } from "../data/scenarios";
 import { clearOrders } from "../lib/experiment";
 import { clock, duration, euro } from "../lib/format";
@@ -147,7 +147,7 @@ export function Research() {
           Each code opens the restaurant's page in the app — scan with the in-app scanner or the phone's own camera.
         </p>
         <div className="mt-3 grid grid-cols-2 gap-3">
-          {MENU_RESTAURANTS.map((r) => (
+          {STUDY_RESTAURANTS.map((r) => (
             <figure key={r.id} className="flex flex-col items-center rounded-xl border border-line-2 p-3">
               <QRCode text={appUrl(`r/${r.id}`)} size={132} label={`QR code for ${r.name}`} />
               <figcaption className="mt-1.5 text-[12.5px] font-semibold">{r.name}</figcaption>

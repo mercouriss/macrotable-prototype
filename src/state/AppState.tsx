@@ -1,9 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { getMeal } from "../data/restaurants";
+import { getMeal, setStudyScope } from "../data/restaurants";
 import { SCENARIOS } from "../data/scenarios";
 import { meetsTarget } from "../lib/feasibility";
 import { nextOrderNumber, readJSON, saveOrder, STORAGE_KEYS, writeJSON } from "../lib/experiment";
 import { computeConfiguration, configurationId, isSelectionSupported } from "../lib/nutrition";
+import { clearSaved } from "../lib/saved";
 import { researchStore, type Assignment, type ExperimentLock } from "../lib/research";
 import type { ExperimentEvent, PlacedOrder, Preferences, ScenarioId, Selections, ServiceMode, UserTarget } from "../types";
 
@@ -58,7 +59,7 @@ interface AppStateValue extends PersistedState {
   log: (event: string, extra?: Partial<Pick<ExperimentEvent, "mealId" | "configurationId" | "detail">>) => void;
   /** Places the current selection, or `selection` when given (the agent approves a specific draft). */
   placeOrder: (mode?: ServiceMode, selection?: MealSelection) => PlaceOrderResult | null;
-  /** Demo lock: Scenario A, canonical data, no selection. Refused during a research trial. */
+  /** Demo lock: Scenario A, canonical data, no selection, no saved meals. Refused during a research trial. */
   resetDemo: () => boolean;
 }
 
@@ -96,12 +97,16 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }));
   const stateRef = useRef(state);
   stateRef.current = state;
+  // Frozen study dataset while a trial runs. Set during render (idempotent) so every child
+  // that renders in the same pass already sees the right restaurant scope.
+  setStudyScope(!!state.lock);
 
   useEffect(() => writeJSON(STORAGE_KEYS.state, state), [state]);
   useEffect(() => writeJSON(STORAGE_KEYS.settings, settings), [settings]);
 
   const commit = (next: PersistedState) => {
     stateRef.current = next;
+    setStudyScope(!!next.lock);
     setState(next);
   };
 
@@ -200,6 +205,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       placeOrder,
       resetDemo: () => {
         if (stateRef.current.lock) return false;
+        clearSaved();
         commit({ ...initialFor("A"), demoEpoch: (stateRef.current.demoEpoch ?? 0) + 1 });
         return true;
       },

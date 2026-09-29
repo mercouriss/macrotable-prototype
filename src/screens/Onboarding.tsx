@@ -65,7 +65,7 @@ export function Onboarding() {
         {last ? "Get started" : "Next"}
       </Button>
       <p className="mt-3 text-center text-[12px] text-ink-3">
-        University prototype · all restaurant data simulated ·{" "}
+        Research prototype · demo menus and orders are simulated ·{" "}
         <Link to="/privacy" className="underline underline-offset-2">
           Privacy
         </Link>

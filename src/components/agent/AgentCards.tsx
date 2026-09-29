@@ -2,6 +2,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAgent } from "../../agent/agentState";
 import type { AgentCard, RecommendationCardData, StoreSummary } from "../../agent/types";
 import { formatDistance } from "../../data/geo";
+import { getRestaurant } from "../../data/restaurants";
+import { BrandMark } from "../BrandMark";
+import { MacroFit } from "../MacroFit";
 import { euro } from "../../lib/format";
 import { Icon } from "../Icon";
 import { approx, ProvenanceBadge } from "../ProvenanceBadge";
@@ -11,7 +14,7 @@ import { useAppState } from "../../state/AppState";
 export function AgentCardView({ card }: { card: AgentCard }) {
   switch (card.kind) {
     case "stores":
-      return <StoresCard stores={card.stores} />;
+      return <StoresCard stores={card.stores} otherReal={card.otherReal} />;
     case "recommendation":
       return <RecommendationCard rec={card.rec} />;
     case "order":
@@ -28,96 +31,148 @@ export function AgentCardView({ card }: { card: AgentCard }) {
   }
 }
 
-function StoresCard({ stores }: { stores: StoreSummary[] }) {
+function StoresCard({ stores, otherReal = 0 }: { stores: StoreSummary[]; otherReal?: number }) {
   const { send, setCurrentRestaurant, busy } = useAgent();
+  const navigate = useNavigate();
   return (
     <div className="overflow-hidden rounded-2xl border border-line-2 bg-surface">
-      <p className="border-b border-line-2 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-3">Nearby · fictional demo stores</p>
+      <p className="border-b border-line-2 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-3">Nearby</p>
       <ul className="divide-y divide-line-2">
-        {stores.map((s) => (
-          <li key={s.restaurantId} className="px-4 py-3">
-            <div className="flex items-baseline justify-between gap-2">
-              <p className="text-[14.5px] font-semibold">{s.name}</p>
-              <span className="tnum shrink-0 text-[12px] text-ink-3">
-                {formatDistance(s.distanceKm)} · {s.priceRange}
-              </span>
-            </div>
-            <p className="text-[12px] text-ink-3">
-              {s.levelLabel} · {s.serviceModes.map((m) => (m === "pickup" ? `pickup ~${s.pickupMinutes} min` : "in-store")).join(" · ")}
-            </p>
-            {s.best ? (
-              <p className="tnum mt-1 text-[12.5px] text-ink-2">
-                <span className={s.best.meetsTarget ? "text-brand" : "text-warn"}>{s.best.meetsTarget ? "✓ Fits" : "Closest"}</span> · {s.best.mealName} ·{" "}
-                {approx(s.best.provenance)}
-                {s.best.calories} kcal · {approx(s.best.provenance)}
-                {s.best.protein} g · {euro(s.best.price)}
-              </p>
-            ) : (
-              <p className="mt-1 text-[12.5px] text-ink-3">Nothing within budget</p>
-            )}
-            <button
-              disabled={busy}
-              onClick={() => {
-                setCurrentRestaurant(s.restaurantId);
-                void send(`What should I get at ${s.name}?`, "chip");
-              }}
-              className="mt-1.5 inline-flex min-h-9 items-center gap-1 rounded-full text-[12.5px] font-semibold text-brand disabled:opacity-50"
-            >
-              Ask about {s.name} <Icon name="arrowRight" size={13} />
-            </button>
-          </li>
-        ))}
+        {stores.map((s) => {
+          const r = getRestaurant(s.restaurantId);
+          return (
+            <li key={s.restaurantId} className="px-4 py-3">
+              <div className="flex items-center gap-2.5">
+                {r && <BrandMark restaurant={r} size={28} />}
+                <p className="min-w-0 flex-1 truncate text-[14.5px] font-semibold">{s.name}</p>
+                <span className="tnum shrink-0 text-[12px] text-ink-3">
+                  {formatDistance(s.distanceKm)}
+                  {s.priceRange ? ` · ${s.priceRange}` : ""}
+                </span>
+              </div>
+              {s.identity === "real" ? (
+                <>
+                  <p className="mt-1 text-[12.5px] text-ink-3">Real · not affiliated · no menu data. Scan the menu to check your fit.</p>
+                  <button
+                    onClick={() => navigate(`/macrotable/scan?type=menu&restaurant=${s.restaurantId}`, { state: { userTap: true } })}
+                    className="mt-1 inline-flex min-h-9 items-center gap-1 text-[12.5px] font-semibold text-brand"
+                  >
+                    <Icon name="camera" size={13} /> Scan menu
+                  </button>
+                </>
+              ) : (
+                <>
+                  {s.best ? (
+                    <p className="tnum mt-1 text-[12.5px] text-ink-2">
+                      <span className={`font-semibold ${s.best.meetsTarget ? "text-brand" : "text-ink-2"}`}>{s.best.meetsTarget ? "✓ Fits" : "Closest"}</span> · {s.best.mealName} · {approx(s.best.provenance)}
+                      {s.best.calories} kcal · {approx(s.best.provenance)}
+                      {s.best.protein} g · {euro(s.best.price)}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-[12.5px] text-ink-3">Nothing within budget</p>
+                  )}
+                  <button
+                    disabled={busy}
+                    onClick={() => {
+                      setCurrentRestaurant(s.restaurantId);
+                      void send(`What should I get at ${s.name}?`, "chip");
+                    }}
+                    className="mt-1 inline-flex min-h-9 items-center gap-1 rounded-full text-[12.5px] font-semibold text-brand disabled:opacity-50"
+                  >
+                    Ask about {s.name} <Icon name="arrowRight" size={13} />
+                  </button>
+                </>
+              )}
+            </li>
+          );
+        })}
       </ul>
+      {otherReal > 0 && (
+        <Link to="/macrotable/explore" className="flex min-h-11 items-center justify-between border-t border-line-2 px-4 text-[12.5px] font-medium text-ink-2 hover:bg-sunken/50">
+          +{otherReal} more real restaurants in Explore <Icon name="chevronRight" size={14} />
+        </Link>
+      )}
     </div>
   );
 }
 
 function RecommendationCard({ rec }: { rec: RecommendationCardData }) {
+  const { target: appTarget, prefs, selectMeal } = useAppState();
+  const navigate = useNavigate();
   const ap = approx(rec.provenance);
   const n = rec.nutrition;
-  const configurable = rec.integrationLevel >= 2 && !rec.mealId.startsWith("scan:");
+  const scanned = rec.mealId.startsWith("scan:");
+  const r = scanned ? undefined : getRestaurant(rec.restaurantId);
+  const configurable = !!r && rec.integrationLevel >= 2;
+  const target = rec.targetUsed ? { ...appTarget, ...rec.targetUsed } : appTarget;
   return (
     <div className="rounded-2xl border border-brand/25 bg-surface p-4 shadow-card">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
+      <div className="flex items-start gap-3">
+        {r && <BrandMark restaurant={r} size={36} />}
+        <div className="min-w-0 flex-1">
           <p className="text-[12px] text-ink-3">{rec.restaurantName}</p>
           <p className="text-[16px] leading-tight font-semibold">{rec.mealName}</p>
         </div>
         <ProvenanceBadge provenance={rec.provenance} restaurantName={rec.restaurantName} size="sm" />
       </div>
+      <p className={`mt-3 flex items-center gap-1.5 text-[12.5px] font-semibold ${rec.meetsTarget ? "text-brand" : "text-warn"}`}>
+        <Icon name={rec.meetsTarget ? "check" : "alert"} size={14} stroke={2.4} />
+        {rec.meetsTarget ? "Best feasible match" : `Closest feasible option · ${rec.gaps.join(" · ")}`}
+      </p>
+      <div className="mt-1.5 flex items-baseline justify-between gap-2">
+        <p className="tnum text-[15px] font-semibold">
+          {ap}
+          {n.calories} kcal · {ap}
+          {n.protein} g protein
+        </p>
+        <p className="tnum text-[17px] font-semibold">{euro(rec.price)}</p>
+      </div>
+      <div className="mt-2.5">
+        <MacroFit nutrition={n} target={target} prefs={prefs} provenance={rec.provenance} compact />
+      </div>
       {rec.changes.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1">
-          {rec.changes.map((c) => (
-            <span key={c} className="rounded-full bg-brand-soft px-2 py-0.5 text-[12px] font-medium text-brand">
-              {c}
-            </span>
-          ))}
+        <div className="mt-3">
+          <p className="text-[11.5px] font-semibold text-ink-3">MacroTable changed</p>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {rec.changes.map((c) => (
+              <span key={c} className="rounded-full bg-brand-soft px-2 py-0.5 text-[12px] font-medium text-brand">
+                {c}
+              </span>
+            ))}
+          </div>
         </div>
       )}
-      <dl className="tnum mt-3 grid grid-cols-5 gap-1 text-center">
-        {(
-          [
-            ["kcal", `${ap}${n.calories}`],
-            ["protein", `${ap}${n.protein} g`],
-            ["carbs", `${ap}${n.carbs} g`],
-            ["fat", `${ap}${n.fat} g`],
-            ["price", euro(rec.price)],
-          ] as const
-        ).map(([k, v]) => (
-          <div key={k} className="rounded-lg bg-sunken/70 px-1 py-1.5">
-            <dd className="text-[13px] font-semibold">{v}</dd>
-            <dt className="text-[10.5px] text-ink-3">{k}</dt>
-          </div>
-        ))}
-      </dl>
-      <p className={`mt-2 flex items-center gap-1.5 text-[12.5px] font-medium ${rec.meetsTarget ? "text-brand" : "text-warn"}`}>
-        <Icon name={rec.meetsTarget ? "check" : "alert"} size={14} stroke={2.4} />
-        {rec.meetsTarget ? "In your target range · all changes supported by the restaurant" : rec.gaps.join(" · ")}
-      </p>
-      {configurable && (
-        <Link to={`/macrotable/meal/${rec.mealId}`} className="mt-2 inline-flex min-h-9 items-center gap-1 text-[12.5px] font-semibold text-ink-2 hover:text-ink">
-          Details & customise <Icon name="chevronRight" size={13} />
-        </Link>
+      {!!rec.reasons?.length && rec.meetsTarget && (
+        <ul className="mt-2.5 space-y-0.5 text-[12.5px] text-ink-2">
+          {rec.reasons.map((t) => (
+            <li key={t} className="flex gap-1.5">
+              <Icon name="check" size={13} stroke={2.4} className="mt-0.5 shrink-0 text-brand" />
+              {t}
+            </li>
+          ))}
+        </ul>
+      )}
+      {r && (
+        <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
+          <button
+            onClick={() => {
+              selectMeal({ mealId: rec.mealId, selections: rec.selections, recommended: rec.selections });
+              navigate(configurable ? `/macrotable/configure/${rec.mealId}` : `/macrotable/meal/${rec.mealId}`);
+            }}
+            className="min-h-11 rounded-xl bg-brand px-4 text-[14px] font-semibold text-white hover:bg-brand-hover"
+          >
+            {configurable ? "Configure order" : "View details"}
+          </button>
+          {configurable && (
+            <Link
+              to={`/macrotable/meal/${rec.mealId}`}
+              onClick={() => selectMeal({ mealId: rec.mealId, selections: rec.selections, recommended: rec.selections })}
+              className="inline-flex min-h-11 items-center rounded-xl border border-line px-3.5 text-[13.5px] font-medium text-ink-2 hover:bg-sunken"
+            >
+              Why?
+            </Link>
+          )}
+        </div>
       )}
     </div>
   );

@@ -49,7 +49,7 @@ export function Configure() {
 
   return (
     <Screen
-      title="Configuration"
+      title="Configure order"
       back={`/macrotable/meal/${meal.id}`}
       footer={
         <div className="space-y-2">

@@ -2,21 +2,36 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef, useState } from "react";
 import { DEMO_AREA } from "../data/geo";
-import { RESTAURANTS } from "../data/restaurants";
+import type { Restaurant } from "../types";
 import { IllustratedMap } from "./IllustratedMap";
 
 /*
- * Real map (OpenStreetMap tiles, attributed) with FICTIONAL demo-store pins.
+ * Real map (OpenStreetMap tiles, attributed). Demo brands get a labelled monogram pin
+ * (fictional, tagged DEMO); real, unaffiliated restaurants are small neutral dots that
+ * only show their name when selected — so ~25 places stay readable on a phone.
  * Tiles need a network connection; if they fail we switch to the illustrated map.
  * Tiles are not precached (OSM tile usage policy).
  */
-export default function LeafletMap({ selected, onSelect }: { selected: string | null; onSelect: (id: string) => void }) {
+export default function LeafletMap({
+  restaurants,
+  selected,
+  onSelect,
+}: {
+  restaurants: Restaurant[];
+  selected: string | null;
+  onSelect: (id: string) => void;
+}) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const markers = useRef<Record<string, L.Marker>>({});
+  const list = useRef(restaurants);
+  list.current = restaurants;
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
   const [failed, setFailed] = useState(() => typeof navigator !== "undefined" && navigator.onLine === false);
+  const ids = restaurants.map((r) => r.id).join(",");
 
   useEffect(() => {
     if (failed || !el.current) return;
@@ -25,7 +40,7 @@ export default function LeafletMap({ selected, onSelect }: { selected: string | 
     let errors = 0;
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors · DEMO pins are fictional',
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     })
       .on("tileerror", () => {
         if (++errors >= 4) setFailed(true);
@@ -39,20 +54,34 @@ export default function LeafletMap({ selected, onSelect }: { selected: string | 
       interactive: false,
     }).addTo(m);
 
-    for (const r of RESTAURANTS) {
-      const mk = L.marker([r.location.lat, r.location.lng], {
-        title: r.identity === "real" ? `${r.name} (real restaurant, not affiliated)` : `${r.name} (fictional demo restaurant)`,
-        alt: r.identity === "real" ? `${r.name} (real restaurant, not affiliated)` : `${r.name} (fictional demo restaurant)`,
-        icon: pinIcon(r.name, r.identity, r.integrationLevel, false, 0),
-        keyboard: true,
-      })
-        .on("click", () => onSelect(r.id))
-        .addTo(m);
-      markers.current[r.id] = mk;
-    }
+    m.attributionControl.setPrefix(false);
+    // Frame "you" + the demo brands (after layout, so the container has its real size);
+    // real places further away are a pan away and always in the list. No animation: an
+    // in-flight pan from invalidateSize would otherwise cancel the zoom.
+    const frame = () => {
+      const demo = list.current.filter((r) => r.identity === "demo");
+      m.invalidateSize({ pan: false });
+      if (demo.length)
+        m.fitBounds(L.latLngBounds([DEMO_AREA.user, ...demo.map((r) => r.location)].map((p) => [p.lat, p.lng] as [number, number])), {
+          padding: [30, 30],
+          maxZoom: 16,
+          animate: false,
+        });
+    };
+    // Frame once the container has a real size (a lazy mount can report 0×0 for a frame);
+    // afterwards just keep Leaflet's size in sync.
+    let framed = false;
+    const ro = new ResizeObserver(([entry]) => {
+      if (!entry || entry.contentRect.width < 10) return;
+      if (!framed) {
+        framed = true;
+        frame();
+      } else m.invalidateSize();
+    });
+    ro.observe(el.current);
     m.on("zoomend", () => layoutLabels());
-    requestAnimationFrame(() => layoutLabels());
     return () => {
+      ro.disconnect();
       m.remove();
       map.current = null;
       markers.current = {};
@@ -60,41 +89,57 @@ export default function LeafletMap({ selected, onSelect }: { selected: string | 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [failed]);
 
+  // (Re)build markers when the filtered set changes.
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    for (const mk of Object.values(markers.current)) mk.remove();
+    markers.current = {};
+    for (const r of list.current) {
+      const name = r.identity === "real" ? `${r.name} (real restaurant, not affiliated)` : `${r.name} (fictional demo restaurant)`;
+      markers.current[r.id] = L.marker([r.location.lat, r.location.lng], { title: name, alt: name, icon: iconFor(r, r.id === selectedRef.current), keyboard: true, riseOnHover: true, zIndexOffset: r.identity === "demo" ? 100 : 0 })
+        .on("click", () => onSelectRef.current(r.id))
+        .addTo(m);
+    }
+    requestAnimationFrame(() => layoutLabels());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ids, failed]);
+
   useEffect(() => {
     layoutLabels();
-    const r = RESTAURANTS.find((x) => x.id === selected);
+    const r = list.current.find((x) => x.id === selected);
     if (r && map.current) map.current.panTo([r.location.lat, r.location.lng]);
   }, [selected]);
 
-  /**
-   * Label collision pass (pixel space). Pins keep their TRUE coordinates; a label that would
-   * overlap one above it is nudged down until free (e.g. two places in the same food court).
-   */
+  /** Only the selected place carries a full name label, so pins never collide or drift from their true position. */
   function layoutLabels() {
-    const m = map.current;
-    if (!m) return;
-    const placed: { x1: number; x2: number; y1: number; y2: number }[] = [];
-    const items = RESTAURANTS.map((r) => ({ r, p: m.latLngToLayerPoint([r.location.lat, r.location.lng]) })).sort((a, b) => a.p.y - b.p.y || a.p.x - b.p.x);
-    for (const { r, p } of items) {
-      const w = r.name.length * 6.6 + (r.identity === "demo" ? 52 : 26);
-      let shift = 0;
-      const box = () => ({ x1: p.x - 20, x2: p.x - 20 + w, y1: p.y - 30 + shift, y2: p.y - 30 + shift + 24 });
-      while (placed.some((q) => { const b = box(); return b.x1 < q.x2 && q.x1 < b.x2 && b.y1 < q.y2 && q.y1 < b.y2; }) && shift < 200) shift += 26;
-      placed.push(box());
-      markers.current[r.id]?.setIcon(pinIcon(r.name, r.identity, r.integrationLevel, r.id === selectedRef.current, shift));
+    for (const r of list.current) {
+      const active = r.id === selectedRef.current;
+      markers.current[r.id]?.setIcon(iconFor(r, active)).setZIndexOffset(active ? 1000 : r.identity === "demo" ? 100 : 0);
     }
   }
 
-  if (failed) return <IllustratedMap selected={selected} onSelect={onSelect} note="Map tiles unavailable — showing the illustrated demo map." />;
+  if (failed) return <IllustratedMap restaurants={restaurants} selected={selected} onSelect={onSelect} note="Map tiles unavailable — showing the illustrated demo map." />;
   return <div ref={el} className="h-full w-full" role="region" aria-label="Map of nearby real and demo restaurants" />;
 }
 
-function pinIcon(name: string, identity: "demo" | "real", level: number, active: boolean, shiftPx = 0) {
+function iconFor(r: Restaurant, active: boolean) {
+  if (!active) {
+    if (r.identity === "real") return L.divIcon({ className: "", html: '<span class="mt-dot" data-identity="real"></span>', iconSize: [14, 14], iconAnchor: [7, 7] });
+    return L.divIcon({
+      className: "",
+      html: `<span class="mt-mono" style="background:${r.brand?.color ?? "#454A52"}">${escapeHtml(r.brand?.mark ?? r.name[0])}</span>`,
+      iconSize: [26, 26],
+      iconAnchor: [13, 13],
+    });
+  }
+  const mark = r.brand ? `<i class="mt-pin-mark" style="background:${r.brand.color}">${escapeHtml(r.brand.mark)}</i>` : "";
+  const tag = r.identity === "demo" ? '<small class="mt-pin-tag">DEMO</small>' : "";
   return L.divIcon({
     className: "",
-    html: `<span class="mt-pin${active ? " mt-pin-active" : ""}" data-identity="${identity}" data-level="${level}">${escapeHtml(name)}${identity === "demo" ? '<small class="mt-pin-tag">DEMO</small>' : ""}</span>`,
+    html: `<span class="mt-pin mt-pin-active" data-identity="${r.identity}">${mark}${escapeHtml(r.name)}${tag}</span>`,
     iconSize: undefined,
-    iconAnchor: [14, 30 - shiftPx],
+    iconAnchor: [14, 30],
   });
 }
 

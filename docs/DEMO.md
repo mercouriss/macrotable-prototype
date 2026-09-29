@@ -10,6 +10,22 @@ Use a laptop browser window ≥1280 px wide. The app appears in a phone frame, w
 2. Check that the presenter panel says **Demo mode — nothing is logged**.
 3. If you'll show QR: open `/research` → *Printable demo QR codes*, and print them or show them on a second screen.
 
+## V3.5 product demo (recommended story)
+
+```
+1. /demo → Home: remaining macros, one primary action (Find my next meal), "Good options nearby" from the optimizer
+2. Tap FitKitchen · Chicken Power Bowl → Recommendation: "Best feasible match", 682 kcal · 49 g protein · €16.50,
+   target-vs-meal bars, "MacroTable changed" (+50 g chicken · Half rice · Light sauce · Double vegetables), DEMO VERIFIED
+3. Configure order → Review order (fit bars + provenance) → Approve order → pickup code → Save meal
+4. Explore → 25 places: 6 DEMO brands (monogram pins) + 19 real, unaffiliated restaurants (dashed dots)
+   → filters: Best macro fit / High protein / Within budget / Vegetarian / MacroTable Demo / Real restaurants
+   → a real place (e.g. Toko Smoor): "What MacroTable knows" → Scan the menu here
+5. Agent → "What should I eat near me?" → Nearby card (demo stores + 3 nearest real, "+16 more") → recommendation card → Configure order
+6. Profile → MacroTable Premium (concept: €7.99/month, €59.99/year, no billing; built vs concept features; how MacroTable earns)
+```
+
+The public demo shows every brand. **Research trials and `/baseline` only ever show the three calibrated study brands** (FitKitchen, Urban Bowl, Local Grill), so don't be surprised when Explore shows "3 places" during a trial.
+
 ## V3.1 desktop setup
 
 Open the app at ≥1024 px. The phone sits on the left and the showcase column on the right: a product-demo video (or its placeholder) and the presenter controls (Reset demo, scenarios, Offline agent only). Set the video with the repo variable `SHOWCASE_VIDEO_URL` and redeploy. In steps 2 and 14 below, point out the real restaurants (dashed pins, "Real · not affiliated"). Tap Mozza → Ask Agent to show the honest "no menu data → Scan the menu here" path.
@@ -49,17 +65,17 @@ Optional extras:
 /demo                      → resets to Scenario A, lands on Home
 Reset Demo                 → (presenter panel) only needed between run-throughs
 Scenario A                 → Home: 700 kcal · 45 g protein · 75 g carbs · 22 g fat left, €18 budget
-Home                       → tap "Find me a meal"
+Home                       → tap "Find my next meal"
 Preferences                → leave defaults (€18, no restriction, Hit my macros, High protein) → "Find meals"
-Searching                  → counts: 3 restaurants · 11 meals · 134 supported configurations · 113 within €18 (or tap Skip)
+Searching                  → counts (public demo: 6 restaurants; in a trial: 3 restaurants · 11 meals · 134 supported configurations · 113 within €18) (or tap Skip)
 Results                    → BEST MATCH Chicken Power Bowl (VERIFIED) · Teriyaki Salmon Bowl (OFFICIAL) · Grilled Chicken Salad (ESTIMATED)
-Chicken Power Bowl         → "View order"
-Why this meal              → Target vs order: 682 kcal · 49 g · 72 g · 20 g · €16.50; Meets / Trade-offs / Confidence
-Configuration              → "Use MacroTable's version": +50 g chicken, half rice, light sauce, double veg; tap a row to show locked unsupported options
+Chicken Power Bowl         → "See recommendation"
+Recommendation             → Target vs meal bars: 682 kcal · 49 g · 72 g · 20 g · €16.50; Why this fits / How reliable is this?
+Configure order            → MacroTable version: +50 g chicken, half rice, light sauce, double veg; tap a row to show locked unsupported options
 Provenance                 → "How was this calculated?" → Verified recipe sheet
-Approval                   → "Review order" → "Confirm configuration"
+Review order               → "Review order" → "Approve order"
 Kitchen ticket             → "View kitchen ticket": MACROTABLE ORDER #MT10xx
-Scenario D failure case    → presenter panel "D" → Find me a meal → Find meals → "No exact configuration available";
+Scenario D failure case    → presenter panel "D" → Find my next meal → Find meals → "No exact configuration available";
                              closest: Chicken Power Bowl (+100 g chicken, no rice, no sauce, double veg) 454 kcal / 57 g — 8 g short
 ```
 

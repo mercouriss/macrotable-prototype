@@ -20,7 +20,7 @@ export const provenanceLabel = (p: Provenance) => PROVENANCE_LABEL[p];
 /** How MacroTable relates to a restaurant — honest for real, unaffiliated businesses. */
 export function relationshipLabel(r: Pick<Restaurant, "identity" | "integrationLevel">): string {
   if (r.identity === "real") return "Real restaurant · not affiliated";
-  return { 3: "Demo partner (simulated)", 2: "Demo integration (simulated)", 1: "Demo · not integrated" }[r.integrationLevel];
+  return { 3: "Demo · full kitchen integration (simulated)", 2: "Demo · structured menu data (simulated)", 1: "Demo · menu only, not integrated" }[r.integrationLevel];
 }
 
 /** Unobtrusive disclosure shown in Explore, restaurant pages, the desktop shell and the privacy notice. */

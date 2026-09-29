@@ -2,7 +2,9 @@ import { euro } from "../lib/format";
 import { changesFromDefault } from "../lib/nutrition";
 import { customizationStatus, fitReasons } from "../lib/optimizer";
 import type { Configuration, UserTarget } from "../types";
+import { BrandMark } from "./BrandMark";
 import { Icon } from "./Icon";
+import { MacroFit } from "./MacroFit";
 import { Plate } from "./Plate";
 import { approx, ProvenanceBadge } from "./ProvenanceBadge";
 import { RestaurantBadge } from "./RestaurantBadge";
@@ -72,34 +74,26 @@ export function MealCard({
         <div className="min-w-0 flex-1">
           <h3 className="text-[18px] leading-tight font-semibold tracking-tight">{meal.name}</h3>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-[13.5px] text-ink-2">{restaurant.name}</span>
+            <span className="inline-flex items-center gap-1.5 text-[13.5px] text-ink-2">
+              <BrandMark restaurant={restaurant} size={18} />
+              {restaurant.name}
+            </span>
             <RestaurantBadge restaurant={restaurant} size="sm" />
           </div>
         </div>
       </div>
 
-      <dl className="tnum mt-4 grid grid-cols-3 gap-2 rounded-2xl bg-sunken/70 px-3 py-3">
-        <div>
-          <dt className="text-[11px] font-medium text-ink-3">Calories</dt>
-          <dd className="text-[17px] font-semibold">
-            {ap}
-            {nutrition.calories}
-            <span className="ml-0.5 text-[12px] font-medium text-ink-3">kcal</span>
-          </dd>
-        </div>
-        <div>
-          <dt className="text-[11px] font-medium text-ink-3">Protein</dt>
-          <dd className="text-[17px] font-semibold">
-            {ap}
-            {nutrition.protein}
-            <span className="ml-0.5 text-[12px] font-medium text-ink-3">g</span>
-          </dd>
-        </div>
-        <div>
-          <dt className="text-[11px] font-medium text-ink-3">Price</dt>
-          <dd className="text-[17px] font-semibold">{euro(price)}</dd>
-        </div>
-      </dl>
+      <div className="mt-4 flex items-baseline justify-between gap-2">
+        <p className="tnum text-[16px] font-semibold">
+          {ap}
+          {nutrition.calories} kcal <span className="text-ink-3">·</span> {ap}
+          {nutrition.protein} g protein
+        </p>
+        <p className="tnum text-[18px] font-semibold tracking-tight">{euro(price)}</p>
+      </div>
+      <div className="mt-2.5">
+        <MacroFit nutrition={nutrition} target={target} provenance={meal.provenance} compact />
+      </div>
 
       <div className="mt-3">
         <CustomizationLine config={config} />
@@ -123,7 +117,7 @@ export function MealCard({
         }`}
         aria-label={`View order: ${meal.name} from ${restaurant.name}`}
       >
-        View order <Icon name="arrowRight" size={17} />
+        {highlight ? "See recommendation" : "View"} <Icon name="arrowRight" size={17} />
       </button>
     </article>
   );

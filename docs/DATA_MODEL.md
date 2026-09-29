@@ -163,3 +163,31 @@ interface RealIdentity { website; addressLine; osm /* e.g. node/4140102516 */; v
 | Sally's Salads, Mozza, Erasmus Paviljoen | real | name + location (website + OSM, verified 2026-09-29) | nothing is claimed: `meals: []`, no price range, pickup or service modes; MacroTable is not affiliated |
 
 `MENU_RESTAURANTS` (demo brands with menus) feeds the optimizer, the baseline and the experiment. `RESTAURANTS` (all six) feeds the map, Explore, the agent's `listNearbyStores` and QR lookup.
+
+## V3.5: expanded dataset, frozen study scope, saved meals
+
+**Dataset.** 6 fictional demo brands and 19 real, unaffiliated restaurants (identity + location only, each verified 2026-09-29 against the restaurant's own website and its OpenStreetMap object).
+
+| Brand | Level | Cuisine | In study dataset |
+|---|---|---|---|
+| FitKitchen | 3 | Protein bowls | **yes** |
+| Urban Bowl | 2 | Build-your-own bowls | **yes** |
+| Local Grill | 1 | Grill & wraps | **yes** |
+| Pasta Metrica | 3 | Fresh pasta | no (public only) |
+| Saffron & Steam | 2 | Indian rice bowls | no (public only) |
+| Tinplate Deli | 1 | Sandwiches & soup | no (public only) |
+
+Demo brands carry `brand: { color, mark }`, an original monogram (no photos, no logos). Real restaurants never carry one.
+
+**Scope.** `STUDY_RESTAURANTS` (FitKitchen, Urban Bowl, Local Grill) is the **frozen study dataset** the scenarios were calibrated on.
+- `/baseline` imports it directly.
+- The treatment reads `catalog()` / `menuRestaurants()`. These return the study set while a trial is locked (`setStudyScope(!!lock)` in `AppState`), and everything otherwise.
+- The optimizer, Explore, the map, the agent tools, QR lookup and Home all go through them. The agent cannot reach a public-only dish during a trial; this is tested.
+
+**Saved meals.**
+- One localStorage key, `macrotable.saved.v1`: `{ mealId, selections, savedAt }[]` (max 30).
+- Local only, never exported or sent.
+- Cleared by Profile → Prototype & research, or by Reset demo.
+- Hidden during trials.
+
+**New event detail.** `recommendation_selected` may carry `detail.entry` (`"home"` or `"restaurant"`), recording where the recommendation was opened. No new event names.

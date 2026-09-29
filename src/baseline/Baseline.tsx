@@ -5,7 +5,7 @@ import { ModifierSelector } from "../components/ModifierSelector";
 import { Plate } from "../components/Plate";
 import { Screen } from "../components/Screen";
 import { Button, ButtonLink, Card, Eyebrow } from "../components/ui";
-import { getMeal, getRestaurant, MENU_RESTAURANTS } from "../data/restaurants";
+import { getMeal, getRestaurant, STUDY_RESTAURANTS } from "../data/restaurants";
 import { SCENARIOS } from "../data/scenarios";
 import { getOrders } from "../lib/experiment";
 import { taskConstraints } from "../lib/research";
@@ -101,7 +101,7 @@ export function BaselineBrowse() {
   return (
     <BaselineScreen title="Restaurants" back={lock ? undefined : "/baseline"}>
       <ul className="mb-6 space-y-3">
-        {MENU_RESTAURANTS.map((r) => (
+        {STUDY_RESTAURANTS.map((r) => (
           <li key={r.id}>
             <Link to={`/baseline/restaurant/${r.id}`}>
               <Card className="flex items-center gap-4 p-4 hover:bg-sunken/40">

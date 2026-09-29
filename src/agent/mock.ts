@@ -1,4 +1,4 @@
-import { RESTAURANTS } from "../data/restaurants";
+import { catalog } from "../data/restaurants";
 import { euro } from "../lib/format";
 import type { Adjustment } from "../lib/optimizer";
 import { executeTool, SCAN_RESTAURANT_ID, type ToolContext } from "./tools";
@@ -46,7 +46,7 @@ export function parseIntent(raw: string): ParsedIntent {
     else if (new RegExp(`\\b(no|without|skip|hold)\\s+(the\\s+)?${p}\\b`).test(t)) adjustments.push({ group: part, request: "none" });
     else if (new RegExp(`\\b(more|extra|double|add|additional)\\s+(the\\s+)?${p}\\b`).test(t)) adjustments.push({ group: part, request: "more" });
   }
-  const restaurantId = RESTAURANTS.find((r) => t.includes(r.name.toLowerCase()) || t.includes(r.id))?.id ?? (/\b(scanned|scan)\s+menu\b|\bthis menu\b/.test(t) ? SCAN_RESTAURANT_ID : undefined);
+  const restaurantId = catalog().find((r) => t.includes(r.name.toLowerCase()) || t.includes(r.id))?.id ?? (/\b(scanned|scan)\s+menu\b|\bthis menu\b/.test(t) ? SCAN_RESTAURANT_ID : undefined);
   return {
     calories: num(/(\d{3,4})\s*(k?cal|calories|kcals?)\b/),
     protein: num(/(\d{1,3})\s*(g|grams?)?\s*(of\s+)?protein\b/) ?? num(/protein\s*(?:of|:|≥|>=|at least)?\s*(\d{1,3})\s*g\b/),
@@ -172,9 +172,12 @@ export function runMockTurn(userText: string, ctx: ToolContext): MockTurn {
   // 6. Compare stores / find something nearby / specific restaurant.
   if (i.compare || i.recommend || i.restaurantId || i.adjustments.length || Object.keys(overrides).length) {
     let stores: StoreSummary[] = [];
+    let moreReal = 0;
     if (!i.restaurantId) {
       const s = call("listNearbyStores", i.maxBudget ? { maxBudget: i.maxBudget } : {});
-      stores = (s.result as { stores: StoreSummary[] }).stores;
+      const res = s.result as { stores: StoreSummary[]; otherRealRestaurantsNearby?: number };
+      stores = res.stores;
+      moreReal = res.otherRealRestaurantsNearby ?? 0;
     }
     const r = call("optimizeMeal", { restaurantId: i.restaurantId ?? (ctx.state.currentRestaurantId && !i.compare ? ctx.state.currentRestaurantId : undefined), adjustments: i.adjustments, ...overrides });
     const rec = ctx.state.currentRecommendation;
@@ -183,7 +186,7 @@ export function runMockTurn(userText: string, ctx: ToolContext): MockTurn {
       return { text: why ?? "Nothing nearby fits those constraints. Try a higher budget or fewer restrictions.", toolRuns: runs };
     }
     const demo = stores.filter((s) => s.identity === "demo").length;
-    const real = stores.length - demo;
+    const real = stores.length - demo + moreReal;
     const lead = stores.length
       ? `I compared ${demo} nearby restaurants with MacroTable demo menus${real ? ` (${real} real restaurants nearby aren't affiliated, so I'd need a menu scan there)` : ""}. ${rec.restaurantName} has the strongest ${provWord(rec.provenance)} match:`
       : `At ${rec.restaurantName}, the best fit is:`;

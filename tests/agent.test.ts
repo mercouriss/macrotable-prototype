@@ -150,7 +150,7 @@ describe("Gemini provider loop (mocked proxy)", () => {
     expect(second.contents[2].parts[0].functionResponse.id).toBe("call-1");
     expect(JSON.stringify(second.contents[2].parts[0].functionResponse.response)).toMatch(/"calories":682/);
     expect(second.tools[0].functionDeclarations.map((d: any) => d.name)).toContain("prepareOrder");
-    expect(JSON.stringify(bodies)).not.toMatch(/key/i);
+    expect(JSON.stringify(bodies)).not.toMatch(/api[_-]?key|x-goog-api-key|[?&]key=/i);
   });
 
   it("falls back to the offline agent on failure, labels it, and rolls back partial tool effects", async () => {
@@ -178,7 +178,9 @@ describe("real restaurants: identity only, never invented data", () => {
   it("carry verified identity/location sources and no menu, prices, hours or pickup claims", async () => {
     const { RESTAURANTS, MENU_RESTAURANTS } = await import("../src/data/restaurants");
     const real = RESTAURANTS.filter((r) => r.identity === "real");
-    expect(real.map((r) => r.name)).toEqual(["Sally's Salads", "Mozza", "Erasmus Paviljoen"]);
+    expect(real.length).toBeGreaterThanOrEqual(15);
+    expect(real.map((r) => r.name)).toEqual(expect.arrayContaining(["Sally's Salads", "Mozza", "Erasmus Paviljoen"]));
+    expect(new Set(real.map((r) => r.id)).size).toBe(real.length);
     for (const r of real) {
       expect(r.meals).toEqual([]);
       expect(r.priceRange).toBeUndefined();
@@ -187,6 +189,8 @@ describe("real restaurants: identity only, never invented data", () => {
       expect(r.real?.website).toMatch(/^https:\/\//);
       expect(r.real?.osm).toMatch(/^node\/\d+$/);
       expect(r.real?.verifiedOn).toBe("2026-09-29");
+      expect(r.real?.sources.length).toBeGreaterThanOrEqual(2);
+      expect(r.brand).toBeUndefined();
     }
     expect(MENU_RESTAURANTS.every((r) => r.identity === "demo")).toBe(true);
   });

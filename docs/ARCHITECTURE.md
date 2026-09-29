@@ -72,6 +72,7 @@ MacroTable is a static single-page app with **no backend**: Vite, React 19, Type
 - **Nutrition is never calculated by AI.** It is base dish + the sum of supported modifier deltas, with money in integer cents.
 - **No unsupported modification can be selected, priced or ordered.** Unsupported options never enter the search space, and `computeConfiguration()` throws on them.
 - **Ranking follows the user's objective, not integration depth.** A test inverts every restaurant's integration level and asserts an identical ranking.
+- **Trials use the frozen study dataset.** While a trial is locked, the catalog, optimizer, Explore, map and agent tools see only `STUDY_RESTAURANTS`, the same three brands `/baseline` lists (V3.5).
 - **Baseline shares data but not intelligence.** It imports the same `RESTAURANTS` and `computeConfiguration`. A test asserts it never imports the optimizer, recommendations, comparison or explanation components.
 - **Demo mode never logs.** `log()` is a no-op unless a participant trial is locked.
 - **Participants cannot switch condition.** `lockedRedirect()` routes any other-condition, demo or QR URL back to the assigned condition. `/research` shows only a lock screen mid-trial.

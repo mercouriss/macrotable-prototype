@@ -1,7 +1,7 @@
 import type { GeoPoint } from "../types";
 
 /*
- * FICTIONAL DEMO LOCATIONS. The three restaurants do not exist. Pins are
+ * FICTIONAL DEMO LOCATIONS. The demo brands do not exist. Pins are
  * placed near a university campus so the map feels local, and every map view
  * labels them "fictional demo store". Change DEMO_AREA to move the demo.
  */
@@ -13,10 +13,13 @@ export const DEMO_AREA = {
   user: { lat: 51.9178, lng: 4.5262 } as GeoPoint,
 };
 
-export const DEMO_STORE_LOCATIONS: Record<"fitkitchen" | "urbanbowl" | "localgrill", GeoPoint> = {
+export const DEMO_STORE_LOCATIONS: Record<"fitkitchen" | "urbanbowl" | "localgrill" | "pastametrica" | "saffronsteam" | "tinplate", GeoPoint> = {
   fitkitchen: { lat: 51.9203, lng: 4.5228 },
   urbanbowl: { lat: 51.9152, lng: 4.5198 },
   localgrill: { lat: 51.9214, lng: 4.5311 },
+  pastametrica: { lat: 51.9192, lng: 4.5318 },
+  saffronsteam: { lat: 51.9146, lng: 4.5296 },
+  tinplate: { lat: 51.9232, lng: 4.5258 },
 };
 
 /** Great-circle distance in km (haversine). */

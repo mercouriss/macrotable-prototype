@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { ALL_MEALS, DEMO_MEAL_ID, getMeal } from "../src/data/restaurants";
+import { ALL_MEALS, DEMO_MEAL_ID, getMeal, setStudyScope } from "../src/data/restaurants";
 import { SCENARIOS } from "../src/data/scenarios";
 import { enumerateConfigurations, meetsTarget } from "../src/lib/feasibility";
 import { changesFromDefault, computeConfiguration, describeChange, toCents } from "../src/lib/nutrition";
 import { infeasibilityReasons, runSearch } from "../src/lib/optimizer";
+
+// Scenario calibration is defined on the FROZEN STUDY DATASET (the three original demo brands).
+setStudyScope(true);
 
 const DEMO_SELECTIONS = { chicken: "chicken-50", rice: "rice-half", sauce: "sauce-light", veg: "veg-double" };
 

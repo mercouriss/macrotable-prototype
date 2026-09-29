@@ -1,4 +1,4 @@
-# MacroTable — V3 research prototype
+# MacroTable — V3.5 research prototype (product candidate)
 
 > **MacroTable is a university research prototype. Restaurant integrations, nutrition values, health synchronization, commerce actions and orders are simulated unless explicitly stated otherwise.**
 
@@ -17,6 +17,38 @@ MacroTable is a nutrition-aware food-commerce **agent**. **MacroAgent** understa
 TRIGGER (ask / scan / choose store) → GATHER CONTEXT → REASON + PLAN (choose tools)
 → ACT (find store, load menu, optimise, configure, draft order) → VERIFY (constraints, provenance, numbers) → HANDOFF (your approval)
 ```
+
+## V3.5: product candidate
+
+This is the last productization pass before the pilot and freeze. The audit, including what was deliberately **not** built, is in [docs/V3.5-AUDIT.md](docs/V3.5-AUDIT.md).
+
+- **Home is a product home.**
+  - Remaining macros and budget.
+  - One primary action: *Find my next meal*.
+  - "Good options nearby", taken straight from the deterministic optimizer.
+  - A fast route to MacroAgent.
+  - Saved meals, then scanning.
+- **The recommendation screen answers WHAT / WHY / CHANGE / CONFIDENCE / PRICE / ACTION at a glance.**
+  - "Best feasible match".
+  - Target-vs-meal bars (`MacroFit`), with the ±10 % calorie range and the protein minimum.
+  - "MacroTable changed".
+  - "How reliable is this?".
+  - *Configure order* → *Review order* → *Approve order*.
+- **Explore is populated and honest.** 25 places: 6 fictional **DEMO** brands (monogram pins) and **19 real, unaffiliated restaurants** (dashed dots; name and location only, each verified 2026-09-29 against its own website and OpenStreetMap).
+  - Search.
+  - Filters: *Best macro fit · High protein · Within budget · Vegetarian · MacroTable Demo · Real restaurants*. Nutrition filters never include real restaurants.
+  - Real places say "Scan the menu to check your fit".
+- **MacroAgent cards** show fit bars, "why this fits", "MacroTable changed" and a *Configure order* button. The store list shows the demo brands plus the 3 nearest real places.
+- **Saved meals and order again**, stored in this browser only.
+- **MacroTable Premium concept** (Profile).
+  - €7.99/month or €59.99/year, labelled *prototype pricing / concept — no billing*.
+  - Built features are marked apart from concept-only ones.
+  - Everything that exists stays unlocked, so Free is never crippled and the experiment is untouched.
+  - It shows how MacroTable would earn money, with a no-paid-placement rule.
+- **Research isolation.**
+  - Trials in both arms use the **frozen study dataset** (FitKitchen, Urban Bowl, Local Grill).
+  - Premium, saved meals and the "Prototype & research" tools are hidden in trials.
+  - Scenario calibration is unchanged.
 
 ## V3.1: realism, UX and presentation
 
@@ -101,9 +133,9 @@ The V2 study infrastructure is unchanged and now agent-aware: participant links,
 
 ## What is simulated
 
-Restaurants, menus, recipes, prices, nutrition and locations are fictional, as are the restaurant integrations (levels 1–3). Also simulated: order sending, kitchen tickets, pickup codes, payments (none), the "logged today" macros, and the offline sample menu extraction.
+The demo brands and their menus, recipes, prices, nutrition and locations are fictional, as are all restaurant integrations (levels 1–3). Real restaurants are real in name and location only. Also simulated: the Premium pricing concept (no billing), order sending, kitchen tickets, pickup codes, payments (none), the "logged today" macros, and the offline sample menu extraction.
 
-**Real:** the camera, QR decoding, the deterministic optimizer and tools, the Gemini call via the proxy (once deployed), OpenStreetMap tiles, IndexedDB scan storage, local research logging and exports, and the PWA.
+**Real:** the identity and location of the 19 unaffiliated restaurants, the camera, QR decoding, the deterministic optimizer and tools, the Gemini call via the proxy (once deployed), OpenStreetMap tiles, IndexedDB scan storage, local research logging and exports, and the PWA.
 
 ## Known limitations
 

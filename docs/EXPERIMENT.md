@@ -2,6 +2,22 @@
 
 > Operational materials for running the pilot and main study (schedule, questionnaire, analysis script, freeze record) are in [docs/study/](study/README.md). The team protocol document is the authority. This page describes how the app implements it.
 
+## V3.5 note (supersedes V3.1 for the final evaluation)
+
+V3.5 is a productization pass that **changes the treatment UI**:
+- Home now has one primary action and "Good options nearby" (the optimizer's top pick per restaurant).
+- The recommendation screen shows target-vs-meal bars, "MacroTable changed", and "How reliable is this?".
+- *Configure order* → *Review order* → *Approve order*.
+- Agent recommendation cards carry fit bars and a *Configure order* button.
+
+**Treat V3.5 as its own version: run a V3.5 pilot and don't pool it with V3/V3.1 observations.**
+
+What did not change:
+- **Frozen study dataset.** Trials, in both arms, still show exactly FitKitchen, Urban Bowl and Local Grill. The new public demo brands and the 19 real restaurants are never visible during a trial.
+- **The rest of the study.** The baseline UI, scenarios, optimizer, feasibility rules, outcome definitions and logging events are all unchanged. The only addition is an optional `detail.entry` on `recommendation_selected`.
+- **Premium concept and saved meals** are hidden during trials.
+- **Freeze fingerprint.** It changes (tool descriptions changed), so re-copy it at freeze.
+
 ## V3.1 note
 
 V3.1 changes the treatment UI:

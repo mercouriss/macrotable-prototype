@@ -1,7 +1,8 @@
 import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { AppFrame, DemoReset } from "./components/AppFrame";
 import { BaselineBrowse, BaselineDone, BaselineMeal, BaselineRestaurant, BaselineReview, BaselineStart } from "./baseline/Baseline";
-import { Orders, Profile } from "./screens/Account";
+import { Orders, Profile, Saved } from "./screens/Account";
+import { Premium } from "./screens/Premium";
 import { Configure } from "./screens/Configure";
 import { RestaurantPage } from "./screens/RestaurantPage";
 import { Agent } from "./screens/Agent";
@@ -55,6 +56,8 @@ export function App() {
           <Route path="discover/:restaurantId" element={<LegacyDiscover />} />
           <Route path="orders" element={<Orders />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="saved" element={<Saved />} />
+          <Route path="premium" element={<Premium />} />
         </Route>
 
         {/* Control: conventional ordering baseline */}

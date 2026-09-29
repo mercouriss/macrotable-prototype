@@ -4,7 +4,8 @@ Complete this **after** the pilot fixes and the final smoke test, and **before**
 
 | Item | Frozen value |
 |---|---|
-| Version | **V3 (agent-guided treatment)**. Don't pool with V2 data |
+| Version | **V3.5 (product-candidate treatment)**. Don't pool with V2, V3 or V3.1 data |
+| Study restaurant dataset | `STUDY_RESTAURANTS` in `src/data/restaurants.ts`: FitKitchen (L3), Urban Bowl (L2), Local Grill (L1), used by `/baseline` and by the treatment while a trial runs. Public-only demo brands and real restaurants are never shown in trials |
 | Prototype commit | `________` (`git rev-parse --short HEAD` on `main`) |
 | Agent engine | Proxy URL `________` · model `________` (from `/research` → Freeze record values) · Gemini tier: free / paid |
 | Agent config fingerprint | SHA-256 (prompt + tool schemas + settings + fallback policy) `________________` · temperature 0.2 · max 1024 tokens · ≤ 6 tool rounds |

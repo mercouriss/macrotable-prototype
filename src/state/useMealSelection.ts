@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { getMeal } from "../data/restaurants";
+import { getMeal, isStudyScope } from "../data/restaurants";
 import { runSearch, optimizeMeal } from "../lib/optimizer";
 import { computeConfiguration, defaultSelections, isSelectionSupported } from "../lib/nutrition";
 import { meetsTarget, withinBudget } from "../lib/feasibility";
@@ -50,5 +50,7 @@ export function useMealSelection(mealId: string | undefined) {
 
 export function useSearch(scope?: string | null) {
   const { target, prefs } = useAppState();
-  return useMemo(() => runSearch(target, prefs, scope ?? undefined), [target, prefs, scope]);
+  const study = isStudyScope();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(() => runSearch(target, prefs, scope ?? undefined), [target, prefs, scope, study]);
 }

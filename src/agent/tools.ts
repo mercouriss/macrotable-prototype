@@ -1,5 +1,5 @@
 import { DEMO_AREA, distanceFromUser } from "../data/geo";
-import { getMeal, getRestaurant, RESTAURANTS } from "../data/restaurants";
+import { catalog, getMeal, getRestaurant } from "../data/restaurants";
 import { mealExclusion } from "../lib/feasibility";
 import { changesFromDefault, describeChange, supportedOptions } from "../lib/nutrition";
 import {
@@ -81,16 +81,18 @@ function resolveMeal(mealId: string, state: AgentSessionState): { meal: Meal; re
     const meal = r.meals.find((m) => m.id === mealId);
     return meal ? { meal, restaurant: r } : undefined;
   }
-  return getMeal(mealId);
+  const f = getMeal(mealId);
+  // During a research trial only the frozen study restaurants exist for the agent.
+  return f && catalog().includes(f.restaurant) ? f : undefined;
 }
 
 function restaurantsInScope(restaurantId: string | undefined, state: AgentSessionState): Restaurant[] {
   if (restaurantId === SCAN_RESTAURANT_ID) return state.scannedMenu ? [scannedRestaurant(state.scannedMenu)] : [];
   if (restaurantId) {
-    const r = getRestaurant(restaurantId);
+    const r = catalog().find((x) => x.id === restaurantId);
     return r ? [r] : [];
   }
-  return RESTAURANTS;
+  return catalog();
 }
 
 function toCard(c: ScoredConfiguration, target: UserTarget, rejected: string[] = []): RecommendationCardData {
@@ -109,6 +111,8 @@ function toCard(c: ScoredConfiguration, target: UserTarget, rejected: string[] =
     meetsTarget: c.meets,
     gaps: e.misses,
     rejectedRequests: rejected,
+    targetUsed: { calories: target.calories, protein: target.protein, carbs: target.carbs, fat: target.fat, maxBudget: target.maxBudget },
+    reasons: e.meets.slice(0, 2),
   };
 }
 
@@ -143,7 +147,7 @@ const getUserContext: ToolDef = {
         budget_max_eur: target.maxBudget,
         preferences: prefs,
         priority: target.priority,
-        location: `Demo location near ${DEMO_AREA.label} (all stores are fictional)`,
+        location: `Demo location near ${DEMO_AREA.label} (demo brands are fictional; real restaurants are unaffiliated and have no menu data)`,
         currentRestaurant: r ? { id: r.id, name: r.name } : state.currentRestaurantId === SCAN_RESTAURANT_ID ? { id: SCAN_RESTAURANT_ID, name: state.scannedMenu?.restaurantName ?? "Scanned menu" } : null,
         hasScannedMenu: !!state.scannedMenu,
         pendingOrderDraft: state.orderDrafts.some((d) => d.status === "awaiting-approval"),
@@ -156,7 +160,7 @@ const getUserContext: ToolDef = {
 const listNearbyStores: ToolDef = {
   name: "listNearbyStores",
   description:
-    "List the MacroTable demo restaurants near the user with distance, integration level (data confidence), pickup/in-store options, price range and each store's best-fitting meal for the user's targets (computed by the deterministic optimizer).",
+    "List nearby restaurants: every MacroTable demo restaurant (with distance, data confidence, pickup/in-store options, price range and its best-fitting meal for the user's targets, computed by the deterministic optimizer) plus the nearest real, unaffiliated restaurants (no menu data).",
   parameters: {
     type: "object",
     properties: {
@@ -166,7 +170,10 @@ const listNearbyStores: ToolDef = {
   },
   run: (a, { target, prefs }) => {
     const t = typeof a.maxBudget === "number" ? { ...target, maxBudget: a.maxBudget } : target;
-    const stores: (StoreSummary & { _best?: ScoredConfiguration })[] = RESTAURANTS.map((r) => {
+    const all = catalog();
+    const real = all.filter((r) => r.identity === "real").sort((x, y) => distanceFromUser(x.location) - distanceFromUser(y.location));
+    const shown = [...all.filter((r) => r.identity === "demo"), ...real.slice(0, 3)];
+    const stores: (StoreSummary & { _best?: ScoredConfiguration })[] = shown.map((r) => {
       const s = runSearch(t, prefs, r.id);
       const b = s.ranked[0];
       return {
@@ -207,8 +214,9 @@ const listNearbyStores: ToolDef = {
         note: "Demo restaurants (identity 'demo') are fictional brands with simulated menus and integrations. Real restaurants (identity 'real') are real places near the user that are NOT affiliated with MacroTable and have no menu data. Ranking follows fit to the user's targets, not integration level.",
         sortBy,
         stores: clean,
+        otherRealRestaurantsNearby: Math.max(real.length - 3, 0),
       },
-      card: { kind: "stores", stores: clean },
+      card: { kind: "stores", stores: clean, otherReal: Math.max(real.length - 3, 0) },
     };
   },
 };
@@ -219,12 +227,12 @@ const getMenu: ToolDef = {
     'Get a restaurant\'s menu: dishes, prices, nutrition, provenance, availability, dietary labels and the modifications it SUPPORTS (plus ones it explicitly does not). Use restaurantId "scan" for the user\'s scanned menu.',
   parameters: {
     type: "object",
-    properties: { restaurantId: { type: "string", description: 'e.g. "fitkitchen", "urbanbowl", "localgrill" or "scan"' } },
+    properties: { restaurantId: { type: "string", description: 'A restaurantId from listNearbyStores (e.g. "fitkitchen") or "scan"' } },
     required: ["restaurantId"],
   },
   run: (a, { state }) => {
     const [r] = restaurantsInScope(String(a.restaurantId ?? ""), state);
-    if (!r) return { ok: false, result: { error: `Unknown restaurant "${a.restaurantId}". Known: ${RESTAURANTS.map((x) => x.id).join(", ")}${state.scannedMenu ? ", scan" : ""}.` } };
+    if (!r) return { ok: false, result: { error: `Unknown restaurant "${a.restaurantId}". Known: ${catalog().filter((x) => x.meals.length).map((x) => x.id).join(", ")}${state.scannedMenu ? ", scan" : ""}.` } };
     if (r.identity === "real") return { ok: false, result: { restaurant: r.name, error: REAL_NOTE, website: r.real?.website } };
     return {
       ok: true,

@@ -90,6 +90,8 @@ export interface Restaurant {
   /** Simulated service modes (demo brands). Empty for real restaurants: MacroTable makes no claim about them. */
   serviceModes: ServiceMode[];
   pickupMinutes?: number;
+  /** Original monogram identity for fictional demo brands (never used for real restaurants). */
+  brand?: { color: string; mark: string };
   meals: Meal[];
 }
 

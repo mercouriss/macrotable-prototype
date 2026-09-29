@@ -1,9 +1,10 @@
-import type { ModifierOption, Nutrition, RealIdentity, Restaurant } from "../types";
+import type { ModifierOption, Nutrition, Restaurant } from "../types";
 import { DEMO_STORE_LOCATIONS } from "./geo";
 
 /*
- * ALL DATA IN THIS FILE IS FICTIONAL MOCK DATA for a university prototype.
- * Restaurants, recipes, prices and nutrition values are invented. Deltas are
+ * DEMO BRANDS ARE FICTIONAL MOCK DATA for a university prototype: their
+ * recipes, prices and nutrition values are invented. Real restaurants at the
+ * bottom carry identity + location only. Deltas are
  * chosen so that every configuration sums exactly (see optimizer tests).
  *
  * Nutrition deltas are relative to the dish as listed (the default option of
@@ -42,6 +43,7 @@ const fitKitchen: Restaurant = {
   priceRange: "€€",
   serviceModes: ["pickup", "in-store"],
   pickupMinutes: 12,
+  brand: { color: "#1E6B52", mark: "FK" },
   meals: [
     {
       id: "fk-chicken-power-bowl",
@@ -229,6 +231,7 @@ const urbanBowl: Restaurant = {
   priceRange: "€€",
   serviceModes: ["pickup", "in-store"],
   pickupMinutes: 15,
+  brand: { color: "#2A4B7F", mark: "UB" },
   meals: [
     {
       id: "ub-teriyaki-salmon",
@@ -378,6 +381,7 @@ const localGrill: Restaurant = {
   priceRange: "€",
   serviceModes: ["in-store"],
   pickupMinutes: 10,
+  brand: { color: "#8A5A2B", mark: "LG" },
   meals: [
     {
       id: "lg-chicken-salad",
@@ -434,56 +438,396 @@ const localGrill: Restaurant = {
   ],
 };
 
+// ─── Public-only demo brands (NOT in the frozen study dataset) ────────────
+/*
+ * Added in V3.5 so Explore and MacroAgent can compare across cuisines and price
+ * points. They are fictional (names checked against local businesses on
+ * 2026-09-29) and are never shown during research trials or in /baseline.
+ */
+
+// Level 3 · deep demo integration
+const pastaMetrica: Restaurant = {
+  id: "pastametrica",
+  identity: "demo",
+  name: "Pasta Metrica",
+  integrationLevel: 3,
+  cuisine: "Fresh pasta",
+  tagline: "Verified recipes · portion-level changes",
+  location: DEMO_STORE_LOCATIONS.pastametrica,
+  address: "Fictional demo store D",
+  priceRange: "€€",
+  serviceModes: ["pickup", "in-store"],
+  pickupMinutes: 14,
+  brand: { color: "#A8432F", mark: "PM" },
+  meals: [
+    {
+      id: "pm-chicken-pesto-penne",
+      restaurantId: "pastametrica",
+      name: "Chicken Pesto Penne",
+      description: "Penne, grilled chicken, basil pesto, cherry tomatoes and parmesan.",
+      price: 14.9,
+      nutrition: n(820, 44, 88, 32),
+      provenance: "verified",
+      available: true,
+      dietaryTags: ["high-protein"],
+      palette: ["#EAD8A6", "#6E9A4A", "#D9573C", "#F4EBD2"],
+      modifierGroups: [
+        {
+          id: "pasta",
+          name: "Pasta",
+          defaultOptionId: "pasta-std",
+          options: [
+            opt("pasta-half", "Half", 0, n(-210, -7, -42, -1), "HALF PASTA"),
+            opt("pasta-std", "Standard", 0, ZERO),
+            opt("pasta-extra", "Extra", 1.5, n(210, 7, 42, 1), "EXTRA PASTA"),
+            unsupported("pasta-gf", "Gluten-free pasta"),
+          ],
+        },
+        {
+          id: "chicken",
+          name: "Chicken",
+          defaultOptionId: "chicken-std",
+          options: [
+            opt("chicken-std", "Standard", 0, ZERO),
+            opt("chicken-60", "+60 g", 2.0, n(90, 16, 0, 3), "EXTRA CHICKEN (+60g)"),
+          ],
+        },
+        {
+          id: "pesto",
+          name: "Pesto",
+          defaultOptionId: "pesto-std",
+          options: [
+            opt("pesto-light", "Light", 0, n(-90, -1, -1, -10), "LIGHT PESTO"),
+            opt("pesto-std", "Standard", 0, ZERO),
+            unsupported("pesto-side", "Pesto on the side"),
+          ],
+        },
+        {
+          id: "parmesan",
+          name: "Parmesan",
+          defaultOptionId: "parmesan-std",
+          options: [opt("parmesan-none", "None", 0, n(-40, -3, 0, -3), "NO PARMESAN"), opt("parmesan-std", "Standard", 0, ZERO)],
+        },
+      ],
+    },
+    {
+      id: "pm-turkey-bolognese",
+      restaurantId: "pastametrica",
+      name: "Turkey Bolognese Rigatoni",
+      description: "Rigatoni with slow-cooked turkey ragù and parmesan.",
+      price: 13.5,
+      nutrition: n(760, 42, 92, 22),
+      provenance: "verified",
+      available: true,
+      dietaryTags: ["high-protein"],
+      palette: ["#E3C48A", "#B5452C", "#F2E6CF", "#8E3B26"],
+      modifierGroups: [
+        {
+          id: "pasta",
+          name: "Pasta",
+          defaultOptionId: "pasta-std",
+          options: [opt("pasta-half", "Half", 0, n(-210, -7, -42, -1), "HALF PASTA"), opt("pasta-std", "Standard", 0, ZERO)],
+        },
+        {
+          id: "ragu",
+          name: "Ragù",
+          defaultOptionId: "ragu-std",
+          options: [opt("ragu-std", "Standard", 0, ZERO), opt("ragu-extra", "Extra", 2.0, n(120, 12, 6, 5), "EXTRA RAGU")],
+        },
+        {
+          id: "parmesan",
+          name: "Parmesan",
+          defaultOptionId: "parmesan-std",
+          options: [opt("parmesan-none", "None", 0, n(-40, -3, 0, -3), "NO PARMESAN"), opt("parmesan-std", "Standard", 0, ZERO)],
+        },
+      ],
+    },
+    {
+      id: "pm-roasted-veg-orzo",
+      restaurantId: "pastametrica",
+      name: "Roasted Veg Orzo",
+      description: "Orzo with roasted peppers, courgette, feta and lemon-herb oil.",
+      price: 12.5,
+      nutrition: n(640, 22, 86, 22),
+      provenance: "verified",
+      available: true,
+      dietaryTags: ["vegetarian"],
+      palette: ["#EFE3C2", "#D9812F", "#7FA35B", "#F7F1E4"],
+      modifierGroups: [
+        {
+          id: "orzo",
+          name: "Orzo",
+          defaultOptionId: "orzo-std",
+          options: [opt("orzo-half", "Half", 0, n(-180, -6, -36, -1), "HALF ORZO"), opt("orzo-std", "Standard", 0, ZERO)],
+        },
+        {
+          id: "chickpeas",
+          name: "Chickpeas",
+          defaultOptionId: "chickpeas-none",
+          options: [opt("chickpeas-none", "None", 0, ZERO), opt("chickpeas-add", "Add", 1.0, n(120, 7, 18, 2), "ADD CHICKPEAS")],
+        },
+        {
+          id: "feta",
+          name: "Feta",
+          defaultOptionId: "feta-std",
+          options: [opt("feta-none", "None", 0, n(-80, -5, -1, -6), "NO FETA"), opt("feta-std", "Standard", 0, ZERO)],
+        },
+      ],
+    },
+  ],
+};
+
+// Level 2 · structured demo integration
+const saffronSteam: Restaurant = {
+  id: "saffronsteam",
+  identity: "demo",
+  name: "Saffron & Steam",
+  integrationLevel: 2,
+  cuisine: "Indian rice bowls",
+  tagline: "Official nutrition · structured menu",
+  location: DEMO_STORE_LOCATIONS.saffronsteam,
+  address: "Fictional demo store E",
+  priceRange: "€",
+  serviceModes: ["pickup", "in-store"],
+  pickupMinutes: 11,
+  brand: { color: "#B7791F", mark: "S&S" },
+  meals: [
+    {
+      id: "ss-chicken-tikka-bowl",
+      restaurantId: "saffronsteam",
+      name: "Chicken Tikka Rice Bowl",
+      description: "Tandoori-spiced chicken, basmati rice, charred onions and mint raita.",
+      price: 12.9,
+      nutrition: n(790, 42, 96, 24),
+      provenance: "official",
+      available: true,
+      dietaryTags: ["high-protein", "spicy"],
+      palette: ["#F1DFA8", "#C8562E", "#8BAE6B", "#F6F1E6"],
+      modifierGroups: [
+        {
+          id: "rice",
+          name: "Rice",
+          defaultOptionId: "rice-std",
+          options: [
+            opt("rice-half", "Half", 0, n(-170, -3, -37, 0), "HALF RICE"),
+            opt("rice-std", "Standard", 0, ZERO),
+            unsupported("rice-cauli", "Cauliflower rice"),
+          ],
+        },
+        {
+          id: "chicken",
+          name: "Chicken",
+          defaultOptionId: "chicken-std",
+          options: [opt("chicken-std", "Standard", 0, ZERO), opt("chicken-extra", "Extra", 3.0, n(120, 22, 2, 3), "EXTRA CHICKEN")],
+        },
+        {
+          id: "raita",
+          name: "Raita",
+          defaultOptionId: "raita-std",
+          options: [opt("raita-none", "None", 0, n(-50, -2, -3, -3), "NO RAITA"), opt("raita-std", "Standard", 0, ZERO)],
+        },
+      ],
+    },
+    {
+      id: "ss-chana-masala",
+      restaurantId: "saffronsteam",
+      name: "Chana Masala Bowl",
+      description: "Chickpea and tomato curry, basmati rice, pickled onion and coriander.",
+      price: 10.5,
+      nutrition: n(680, 20, 104, 18),
+      provenance: "official",
+      available: true,
+      dietaryTags: ["vegetarian", "vegan"],
+      palette: ["#E8C27A", "#B8532F", "#F3EAD3", "#6F9A5B"],
+      modifierGroups: [
+        {
+          id: "rice",
+          name: "Rice",
+          defaultOptionId: "rice-std",
+          options: [opt("rice-half", "Half", 0, n(-170, -3, -37, 0), "HALF RICE"), opt("rice-std", "Standard", 0, ZERO)],
+        },
+        {
+          id: "tofu",
+          name: "Tofu",
+          defaultOptionId: "tofu-none",
+          options: [opt("tofu-none", "None", 0, ZERO), opt("tofu-add", "Add", 2.0, n(110, 12, 3, 6), "ADD TOFU")],
+        },
+      ],
+    },
+    {
+      id: "ss-lamb-rogan-josh",
+      restaurantId: "saffronsteam",
+      name: "Lamb Rogan Josh",
+      description: "Slow-cooked lamb curry with basmati rice and naan.",
+      price: 15.5,
+      nutrition: n(960, 44, 98, 42),
+      provenance: "official",
+      available: true,
+      dietaryTags: ["spicy"],
+      palette: ["#9E3B22", "#E7C98E", "#F4EDDD", "#6B3322"],
+      modifierGroups: [
+        {
+          id: "naan",
+          name: "Naan",
+          defaultOptionId: "naan-std",
+          options: [opt("naan-none", "None", -1.0, n(-260, -8, -44, -6), "NO NAAN"), opt("naan-std", "Standard", 0, ZERO)],
+        },
+      ],
+    },
+  ],
+};
+
+// Level 1 · not integrated (estimated from a public menu)
+const tinplateDeli: Restaurant = {
+  id: "tinplate",
+  identity: "demo",
+  name: "Tinplate Deli",
+  integrationLevel: 1,
+  cuisine: "Sandwiches & soup",
+  tagline: "Public menu only · estimated nutrition",
+  location: DEMO_STORE_LOCATIONS.tinplate,
+  address: "Fictional demo store F",
+  priceRange: "€",
+  serviceModes: ["in-store"],
+  pickupMinutes: 8,
+  brand: { color: "#4B5563", mark: "TD" },
+  meals: [
+    {
+      id: "td-turkey-avocado-rye",
+      restaurantId: "tinplate",
+      name: "Turkey & Avocado Rye",
+      description: "Roast turkey, avocado, tomato and mustard mayo on rye.",
+      price: 9.5,
+      nutrition: n(560, 34, 52, 22),
+      provenance: "estimated",
+      available: true,
+      dietaryTags: [],
+      palette: ["#8C6A4A", "#9CBF73", "#E7D1B0", "#D65A43"],
+      modifierGroups: [],
+    },
+    {
+      id: "td-tuna-melt",
+      restaurantId: "tinplate",
+      name: "Tuna Melt",
+      description: "Tuna, red onion and cheddar, toasted on sourdough.",
+      price: 9.0,
+      nutrition: n(690, 36, 54, 34),
+      provenance: "estimated",
+      available: true,
+      dietaryTags: ["pescatarian"],
+      palette: ["#E6C58A", "#F2E3BE", "#C9A15A", "#B0703C"],
+      modifierGroups: [],
+    },
+    {
+      id: "td-soup-of-the-day",
+      restaurantId: "tinplate",
+      name: "Soup of the Day & Bread",
+      description: "Changes daily — ask at the counter.",
+      price: 7.5,
+      nutrition: null,
+      provenance: "insufficient",
+      available: true,
+      dietaryTags: [],
+      palette: ["#D8CFC0", "#B7AA95", "#EDE7DC", "#A39883"],
+      modifierGroups: [],
+    },
+  ],
+};
+
 // ─── REAL restaurants (identity + location only) ──────────────────────────
 /*
- * Verified 2026-09-29: website live and stating this address; OpenStreetMap
- * node surveyed 2026-06-07. We claim NOTHING else: no partnership, API, menu,
- * prices, nutrition, hours or ordering. MacroTable treats them as unaffiliated
- * and can only help by reading a menu photo the user takes.
+ * Each one verified 2026-09-29: the restaurant's own website was live and
+ * stated this address, and the location matches the OpenStreetMap object.
+ * We claim NOTHING else: no partnership, API, menu, prices, nutrition, hours
+ * or ordering. `cuisine` is a neutral category from the OSM tag / own site.
+ * MacroTable treats them as unaffiliated and can only help by reading a menu
+ * photo the user takes.
  */
-const realRestaurant = (id: string, name: string, cuisine: string, location: { lat: number; lng: number }, real: RealIdentity): Restaurant => ({
+const VERIFIED_ON = "2026-09-29";
+
+const realRestaurant = (
+  id: string,
+  name: string,
+  cuisine: string,
+  [lat, lng]: [number, number],
+  website: string,
+  addressLine: string,
+  osm: string,
+): Restaurant => ({
   id,
   identity: "real",
-  real,
+  real: {
+    website,
+    addressLine,
+    osm,
+    verifiedOn: VERIFIED_ON,
+    sources: [`${new URL(website).hostname.replace(/^www\./, "")} (own website, address checked)`, `OpenStreetMap ${osm}`],
+  },
   name,
   integrationLevel: 1,
   cuisine,
   tagline: "Real restaurant · not affiliated with MacroTable",
-  location,
-  address: real.addressLine,
+  location: { lat, lng },
+  address: addressLine,
   serviceModes: [],
   meals: [],
 });
 
 const REAL_RESTAURANTS: Restaurant[] = [
-  realRestaurant("sallys-salads-eur", "Sally's Salads", "Salads", { lat: 51.91666, lng: 4.52559 }, {
-    website: "https://sallyssalads.nl/",
-    addressLine: "Foodcourt Erasmus Universiteit, Burgemeester Oudlaan 50, Rotterdam",
-    osm: "node/4140102516",
-    verifiedOn: "2026-09-29",
-    sources: ["sallyssalads.nl (location page)", "OpenStreetMap node/4140102516, surveyed 2026-06-07"],
-  }),
-  realRestaurant("mozza-eur", "Mozza", "Mediterranean", { lat: 51.91688, lng: 4.52547 }, {
-    website: "https://mozzaeur.nl/",
-    addressLine: "Erasmus Food Plaza, Burgemeester Oudlaan 50, Rotterdam",
-    osm: "node/4140102517",
-    verifiedOn: "2026-09-29",
-    sources: ["mozzaeur.nl", "OpenStreetMap node/4140102517, surveyed 2026-06-07"],
-  }),
-  realRestaurant("erasmus-paviljoen", "Erasmus Paviljoen", "Italian", { lat: 51.91734, lng: 4.5258 }, {
-    website: "https://www.erasmuspaviljoen.nl/",
-    addressLine: "Burgemeester Oudlaan 350 (Gebouw X), Rotterdam",
-    osm: "node/4003342398",
-    verifiedOn: "2026-09-29",
-    sources: ["erasmuspaviljoen.nl", "OpenStreetMap node/4003342398, surveyed 2026-06-07"],
-  }),
+  // Erasmus University campus (Woudestein)
+  realRestaurant("sallys-salads-eur", "Sally's Salads", "Salads", [51.91666, 4.52559], "https://sallyssalads.nl/", "Foodcourt Erasmus Universiteit, Burgemeester Oudlaan 50, Rotterdam", "node/4140102516"),
+  realRestaurant("mozza-eur", "Mozza", "Mediterranean", [51.91688, 4.52547], "https://mozzaeur.nl/", "Erasmus Food Plaza, Burgemeester Oudlaan 50, Rotterdam", "node/4140102517"),
+  realRestaurant("erasmus-paviljoen", "Erasmus Paviljoen", "Italian", [51.91734, 4.5258], "https://www.erasmuspaviljoen.nl/", "Burgemeester Oudlaan 350 (Gebouw X), Rotterdam", "node/4003342398"),
+  realRestaurant("tostiworld-eur", "Tosti World", "Toasties", [51.91664, 4.52578], "https://tostiworld.nl/winkels/", "Erasmus Food Plaza, Burgemeester Oudlaan 50, Rotterdam", "node/3951587367"),
+  realRestaurant("coffeecompany-eur", "Coffeecompany Erasmus", "Coffee", [51.91683, 4.52584], "https://coffeecompany.nl/locations/burgermeester-oudlaan-50/", "Burgemeester Oudlaan 50, Rotterdam", "node/3951587368"),
+  realRestaurant("erasmus-sport-cafe", "Erasmus Sport Café", "Café · snacks", [51.91654, 4.52851], "https://erasmussport.nl/", "Burgemeester Oudlaan 50S, Rotterdam", "node/12584877209"),
+  // Kralingen
+  realRestaurant("restobar-colette", "Restobar Colette", "Brasserie", [51.91704, 4.5176], "https://coletterotterdam.nl/", "Honingerdijk 263, Rotterdam", "node/13337712636"),
+  realRestaurant("lokanta-proeflokaal", "Lokanta Proeflokaal", "Spanish", [51.92149, 4.51349], "https://www.lokanta-proeflokaal.nl/", "Waterloostraat 148A, Rotterdam", "node/1882432700"),
+  realRestaurant("cafe-stobbe", "Café Stobbe", "Café-restaurant", [51.92492, 4.51688], "https://cafestobbe.nl/", "Kortekade 20, Rotterdam", "node/582059159"),
+  realRestaurant("de-specialiteit-pniel", "De Specialiteit", "Restaurant", [51.92486, 4.51547], "https://www.despecialiteit.nl/locatie/pniel", "Oudedijk 15, Rotterdam", "node/13344560999"),
+  realRestaurant("de-boshut", "De Boshut", "Restaurant", [51.92883, 4.52364], "https://deboshutrotterdam.nl/", "Kralingseweg 20, Rotterdam", "node/13019710016"),
+  realRestaurant("i-love-sushi-kralingen", "I Love Sushi", "Sushi", [51.92397, 4.51038], "https://ilovesushi.nl/location/i-love-sushi-rotterdam-kralingen-nieuw/", "Lusthofstraat 70B, Rotterdam", "node/2804767370"),
+  realRestaurant("van-stralen", "Van Stralen", "Restaurant", [51.92641, 4.51146], "https://www.etenbijvanstralen.nl/", "Oudedijk 110, Rotterdam", "node/1743196217"),
+  realRestaurant("currys-kralingen", "Curry's", "Indian", [51.92717, 4.50968], "https://www.currys.nl/", "Oudedijk 152, Rotterdam", "node/1743186800"),
+  realRestaurant("mama-licia", "Mama Licia", "Italian", [51.92762, 4.50951], "https://mammalicia.nl/", "Oudedijk 159-A, Rotterdam", "node/2804872502"),
+  realRestaurant("macho-mama", "Macho Mama", "Burgers", [51.92127, 4.50626], "https://www.macho-mama.nl/", "Willem Ruyslaan 18, Rotterdam", "node/13251480502"),
+  realRestaurant("toko-smoor", "Toko Smoor", "Indonesian", [51.92119, 4.50622], "https://tokosmoor.nl/", "Willem Ruyslaan 22A, Rotterdam", "node/1974891814"),
+  realRestaurant("the-commons", "The Commons", "Restaurant", [51.92123, 4.50535], "https://www.thesocialhub.co/rotterdam/eat-and-drink/", "The Social Hub, Willem Ruyslaan 225, Rotterdam", "node/11711555701"),
+  realRestaurant("restaurant-maas", "Maas", "Restaurant", [51.91473, 4.50773], "https://www.restaurant-maas.nl/", "Nijverheidstraat 2, Rotterdam", "node/2788109285"),
 ];
 
-/** ONE dataset for map pins, Explore, restaurant pages, agent tools, recommendations, QR demos and orders. */
-export const RESTAURANTS: Restaurant[] = [fitKitchen, urbanBowl, localGrill, ...REAL_RESTAURANTS];
+/** Every restaurant: map pins, Explore, restaurant pages, agent tools, recommendations, QR demos and orders. */
+export const RESTAURANTS: Restaurant[] = [fitKitchen, urbanBowl, localGrill, pastaMetrica, saffronSteam, tinplateDeli, ...REAL_RESTAURANTS];
 
-/** Restaurants with (simulated) menu data — the only ones the optimizer, baseline and experiment can use. */
+/** Restaurants with (simulated) menu data in the public product. */
 export const MENU_RESTAURANTS: Restaurant[] = RESTAURANTS.filter((r) => r.meals.length > 0);
+
+/*
+ * FROZEN STUDY DATASET. Scenarios A–D, their canonical answers and
+ * docs/study/scenario-difficulty.md were calibrated on exactly these three
+ * brands. /baseline always uses them; the treatment uses them while a
+ * research trial is running (study scope). Do not edit after freeze.
+ */
+export const STUDY_RESTAURANT_IDS = ["fitkitchen", "urbanbowl", "localgrill"] as const;
+export const STUDY_RESTAURANTS: Restaurant[] = STUDY_RESTAURANT_IDS.map((id) => RESTAURANTS.find((r) => r.id === id)!);
+
+let studyScope = false;
+/** Set synchronously by AppState whenever a research trial starts or ends. */
+export function setStudyScope(on: boolean): void {
+  studyScope = on;
+}
+export function isStudyScope(): boolean {
+  return studyScope;
+}
+/** Restaurants visible right now: the frozen study set during a trial, everything otherwise. */
+export function catalog(): Restaurant[] {
+  return studyScope ? STUDY_RESTAURANTS : RESTAURANTS;
+}
+/** Menu-carrying restaurants the optimizer may search right now. */
+export function menuRestaurants(): Restaurant[] {
+  return studyScope ? STUDY_RESTAURANTS : MENU_RESTAURANTS;
+}
 
 export const ALL_MEALS = RESTAURANTS.flatMap((r) => r.meals);
 

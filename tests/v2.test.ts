@@ -1,11 +1,14 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { ALL_MEALS, DEMO_MEAL_ID, RESTAURANTS } from "../src/data/restaurants";
+import { ALL_MEALS, DEMO_MEAL_ID, RESTAURANTS, setStudyScope } from "../src/data/restaurants";
 import { SCENARIOS } from "../src/data/scenarios";
 import { withinBudget } from "../src/lib/feasibility";
 import { explainConfiguration, runSearch } from "../src/lib/optimizer";
 import { validateTargetField } from "../src/lib/validation";
 import type { Restaurant } from "../src/types";
+
+// Scenario calibration is defined on the FROZEN STUDY DATASET (the three original demo brands).
+setStudyScope(true);
 
 const A = SCENARIOS.A;
 
