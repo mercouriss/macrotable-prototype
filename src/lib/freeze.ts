@@ -7,8 +7,11 @@ import { TOOL_DECLARATIONS } from "../agent/tools";
  * Experiment freeze fingerprint (study protocol / V3.1 §11): everything that defines
  * the agent treatment, hashed so the team can record it and detect accidental changes.
  */
+/** The intended live engine. Must equal GEMINI_MODEL / GEMINI_FALLBACK_MODEL in proxy/wrangler.toml (tested). */
+export const ENGINE_MODELS = { primary: "gemini-3.8-flash", secondary: "gemini-3.7-flash" } as const;
+
 export const FALLBACK_POLICY =
-  "Live Gemini via proxy when configured and reachable. The proxy always calls its primary model first and calls its secondary model once only on a retryable temporary failure (429, 500/502/503/504, network error or timeout); each reply records the model and whether the secondary answered (agent_reply.detail.modelFallback). If both live models fail, or on any other error or timeout (25 s), the offline MockAgent answers the same turn with the same tools, labelled in the UI and logged as agent_fallback.";
+  `Live Gemini via proxy when configured and reachable. The proxy always calls its primary model (${ENGINE_MODELS.primary}) first and calls its secondary model (${ENGINE_MODELS.secondary}) once only on a retryable temporary failure (429, 500/502/503/504, network error or timeout); each reply records the model and whether the secondary answered (agent_reply.detail.modelFallback). If both live models fail, or on any other error or timeout (25 s), the offline MockAgent answers the same turn with the same tools, labelled in the UI and logged as agent_fallback.`;
 
 export function agentConfigDocument(): string {
   const ctx = {

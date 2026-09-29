@@ -269,15 +269,15 @@ describe("proxy engine metadata (X-MacroTable-Model / X-MacroTable-Model-Fallbac
   });
 
   it("secondary model: header fallback=1 marks the turn as answered by the fallback model", async () => {
-    const g = await turn(proxy({ body: answer, headers: { "X-MacroTable-Model": "gemini-2.5-flash", "X-MacroTable-Model-Fallback": "1" } }));
-    expect(g.model).toBe("gemini-2.5-flash");
+    const g = await turn(proxy({ body: answer, headers: { "X-MacroTable-Model": "gemini-3.7-flash", "X-MacroTable-Model-Fallback": "1" } }));
+    expect(g.model).toBe("gemini-3.7-flash");
     expect(g.modelFallback).toBe(true);
   });
 
   it("a fallback in any round of a multi-round turn marks the whole turn", async () => {
     const g = await turn(
       proxy(
-        { body: call, headers: { "X-MacroTable-Model": "gemini-2.5-flash", "X-MacroTable-Model-Fallback": "1" } },
+        { body: call, headers: { "X-MacroTable-Model": "gemini-3.7-flash", "X-MacroTable-Model-Fallback": "1" } },
         { body: answer, headers: { "X-MacroTable-Model": "gemini-3.8-flash", "X-MacroTable-Model-Fallback": "0" } },
       ),
     );
@@ -294,10 +294,10 @@ describe("proxy engine metadata (X-MacroTable-Model / X-MacroTable-Model-Fallbac
   });
 
   it("reaches the agent message: provider gemini + modelFallback (what agent_reply logs); offline stays distinct", async () => {
-    const f = proxy({ body: answer, headers: { "X-MacroTable-Model": "gemini-2.5-flash", "X-MacroTable-Model-Fallback": "1" } });
+    const f = proxy({ body: answer, headers: { "X-MacroTable-Model": "gemini-3.7-flash", "X-MacroTable-Model-Fallback": "1" } });
     const live = await runAgentTurn("near me?", ctxA(), [], "auto", { gemini: (t, c, h, o) => runGeminiTurn(t, c, h, { ...o, proxyUrl: "https://proxy.test", fetchImpl: f }) });
     expect(live.message.provider).toBe("gemini");
-    expect(live.message.model).toBe("gemini-2.5-flash");
+    expect(live.message.model).toBe("gemini-3.7-flash");
     expect(live.message.modelFallback).toBe(true);
     const primary = await runAgentTurn("near me?", ctxA(), [], "auto", {
       gemini: (t, c, h, o) => runGeminiTurn(t, c, h, { ...o, proxyUrl: "https://proxy.test", fetchImpl: proxy({ body: answer, headers: { "X-MacroTable-Model-Fallback": "0" } }) }),

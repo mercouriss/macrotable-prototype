@@ -30,7 +30,9 @@ export interface ParsedIntent {
   recommend: boolean;
 }
 
-const PARTS = ["rice", "sauce", "chicken", "salmon", "tofu", "halloumi", "veg", "vegetables", "veggies", "greens", "quinoa", "freekeh", "dressing", "tahini", "hummus", "cheese", "sour cream", "edamame", "avocado", "protein"];
+const PARTS = ["rice", "sauce", "chicken", "salmon", "tofu", "halloumi", "veg", "vegetables", "veggies", "greens", "quinoa", "freekeh", "dressing", "tahini", "hummus", "cheese", "sour cream", "edamame", "avocado", "protein", "carbs", "meat", "pasta", "naan", "pesto", "parmesan", "feta", "raita"];
+/** "no rice", "without rice", "I don't want rice", "avoid rice", "leave out the rice", "rice-free", … */
+const REMOVE = "(?:no|without|skip|hold|leave out|drop|remove|cut out|avoid|minus|(?:i\\s+)?(?:don'?t|do not|dont)\\s+(?:want|like|need|eat))";
 
 export function parseIntent(raw: string): ParsedIntent {
   const t = raw.toLowerCase().replace(/[’']/g, "'");
@@ -43,7 +45,7 @@ export function parseIntent(raw: string): ParsedIntent {
     const p = part.replace(" ", "\\s?");
     if (new RegExp(`\\b(less|fewer|smaller|half|light|lighter|reduce[d]?)\\s+(the\\s+)?${p}\\b`).test(t) || new RegExp(`\\b${p}\\s+(light|lighter|reduced|halved)\\b`).test(t))
       adjustments.push({ group: part, request: "less" });
-    else if (new RegExp(`\\b(no|without|skip|hold)\\s+(the\\s+)?${p}\\b`).test(t)) adjustments.push({ group: part, request: "none" });
+    else if (new RegExp(`\\b${REMOVE}\\s+(?:the\\s+|any\\s+|my\\s+)?${p}\\b`).test(t) || new RegExp(`\\b${p}-free\\b`).test(t)) adjustments.push({ group: part, request: "none" });
     else if (new RegExp(`\\b(more|extra|double|add|additional)\\s+(the\\s+)?${p}\\b`).test(t)) adjustments.push({ group: part, request: "more" });
   }
   const restaurantId = catalog().find((r) => t.includes(r.name.toLowerCase()) || t.includes(r.id))?.id ?? (/\b(scanned|scan)\s+menu\b|\bthis menu\b/.test(t) ? SCAN_RESTAURANT_ID : undefined);
@@ -93,7 +95,8 @@ export function runMockTurn(userText: string, ctx: ToolContext): MockTurn {
     return r;
   };
   const i = parseIntent(userText);
-  const overrides = {
+  // Session memory: constraints stated earlier still apply; anything stated now wins.
+  const said = {
     ...(i.calories ? { calories: i.calories } : {}),
     ...(i.protein ? { protein: i.protein } : {}),
     ...(i.maxBudget ? { maxBudget: i.maxBudget } : {}),
@@ -101,6 +104,17 @@ export function runMockTurn(userText: string, ctx: ToolContext): MockTurn {
     ...(i.lowerFat ? { lowerFat: true } : {}),
     ...(i.noSpicy ? { noSpicy: true } : {}),
   };
+  const removals = i.adjustments.filter((a) => a.request === "none").map((a) => a.group);
+  const prev = ctx.state.stated ?? {};
+  const avoid = [...new Set([...(prev.avoid ?? []), ...removals])];
+  ctx.state.stated = { ...prev, ...said, ...(avoid.length ? { avoid } : {}) };
+  const { avoid: _avoid, ...remembered } = ctx.state.stated;
+  const overrides = { ...remembered, ...said };
+  /** Remembered "no X" requests plus this turn's adjustments (deduplicated by part). */
+  const withAvoid = (adj: Adjustment[]) => [...adj, ...avoid.filter((g) => !adj.some((a) => a.group === g)).map((g) => ({ group: g, request: "none" as const }))];
+  // Anchor: naming a (non-scan) restaurant anchors follow-ups there; asking to compare releases it.
+  if (i.restaurantId && i.restaurantId !== SCAN_RESTAURANT_ID) ctx.state.anchorRestaurantId = i.restaurantId;
+  if (i.compare) ctx.state.anchorRestaurantId = null;
   const cur = ctx.state.currentRecommendation;
 
   // 1. Prepare an order for the current (or a fresh) recommendation.
@@ -121,7 +135,7 @@ export function runMockTurn(userText: string, ctx: ToolContext): MockTurn {
 
   // 2. Adjust the current dish ("less rice", "no sauce", "more chicken").
   if (i.adjustments.length && cur && !i.restaurantId && !i.compare) {
-    const r = call("optimizeMeal", { mealId: cur.mealId, adjustments: i.adjustments, ...overrides });
+    const r = call("optimizeMeal", { mealId: cur.mealId, adjustments: withAvoid(i.adjustments), ...overrides });
     const rec = ctx.state.currentRecommendation;
     if (!r.ok || !rec || rec === cur) {
       const why = ((r.result as { notPossible?: string[] }).notPossible ?? [])[0];
@@ -170,16 +184,19 @@ export function runMockTurn(userText: string, ctx: ToolContext): MockTurn {
   }
 
   // 6. Compare stores / find something nearby / specific restaurant.
-  if (i.compare || i.recommend || i.restaurantId || i.adjustments.length || Object.keys(overrides).length) {
+  if (i.compare || i.recommend || i.restaurantId || i.adjustments.length || Object.keys(said).length) {
     let stores: StoreSummary[] = [];
     let moreReal = 0;
     if (!i.restaurantId) {
-      const s = call("listNearbyStores", i.maxBudget ? { maxBudget: i.maxBudget } : {});
+      const s = call("listNearbyStores", overrides.maxBudget ? { maxBudget: overrides.maxBudget } : {});
       const res = s.result as { stores: StoreSummary[]; otherRealRestaurantsNearby?: number };
       stores = res.stores;
       moreReal = res.otherRealRestaurantsNearby ?? 0;
     }
-    const r = call("optimizeMeal", { restaurantId: i.restaurantId ?? (ctx.state.currentRestaurantId && !i.compare ? ctx.state.currentRestaurantId : undefined), adjustments: i.adjustments, ...overrides });
+    // Stay at a restaurant only if the user named it now or deliberately anchored to it earlier —
+    // never merely because the previous cross-store recommendation happened to come from there.
+    const scope = i.restaurantId ?? (i.compare ? undefined : (ctx.state.anchorRestaurantId ?? undefined));
+    const r = call("optimizeMeal", { restaurantId: scope, adjustments: withAvoid(i.adjustments), ...overrides });
     const rec = ctx.state.currentRecommendation;
     if (!r.ok || !rec) {
       const why = ((r.result as { notPossible?: string[] }).notPossible ?? [])[0];

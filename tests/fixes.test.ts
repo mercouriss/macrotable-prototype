@@ -146,10 +146,10 @@ describe("engine identity in research data (never pooled silently)", () => {
     ({ events: details.map((d) => ({ event: "agent_reply", timestamp: 0, mode: "macrotable", scenario: "A", sessionId: "x", detail: d })) }) as unknown as ParticipantSession;
   it("distinguishes primary, secondary (proxy fallback) and offline replies", () => {
     expect(agentEngine(s([{ provider: "gemini", modelFallback: false, model: "gemini-3.8-flash" }]))).toBe("primary");
-    expect(agentEngine(s([{ provider: "gemini", modelFallback: true, model: "gemini-2.5-flash" }]))).toBe("secondary");
+    expect(agentEngine(s([{ provider: "gemini", modelFallback: true, model: "gemini-3.7-flash" }]))).toBe("secondary");
     expect(agentEngine(s([{ provider: "mock" }]))).toBe("offline");
     expect(agentEngine(s([{ provider: "gemini" }, { provider: "gemini", modelFallback: true }, { provider: "mock" }, { provider: "tools" }]))).toBe("primary+secondary+offline");
     expect(agentEngine(s([{ provider: "tools" }]))).toBe("");
-    expect(agentModels(s([{ provider: "gemini", model: "gemini-3.8-flash" }, { provider: "gemini", modelFallback: true, model: "gemini-2.5-flash" }]))).toBe("gemini-2.5-flash;gemini-3.8-flash");
+    expect(agentModels(s([{ provider: "gemini", model: "gemini-3.8-flash" }, { provider: "gemini", modelFallback: true, model: "gemini-3.7-flash" }]))).toBe("gemini-3.7-flash;gemini-3.8-flash");
   });
 });

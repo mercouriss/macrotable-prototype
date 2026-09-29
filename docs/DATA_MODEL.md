@@ -207,4 +207,6 @@ interface SessionBuild {
 - New CSV columns, appended at the end: `treatment_version`, `app_commit`, `baseline_nutrition_visible`, `agent_mode`, `agent_proxy_configured`.
 - The JSON export adds `exportedBy`. The schema string is unchanged (`macrotable.research.v2`).
 
+**Agent session state (offline agent, session only).** `AgentSessionState.anchorRestaurantId` records the restaurant the user deliberately anchored to (named it, table QR, restaurant or meal page). `AgentSessionState.stated` records constraints stated earlier in the conversation (`calories`, `protein`, `maxBudget`, `vegetarian`, `lowerFat`, `noSpicy`, `avoid[]`). Both live in sessionStorage with the rest of the agent session, reset with it, and are never logged or exported.
+
 **New event detail.** `recommendation_selected` may carry `detail.entry` (`"home"` or `"restaurant"`), recording where the recommendation was opened. No new event names.

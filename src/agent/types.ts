@@ -139,4 +139,23 @@ export interface AgentSessionState {
   orderDrafts: OrderDraft[];
   /** Raw Gemini `contents` for multi-turn context (text + function parts only; never images). */
   providerHistory: unknown[][];
+  /**
+   * Offline agent: the restaurant the user deliberately anchored to (named it, table QR, restaurant or
+   * meal page). Follow-ups stay there; otherwise searches cover all nearby stores. Not set by a
+   * cross-store recommendation.
+   */
+  anchorRestaurantId?: string | null;
+  /** Offline agent: constraints the user stated earlier in this session (later statements win). */
+  stated?: StatedConstraints;
+}
+
+export interface StatedConstraints {
+  calories?: number;
+  protein?: number;
+  maxBudget?: number;
+  vegetarian?: boolean;
+  lowerFat?: boolean;
+  noSpicy?: boolean;
+  /** Ingredients the user said they don't want ("no rice", "I don't want rice"). */
+  avoid?: string[];
 }

@@ -406,6 +406,55 @@ export function resolveAdjustment(meal: Meal, restaurant: Restaurant, adj: Adjus
   return { ok: true, groupId: group.id, groupName: group.name, allowed: allowed.map((o) => o.id) };
 }
 
+/*
+ * "No X" (request "none") has its own semantics:
+ *   - every modifier group that IS an X component must be set to a supported "None" option;
+ *   - an X the dish lists (name/description) that no such group covers can't be left out → refused;
+ *   - a dish that doesn't list X at all already satisfies "no X" and stays eligible, unchanged.
+ * Words are matched per request: a specific ingredient ("rice") only matches itself, never a
+ * different grain; category words ("carbs", "sauce", "cheese", "meat") match their members.
+ */
+const REMOVAL_WORDS: Record<string, string[]> = {
+  carbs: ["carbs", "carb", "rice", "grains", "quinoa", "freekeh", "bulgur", "pasta", "penne", "rigatoni", "orzo", "naan", "bread", "pita", "flatbread", "fries", "rye", "sourdough", "noodles", "potato", "potatoes"],
+  sauce: ["sauce", "dressing", "tahini", "hummus", "pesto", "raita", "mayo", "aioli", "tzatziki", "chimichurri", "salsa", "ragu", "ragù", "teriyaki"],
+  cheese: ["cheese", "feta", "halloumi", "parmesan", "cheddar", "mozzarella"],
+  meat: ["meat", "chicken", "turkey", "lamb", "steak", "beef", "pork"],
+};
+const REMOVAL_ALIASES: Record<string, string> = { carb: "carbs", grains: "carbs", grain: "carbs", starch: "carbs", sauces: "sauce", dressings: "sauce", meats: "meat" };
+
+function removalWords(word: string): string[] {
+  const w = word.toLowerCase().trim();
+  const key = REMOVAL_ALIASES[w] ?? w;
+  return REMOVAL_WORDS[key] ?? [w];
+}
+
+const mentions = (text: string, w: string) => new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(e?s)?\\b`, "i").test(text);
+
+export type RemovalResolution =
+  | { ok: true; allowedByGroup: Record<string, string[]>; notListed: boolean }
+  | { ok: false; reason: string };
+
+/** Resolve "no <word>" for one dish (see the rules above). Never invents an option. */
+export function resolveRemoval(meal: Meal, restaurant: Restaurant, word: string): RemovalResolution {
+  const words = removalWords(word);
+  const groups = meal.modifierGroups.filter((g) => words.some((w) => norm(g.id).includes(norm(w)) || norm(g.name).includes(norm(w))));
+  const text = `${meal.name} ${meal.description}`;
+  const listed = words.filter((w) => mentions(text, w));
+  if (!groups.length && !listed.length) return { ok: true, allowedByGroup: {}, notListed: true };
+  const allowedByGroup: Record<string, string[]> = {};
+  for (const g of groups) {
+    const none = g.options.filter((o) => o.supported && norm(o.label) === "none");
+    if (!none.length) {
+      const supported = g.options.filter((o) => o.supported).map((o) => o.label);
+      return { ok: false, reason: `${restaurant.name} can't leave out the ${g.name.toLowerCase()} on ${meal.name}. Supported ${g.name.toLowerCase()} options: ${supported.join(", ")}.` };
+    }
+    allowedByGroup[g.id] = none.map((o) => o.id);
+  }
+  const uncovered = listed.filter((w) => !groups.some((g) => norm(g.name).includes(norm(w)) || norm(g.id).includes(norm(w)) || norm(w).includes(norm(g.name))));
+  if (uncovered.length) return { ok: false, reason: `${meal.name} at ${restaurant.name} comes with ${uncovered[0]}, and the restaurant offers no way to leave it out.` };
+  return { ok: true, allowedByGroup, notListed: false };
+}
+
 export interface ConstrainedResult {
   best?: ScoredConfiguration;
   alternatives: ScoredConfiguration[];
@@ -427,6 +476,12 @@ export function optimizeMealConstrained(
   const rejected: string[] = [];
   const allowedByGroup: Record<string, string[]> = {};
   for (const adj of adjustments) {
+    if (adj.request === "none") {
+      const r = resolveRemoval(meal, restaurant, adj.group);
+      if (r.ok) for (const [g, ids] of Object.entries(r.allowedByGroup)) allowedByGroup[g] = allowedByGroup[g] ? allowedByGroup[g].filter((x) => ids.includes(x)) : ids;
+      else rejected.push(r.reason);
+      continue;
+    }
     const r = resolveAdjustment(meal, restaurant, adj);
     if (r.ok) allowedByGroup[r.groupId] = r.allowed;
     else rejected.push(r.reason);

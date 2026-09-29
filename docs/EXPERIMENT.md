@@ -24,12 +24,19 @@ What did not change:
 | State | What answers | How it's recorded |
 |---|---|---|
 | **Primary** | Gemini `gemini-3.8-flash` (`GEMINI_MODEL`) through the proxy | `agent_reply.detail`: `provider: "gemini"`, `modelFallback: false`, `model` → CSV `agent_engine` = `primary` |
-| **Secondary** | Gemini `gemini-2.5-flash` (`GEMINI_FALLBACK_MODEL`), called by the proxy **once**, only after a retryable primary failure (429; 500/502/503/504; `RESOURCE_EXHAUSTED` / `UNAVAILABLE` / `DEADLINE_EXCEEDED`; network error or timeout). Never after 400/401/403/404 or a safety-blocked answer | `provider: "gemini"`, `modelFallback: true`, `model` → `agent_engine` = `secondary` |
+| **Secondary** | Gemini `gemini-3.7-flash` (`GEMINI_FALLBACK_MODEL`), called by the proxy **once**, only after a retryable primary failure (429; 500/502/503/504; `RESOURCE_EXHAUSTED` / `UNAVAILABLE` / `DEADLINE_EXCEEDED`; network error or timeout). Never after 400/401/403/404 or a safety-blocked answer | `provider: "gemini"`, `modelFallback: true`, `model` → `agent_engine` = `secondary` |
 | **Offline** | the deterministic offline demo agent (same tools), when both live models fail, the proxy is unreachable, or the device is set to offline | `provider: "mock"` (plus an `agent_fallback` event when a live attempt failed) → `agent_engine` = `offline` |
 
 A session that mixes states exports e.g. `primary+secondary` or `primary+offline`. `agent_models` lists the model ids that answered. Context turns built directly from tool results (`provider: "tools"`) are deterministic and aren't an engine.
 
 `analyze.py` writes `agent_engine` per observation and reports the engine mix. Record in [study/freeze-record.md](study/freeze-record.md) how secondary and offline sessions are treated.
+
+- **MacroAgent audit fixes (before the pilot).** These change the treatment's agent behaviour, not the outcomes:
+  - Live replies now also get a warning card when their wording overstates data confidence (e.g. calling an ESTIMATED dish "verified").
+  - "No X" requests keep dishes that don't contain X.
+  - The offline agent understands "I don't want X", remembers constraints stated earlier in the session, and no longer narrows a new search to the previously recommended restaurant.
+
+  Scenario targets, canonical answers, scoring and logging are unchanged. Details: [study/prepilot-audit-v3.5.md](study/prepilot-audit-v3.5.md).
 - **Treatment identity (pre-pilot audit).** Every session is stamped at *Begin* with `build`: treatment version, commit, baseline nutrition setting, agent mode, whether a proxy is configured, and the study restaurant ids. `analyze.py` analyses only V3.5 sessions by default. Deep links can't leave the study set during a trial. See [study/prepilot-audit-v3.5.md](study/prepilot-audit-v3.5.md) for the freeze inputs and the three decisions still open.
 
 ## V3.1 note

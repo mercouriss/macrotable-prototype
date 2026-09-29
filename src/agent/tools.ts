@@ -263,7 +263,7 @@ const getMenu: ToolDef = {
 const optimizeMeal: ToolDef = {
   name: "optimizeMeal",
   description:
-    "Find the best feasible meal configuration for the user's targets with the deterministic optimizer. Only restaurant-supported modifications are used; all nutrition and prices come from this tool. Pass the user's requests (e.g. 'less rice' → {group:'rice', request:'less'}) as adjustments; unsupported requests are reported back, never invented. Omit restaurantId to search all nearby stores.",
+    "Find the best feasible meal configuration for the user's targets with the deterministic optimizer. Only restaurant-supported modifications are used; all nutrition and prices come from this tool. Pass the user's requests (e.g. 'less rice' → {group:'rice', request:'less'}; 'no rice' / 'I don't want rice' → {group:'rice', request:'none'}) as adjustments; unsupported requests are reported back, never invented. For 'none', dishes that don't list that ingredient already comply, and dishes that list it without a supported way to remove it are excluded. Omit restaurantId to search all nearby stores.",
   parameters: {
     type: "object",
     properties: {

@@ -9,7 +9,7 @@ ALLOWED_ORIGINS = "https://mercouriss.github.io,http://localhost:5173,http://loc
 GEMINI_MODEL = "gemini-3.8-flash"
 
 # Used only if the primary has a retryable temporary failure
-GEMINI_FALLBACK_MODEL = "gemini-2.5-flash"
+GEMINI_FALLBACK_MODEL = "gemini-3.7-flash"
 
 RATE_LIMIT_PER_MINUTE = "30"
 

@@ -88,7 +88,7 @@ describe("agent proxy (Cloudflare Worker)", () => {
 
 // ─── Primary → secondary model fallback ────────────────────────────────────
 
-const FALLBACK = "gemini-2.5-flash";
+const FALLBACK = "gemini-3.7-flash";
 const OK_BODY = { candidates: [{ content: { role: "model", parts: [{ text: "hi" }] } }] };
 
 /** Scripted upstream: one response per call, in order; records which model each call hit. */
