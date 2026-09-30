@@ -69,6 +69,13 @@ export interface RealIdentity {
   sources: string[];
 }
 
+export interface RestaurantLogo {
+  /** Path under public/, e.g. "logos/demo/fitkitchen.svg" (always a local, bundled file). */
+  src: string;
+  alt: string;
+  source: "demo-original" | "real-permitted";
+}
+
 export interface Restaurant {
   id: string;
   name: string;
@@ -90,8 +97,14 @@ export interface Restaurant {
   /** Simulated service modes (demo brands). Empty for real restaurants: MacroTable makes no claim about them. */
   serviceModes: ServiceMode[];
   pickupMinutes?: number;
-  /** Original monogram identity for fictional demo brands (never used for real restaurants). */
+  /** Original monogram identity for fictional demo brands (never used for real restaurants). Also the logo fallback. */
   brand?: { color: string; mark: string };
+  /**
+   * PRESENTATION ONLY: never read by menus, optimisation, the agent tools or research logging.
+   * Demo brands: an original fictional asset. Real venues: only via src/data/realLogos.ts
+   * (official source + recorded permission); otherwise absent and a neutral placeholder is shown.
+   */
+  logo?: RestaurantLogo;
   meals: Meal[];
 }
 

@@ -220,8 +220,11 @@ function OrderCard({ draftId }: { draftId: string }) {
       <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-3">
         {handoff ? "Show at the counter" : d.mode === "pickup" ? `Pickup order · ready ~${d.readyInMinutes ?? 15} min` : "In-store order"}
       </p>
-      <p className="mt-1 text-[15px] font-semibold">
-        {d.mealName} <span className="font-normal text-ink-3">· {d.restaurantName}</span>
+      <p className="mt-1 flex items-center gap-2 text-[15px] font-semibold">
+        {restaurant && <BrandMark restaurant={restaurant} size={22} />}
+        <span className="min-w-0">
+          {d.mealName} <span className="font-normal text-ink-3">· {d.restaurantName}</span>
+        </span>
       </p>
       {d.changes.length > 0 && <p className="mt-0.5 text-[13px] text-ink-2">{d.changes.join(" · ")}</p>}
       <p className="tnum mt-1 text-[13px] text-ink-2">

@@ -1,5 +1,6 @@
-import type { ModifierOption, Nutrition, Restaurant } from "../types";
+import type { ModifierOption, Nutrition, Restaurant, RestaurantLogo } from "../types";
 import { DEMO_STORE_LOCATIONS } from "./geo";
+import { REAL_LOGOS } from "./realLogos";
 
 /*
  * DEMO BRANDS ARE FICTIONAL MOCK DATA for a university prototype: their
@@ -30,6 +31,9 @@ const opt = (
 
 const unsupported = (id: string, label: string): ModifierOption => opt(id, label, 0, ZERO, undefined, false);
 
+/** Original fictional MacroTable demo-brand mark (public/logos/demo). Presentation only. */
+const demoLogo = (id: string, name: string): RestaurantLogo => ({ src: `logos/demo/${id}.svg`, alt: `${name} logo (fictional demo brand)`, source: "demo-original" });
+
 // ─── Level 3 · Verified MacroTable partner ─────────────────────────────────
 const fitKitchen: Restaurant = {
   id: "fitkitchen",
@@ -44,6 +48,7 @@ const fitKitchen: Restaurant = {
   serviceModes: ["pickup", "in-store"],
   pickupMinutes: 12,
   brand: { color: "#1E6B52", mark: "FK" },
+  logo: demoLogo("fitkitchen", "FitKitchen"),
   meals: [
     {
       id: "fk-chicken-power-bowl",
@@ -232,6 +237,7 @@ const urbanBowl: Restaurant = {
   serviceModes: ["pickup", "in-store"],
   pickupMinutes: 15,
   brand: { color: "#2A4B7F", mark: "UB" },
+  logo: demoLogo("urbanbowl", "Urban Bowl"),
   meals: [
     {
       id: "ub-teriyaki-salmon",
@@ -382,6 +388,7 @@ const localGrill: Restaurant = {
   serviceModes: ["in-store"],
   pickupMinutes: 10,
   brand: { color: "#8A5A2B", mark: "LG" },
+  logo: demoLogo("localgrill", "Local Grill"),
   meals: [
     {
       id: "lg-chicken-salad",
@@ -459,6 +466,7 @@ const pastaMetrica: Restaurant = {
   serviceModes: ["pickup", "in-store"],
   pickupMinutes: 14,
   brand: { color: "#A8432F", mark: "PM" },
+  logo: demoLogo("pastametrica", "Pasta Metrica"),
   meals: [
     {
       id: "pm-chicken-pesto-penne",
@@ -591,6 +599,7 @@ const saffronSteam: Restaurant = {
   serviceModes: ["pickup", "in-store"],
   pickupMinutes: 11,
   brand: { color: "#B7791F", mark: "S&S" },
+  logo: demoLogo("saffronsteam", "Saffron & Steam"),
   meals: [
     {
       id: "ss-chicken-tikka-bowl",
@@ -691,6 +700,7 @@ const tinplateDeli: Restaurant = {
   serviceModes: ["in-store"],
   pickupMinutes: 8,
   brand: { color: "#4B5563", mark: "TD" },
+  logo: demoLogo("tinplate", "Tinplate Deli"),
   meals: [
     {
       id: "td-turkey-avocado-rye",
@@ -770,6 +780,8 @@ const realRestaurant = (
   location: { lat, lng },
   address: addressLine,
   serviceModes: [],
+  // A real venue's logo only with an official source AND recorded permission (see realLogos.ts); else none.
+  ...(REAL_LOGOS[id] ? { logo: { src: REAL_LOGOS[id].file, alt: `${name} logo`, source: "real-permitted" as const } } : {}),
   meals: [],
 });
 

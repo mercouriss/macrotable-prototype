@@ -1,5 +1,6 @@
 import { useLocation, useParams } from "react-router-dom";
 import { AcceptanceSequence } from "../components/AcceptanceSequence";
+import { BrandMark } from "../components/BrandMark";
 import { Icon } from "../components/Icon";
 import { KitchenTicket } from "../components/KitchenTicket";
 import { SaveMealButton } from "../components/SaveMealButton";
@@ -70,8 +71,11 @@ export function Success() {
     >
       <div className="pt-10">
         <h1 className="font-display text-[26px] font-semibold tracking-[-0.02em]">Order approved</h1>
-        <p className="mt-1 text-[14px] text-ink-2">
-          {meal.name} · {restaurant.name}
+        <p className="mt-1 flex items-center gap-2 text-[14px] text-ink-2">
+          <BrandMark restaurant={restaurant} size={22} />
+          <span className="min-w-0">
+            {meal.name} · {restaurant.name}
+          </span>
         </p>
         <div className="mt-6">
           <AcceptanceSequence order={order} restaurant={restaurant} animate={fresh}>
