@@ -73,7 +73,16 @@ export interface RestaurantLogo {
   /** Path under public/, e.g. "logos/demo/fitkitchen.svg" (always a local, bundled file). */
   src: string;
   alt: string;
-  source: "demo-original" | "real-permitted";
+  /**
+   * "demo-original": FICTIONAL DEMO BRAND — ORIGINAL PROTOTYPE ASSET.
+   * "real-official-site": the real venue's own logo from its official website (src/data/realLogos.ts);
+   *  no licence, permission or partnership implied.
+   */
+  source: "demo-original" | "real-official-site";
+  /** Width / height of the artwork (default 1). Wide wordmarks get a wider box instead of being cropped. */
+  aspect?: number;
+  /** Tile the artwork was designed for (default light). */
+  background?: "light" | "dark";
 }
 
 export interface Restaurant {

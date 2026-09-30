@@ -129,14 +129,14 @@ describe("Explore restaurant cards open on a single tap", () => {
 });
 
 describe("real-restaurant logos", () => {
-  it("every registry entry is a verified, permitted, local asset for a REAL venue (currently none)", () => {
+  it("every registry entry is an authentic, local, provenance-documented asset for a REAL venue", () => {
     for (const [id, logo] of Object.entries(REAL_LOGOS)) {
       expect(getRestaurant(id)?.identity).toBe("real");
-      expect(logo.source).toMatch(/^https:\/\//);
-      expect(logo.permission.length).toBeGreaterThan(10);
+      expect(logo.pageUrl).toMatch(/^https:\/\//);
+      expect(logo.assetUrl).toMatch(/^https:\/\//);
+      expect(logo.usageBasis).toMatch(/No trademark licence, permission or partnership/);
       expect(existsSync(`public/${logo.file}`)).toBe(true);
     }
-    expect(Object.keys(REAL_LOGOS)).toHaveLength(0);
     for (const r of RESTAURANTS) if (r.identity === "real") expect(r.brand).toBeUndefined(); // no invented branding
   });
 });

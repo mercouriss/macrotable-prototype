@@ -31,7 +31,7 @@ const opt = (
 
 const unsupported = (id: string, label: string): ModifierOption => opt(id, label, 0, ZERO, undefined, false);
 
-/** Original fictional MacroTable demo-brand mark (public/logos/demo). Presentation only. */
+/** FICTIONAL DEMO BRAND — ORIGINAL PROTOTYPE ASSET (public/logos/demo). Not an official restaurant logo. Presentation only. */
 const demoLogo = (id: string, name: string): RestaurantLogo => ({ src: `logos/demo/${id}.svg`, alt: `${name} logo (fictional demo brand)`, source: "demo-original" });
 
 // ─── Level 3 · Verified MacroTable partner ─────────────────────────────────
@@ -780,8 +780,10 @@ const realRestaurant = (
   location: { lat, lng },
   address: addressLine,
   serviceModes: [],
-  // A real venue's logo only with an official source AND recorded permission (see realLogos.ts); else none.
-  ...(REAL_LOGOS[id] ? { logo: { src: REAL_LOGOS[id].file, alt: `${name} logo`, source: "real-permitted" as const } } : {}),
+  // A real venue's logo only as an authentic first-party asset with recorded provenance (see realLogos.ts); else none.
+  ...(REAL_LOGOS[id]
+    ? { logo: { src: REAL_LOGOS[id].file, alt: `${name} logo`, source: "real-official-site" as const, aspect: REAL_LOGOS[id].aspect, background: REAL_LOGOS[id].background } }
+    : {}),
   meals: [],
 });
 

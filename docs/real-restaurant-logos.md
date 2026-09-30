@@ -1,63 +1,66 @@
 # Restaurant logos: provenance
 
-**Rule.** Truthful representation beats visual polish. A real, unaffiliated restaurant gets a logo only when all of these hold:
-- an official source: preferably a press/media kit or brand-asset page, otherwise the restaurant's own website;
-- a documented usage basis for showing it in this prototype;
-- a local, unmodified asset.
+## Standard (updated 2026-09-30)
 
-If anything is uncertain, the neutral dashed placeholder stays. A logo never replaces "Real · not affiliated" and never implies integration.
+A real, unaffiliated restaurant shows its **authentic logo** only when:
+1. the file is the logo the restaurant (or, for a chain or outlet, its parent brand) publishes **on its own official website**;
+2. the file is stored **locally**. SVGs are byte-identical copies. Rasters are only resized and re-encoded (no crop, recolour, redraw or trace);
+3. the page URL, exact asset URL, source type and retrieval date are recorded in [`src/data/realLogos.ts`](../src/data/realLogos.ts).
 
-**Where it's enforced:**
-- Real logos can only enter the data through [`src/data/realLogos.ts`](../src/data/realLogos.ts), which requires a source and a recorded permission.
-- `realRestaurant()` in [`src/data/restaurants.ts`](../src/data/restaurants.ts) copies an entry into `Restaurant.logo`.
-- [`BrandMark`](../src/components/BrandMark.tsx) renders every restaurant mark, with a fallback when a logo is missing or fails to load.
+**Using a logo that a restaurant's own site publishes does not establish a trademark licence, permission or partnership, and MacroTable claims none.** Every real card still says **Real · not affiliated**. A logo never implies a menu, integration or ordering.
 
-## Real restaurants (19): logo added to **none**
+**Never used:**
+- delivery platforms (Thuisbezorgd, Uber Eats, Deliveroo, DoorDash) and directories (Google, TripAdvisor, Yelp);
+- social media and logo-aggregation sites;
+- screenshots, AI-generated, traced or approximated marks.
 
-**Checks made on 2026-09-30:**
-- Each official site was probed for a press, media or brand-asset page: `/pers`, `/press`, `/presskit`, `/press-kit`, `/media`, `/mediakit`, `/media-kit`, `/brand`, `/brand-assets`, `/huisstijl`, `/nl/pers`, `/en/press`, `/newsroom`, plus the sitemap.
-  - **None exists.**
-  - Erasmus Sport's `/pers` is a WordPress redirect to its personal-training page.
-  - The Social Hub's press paths return 404.
-- Logo files published on the sites themselves were identified in the first audit (2026-09-29). None of these sites states terms that would cover using the logo in this prototype, and no permission was requested or received.
+When no authentic first-party asset exists, the neutral dashed placeholder stays.
 
-**Usage basis for every row: not established.** Official site only; no press/brand terms and no permission. For the rows that say "no permission", that is the only blocker.
+**Rendering:** [`BrandMark`](../src/components/BrandMark.tsx) handles every mark:
+- square marks get a square box;
+- horizontal wordmarks get a box up to 2.6× the height (scaled with `object-fit: contain`, never cropped);
+- white, cream or yellow marks sit on the dark tile they were designed for;
+- a failed load falls back to the placeholder;
+- every logo file (SVG and WebP) is in the PWA precache (`vite.config.ts` `globPatterns`), so logos still show offline.
 
-| Restaurant | Logo added? | Candidate source (not used) | Source type | Local asset path | Additional blocker | Date checked |
+## Real restaurants: audit of all 19 (checked 2026-09-30)
+
+**AUTHENTIC REAL LOGOS: 16 / 19 · PLACEHOLDERS REMAINING: 3 / 19**
+
+| Restaurant | Official website | Authentic logo found? | Exact first-party source | Asset type | Local file | Notes |
 |---|---|---|---|---|---|---|
-| Sally's Salads | NO | logo on sallyssalads.nl, lazy-loaded (not extracted) | official website | — | asset not extracted | 2026-09-30 |
-| Mozza | NO | `mozzaeur.nl/wp-content/uploads/Mozza-Logo.png` | official website | — | no permission | 2026-09-30 |
-| Erasmus Paviljoen | NO | `erasmuspaviljoen.nl/wp-content/uploads/2024/07/logo_groot.png` | official website | — | no permission | 2026-09-30 |
-| Tosti World | NO | `tostiworld.nl/wp-content/themes/tostiworld/images/logo.png` | official website (chain) | — | no permission | 2026-09-30 |
-| Coffeecompany Erasmus | NO | `coffeecompany.nl/assets/svg/logo-….svg` | official website (chain) | — | no permission | 2026-09-30 |
-| Erasmus Sport Café | NO | `erasmussport.nl/…/Logo_Erasmus_Sport_2019_RGB-1.png` | official website (the sports centre) | — | the mark belongs to the institution, not the café; `/pers` is not a press page | 2026-09-30 |
-| Restobar Colette | NO | `coletterotterdam.nl/_webblocks/images/colette_logo.svg` | official website | — | no permission | 2026-09-30 |
-| Lokanta Proeflokaal | NO | `lokanta-proeflokaal.nl/_astro/lokantaproeflokaal.….png` | official website | — | no permission | 2026-09-30 |
-| Café Stobbe | NO | `cafestobbe.nl/…/Logo-Stobbe-Wit.svg` (white variant only) | official website | — | recolouring for a light background would modify it | 2026-09-30 |
-| De Specialiteit | NO | "logo de specialiteit groen RGB.png" (site CDN) | official website (multi-location) | — | no permission | 2026-09-30 |
-| De Boshut | NO | `deboshutrotterdam.nl/…/deboshut_logo_creme_liggend.png` (cream variant) | official website | — | light variant only | 2026-09-30 |
-| I Love Sushi | NO | logo on ilovesushi.nl, lazy-loaded (not extracted) | official website (chain) | — | asset not extracted | 2026-09-30 |
-| Van Stralen | NO | image named `gold-luxury-initial-circle-logo…` | official website | — | appears to be a site-template stock image: **authenticity unclear** | 2026-09-30 |
-| Curry's | NO | `currys.nl/assets/currys-logo.png` | official website | — | no permission | 2026-09-30 |
-| Mama Licia | NO | none (only a photo) | — | — | no logo asset exists | 2026-09-30 |
-| Macho Mama | NO | `macho-mama.nl/tpl/template1/images/logo/logo_1.png` | official website | — | no permission (a Thuisbezorgd copy exists; third-party, excluded) | 2026-09-30 |
-| Toko Smoor | NO | `tokosmoor.nl/…/TOKOSMOOR-NEWLOGO-1024x290.png` | official website | — | no permission | 2026-09-30 |
-| The Commons | NO | none on the page (brand: The Social Hub) | — | — | no asset; no press page | 2026-09-30 |
-| Maas | NO | none extracted (Wix site) | — | — | no logo asset found | 2026-09-30 |
+| Sally's Salads | sallyssalads.nl | **YES** | `sallyssalads.nl/wp-content/uploads/2024/08/Sallys_Salads_logo.png` | header logo (PNG, white wordmark) | `logos/real/sallys-salads-eur.webp` | Chain brand logo; shown on a dark tile (it's white) |
+| Mozza | mozzaeur.nl | **YES** | `mozzaeur.nl/wp-content/uploads/Mozza-Logo.png` | header logo (PNG) | `logos/real/mozza-eur.webp` | Original is a 7 MB 7076×3532 PNG; resized to 360 px (31 KB) |
+| Erasmus Paviljoen | erasmuspaviljoen.nl | **YES** | `erasmuspaviljoen.nl/wp-content/uploads/2024/07/logo_groot.png` | header logo (PNG wordmark) | `logos/real/erasmus-paviljoen.webp` | Very wide (8.6:1), so it's small at card size; the site's diamond icon isn't name-bearing and wasn't used |
+| Tosti World | tostiworld.nl | **YES** | `tostiworld.nl/wp-content/themes/tostiworld/images/logo.png` | header logo (PNG) | `logos/real/tostiworld-eur.webp` | Chain brand logo |
+| Coffeecompany Erasmus | coffeecompany.nl | **YES** | `coffeecompany.nl/assets/svg/logo-cbc777e6….svg` | header logo (**SVG**) | `logos/real/coffeecompany-eur.svg` | Chain brand logo; byte-identical SVG |
+| Erasmus Sport Café | erasmussport.nl | **YES** (parent brand) | `erasmussport.nl/wp-content/uploads/2020/05/Logo_Erasmus_Sport_2019_RGB-1.png` | parent-brand header logo (PNG) | `logos/real/erasmus-sport-cafe.webp` | The café is part of Erasmus Sport (its address is on erasmussport.nl); there's no café-specific mark |
+| Restobar Colette | coletterotterdam.nl | **YES** | `coletterotterdam.nl/_webblocks/images/colette_logo.svg` | header logo (**SVG**) | `logos/real/restobar-colette.svg` | Byte-identical SVG. The same site serves an "Osteria Vicini" `logo.svg` (a different restaurant): not used |
+| Lokanta Proeflokaal | lokanta-proeflokaal.nl | **NO** | — | — | — | **The official site is currently disabled**: host returns HTTP 402 "DEPLOYMENT_DISABLED" (it was live on 2026-09-29). The previously seen asset `/_astro/lokantaproeflokaal.….png` also returns 402. Its operating status may need re-checking; not changed here |
+| Café Stobbe | cafestobbe.nl | **YES** | `cafestobbe.nl/wp-content/uploads/2019/08/Logo-Stobbe-Wit.svg` | header logo (**SVG**, white) | `logos/real/cafe-stobbe.svg` | Byte-identical; shown on a dark tile instead of being recoloured |
+| De Specialiteit | despecialiteit.nl | **YES** | `prod1-plate-attachments.s3.amazonaws.com/images/db26aa44d9/logo de specialiteit groen RGB.png`, loaded by `despecialiteit.nl/locatie/pniel` | header logo (PNG) from the site's own CMS media store | `logos/real/de-specialiteit-pniel.webp` | Multi-location brand logo |
+| De Boshut | deboshutrotterdam.nl | **YES** | `deboshutrotterdam.nl/wp-content/uploads/2025/08/favicon.png` | official site icon (round "DE BOS HUT" mark) | `logos/real/de-boshut.webp` | The horizontal header logo is cream-on-transparent and unreadable at card size; the name-bearing round mark is used instead |
+| I Love Sushi | ilovesushi.nl | **YES** | `ilovesushi.nl/app/themes/lyfter-child/img/base/brand-logo.svg` | header logo (**SVG**) | `logos/real/i-love-sushi-kralingen.svg` | Chain brand logo; the Kralingen outlet has its own page on ilovesushi.nl; byte-identical SVG with white lettering, so shown on a dark tile |
+| Van Stralen | etenbijvanstralen.nl | **YES** | `primary.jwwb.nl/…/gold-luxury-initial-circle-logo-high-n0h8un.png`, loaded by `etenbijvanstralen.nl` | header logo (PNG) from the site builder's media host | `logos/real/van-stralen.webp` | The file name suggests a logo-template origin, but the artwork reads "Van Stralen · Rotterdam Kralingen" and is the logo the official site shows |
+| Curry's | currys.nl | **YES** | `currys.nl/assets/currys-logo.png` | header logo (PNG) | `logos/real/currys-kralingen.webp` | Yellow script; shown on a dark tile for contrast |
+| Mama Licia | mammalicia.nl | **YES** | `mammalicia.nl/wp-content/uploads/2019/08/IMG_20190822_185924_465-300x300.jpg` | header logo image (JPG) | `logos/real/mama-licia.webp` | The logo reads "MAMMA LICIA" (domain mammalicia.nl); the dataset name "Mama Licia" comes from OpenStreetMap and is **left unchanged** |
+| Macho Mama | macho-mama.nl | **NO** | — | — | — | The site's logo slot (`/tpl/template1/images/logo/logo_1.png`) is a **Thuisbezorgd** logo supplied by the platform-built site template, not Macho Mama's. The only Macho Mama logo on the page is hosted by Thuisbezorgd (`static.thuisbezorgd.nl/…/logo_465x320.png`): a third-party platform, excluded |
+| Toko Smoor | tokosmoor.nl | **YES** | `tokosmoor.nl/wp-content/uploads/2025/09/TOKOSMOOR-NEWLOGO.png` | header logo (PNG) | `logos/real/toko-smoor.webp` | Current 2025 logo |
+| The Commons | thesocialhub.co | **NO** | — | — | — | The official "Eat & Drink" page (rendered in a browser on 2026-09-30) **no longer mentions "The Commons"** and shows only The Social Hub's logo. Using the parent hotel brand's logo would misidentify the venue, and there's no Commons mark. Its name may need re-checking; not changed here |
+| Maas | restaurant-maas.nl | **YES** | `static.wixstatic.com/media/2a9c32_f0f60feb…~mv2.png`, loaded by `restaurant-maas.nl` | header wordmark (PNG) from the site's own Wix media library | `logos/real/restaurant-maas.webp` | Gold "MAAS" wordmark |
 
-**To add one later:**
-1. Get written permission from the venue, or find published press/brand terms that cover this use. Store the evidence outside the repo.
-2. Download the asset from the source above, unmodified. Save it as an optimised SVG/WebP in `public/logos/real/<restaurant-id>.<ext>`.
-3. Add a `REAL_LOGOS` entry with `file`, `source`, `permission` and `retrievedOn`. Tests check that every entry is for a real venue, has a local file, and records permission.
+"Loaded by" means the file lives on the CMS or site-builder media host that the restaurant's own page loads it from (Plate, Jouwweb, Wix). The page itself is on the restaurant's own domain.
 
-## Fictional demo restaurants (6): original marks added
+## Fictional demo restaurants: 6 / 6
 
-Each is an **original fictional MacroTable demo-brand asset**, drawn for this prototype on 2026-09-30:
-- a rounded tile in the brand's existing colour (`Restaurant.brand.color`), with one simple white food glyph;
-- no text, and no imitation of any real restaurant or trademark;
-- plain SVG, 535–632 bytes each, loaded locally and cached by the PWA.
+**FICTIONAL DEMO BRAND — ORIGINAL PROTOTYPE ASSET.** These are not official restaurant logos: the brands don't exist.
 
-The DEMO labels, integration labels and provenance badges beside them are unchanged. If a file fails to load, the brand's monogram is shown instead.
+Each mark was drawn for this prototype on 2026-09-30:
+- a rounded tile in the brand's existing colour with one white food glyph;
+- no text, and no imitation of any real mark;
+- no internet search was done for similarly named restaurants.
+
+DEMO and integration labels are unchanged beside them.
 
 | Demo restaurant | Glyph | Asset |
 |---|---|---|

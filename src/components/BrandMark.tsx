@@ -3,11 +3,15 @@ import type { Restaurant } from "../types";
 
 /** Logos that failed to load in this tab: later renders go straight to the fallback (no flicker, no retry loop). */
 const failedLogos = new Set<string>();
+/** Widest box for a wordmark, as a multiple of the height (wider artwork is scaled down, never cropped). */
+export const MAX_ASPECT = 2.6;
 export const markLogoFailed = (src: string) => void failedLogos.add(src);
 
 /**
  * THE restaurant logo component (one place for every surface).
- *   - logo in the data  → the local asset in a fixed-size box (object-contain, never stretched, no layout shift)
+ *   - logo in the data  → the local asset in a fixed-size box (object-contain, never stretched or cropped, no
+ *     layout shift). Square marks get a square box; a real venue's wide wordmark gets a box up to
+ *     MAX_ASPECT × the height; a white/cream mark sits on the dark tile it was designed for
  *   - logo fails to load → falls back like "no logo" below, and remembers the failure for this tab
  *   - no logo, demo brand → its original monogram in the brand colour
  *   - no logo, real venue → a neutral initial with a dashed ring (nothing implies branding or a relationship)
@@ -35,17 +39,22 @@ export function BrandMark({
 
   if (logo && !broken) {
     const real = restaurant.identity === "real";
+    const width = real ? Math.round(size * Math.min(Math.max(logo.aspect ?? 1, 1), MAX_ASPECT)) : size;
+    const dark = logo.background === "dark";
+    // Real venues keep the dashed "not affiliated" frame, on the tile colour their logo was made for.
+    const tile = real ? `border border-dashed ${dark ? "border-white/35 bg-ink" : "border-ink-3/45 bg-white"}` : "bg-sunken";
     return (
       <span
         {...a11y}
         data-logo={logo.source}
-        className={`grid shrink-0 place-items-center overflow-hidden ${real ? "border border-dashed border-ink-3/45 bg-white" : "bg-sunken"} ${className}`}
-        style={{ ...box, padding: real ? size * 0.1 : 0 }}
+        data-logo-shape={width > size ? "wide" : "square"}
+        className={`grid shrink-0 place-items-center overflow-hidden ${tile} ${className}`}
+        style={{ ...box, width, padding: real ? `${Math.round(size * 0.1)}px ${Math.round(size * 0.12)}px` : 0 }}
       >
         <img
           src={`${import.meta.env.BASE_URL}${logo.src}`}
           alt={decorative ? "" : logo.alt}
-          width={size}
+          width={width}
           height={size}
           loading="lazy"
           decoding="async"

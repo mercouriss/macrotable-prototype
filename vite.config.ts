@@ -76,7 +76,8 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,svg,png,webmanifest}"],
+        // webp: the local real-restaurant logos (public/logos/real), so they stay available offline.
+        globPatterns: ["**/*.{js,css,html,svg,png,webp,webmanifest}"],
         // SPA: serve the app shell for any in-scope navigation (fixes GitHub Pages 404 deep links after first visit).
         navigateFallback: `${base}index.html`,
         cleanupOutdatedCaches: true,
