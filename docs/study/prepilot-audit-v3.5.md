@@ -22,7 +22,7 @@ Neither fix changes the optimizer, feasibility rules, scenarios, the study data,
 
 ## Pre-freeze validity fixes after the Gemini model benchmark (2026-10-02)
 
-No participants had been run. Defects A and B came from the Phase 2 benchmark transcripts (real app path, 39 matched turns), C from manual testing. **Candidate pre-pilot build: the commit that adds this section** (record its short hash in the *Commit* row below and on `/research` before the pilot).
+No participants had been run. Defects A and B came from the Phase 2 benchmark transcripts (real app path, 39 matched turns), C from manual testing. **Candidate pre-pilot build: `f16d086`** (`f16d08620c4369856c65dac547732cafbda56719`), the commit that adds this section and the fixes. The hash is recorded here in a separate, documentation-only follow-up commit, because a commit can't contain its own hash. Any later commit that changes only documentation builds identical application code. Sessions are stamped with the commit actually deployed (`build.appCommit`), so record that hash too, and confirm `git diff --stat f16d086 <deployed> -- src proxy` is empty.
 
 | # | Defect | Fix | Participant-facing? | Tests |
 |---|---|---|---|---|
