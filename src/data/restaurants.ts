@@ -1,5 +1,5 @@
 import type { ModifierOption, Nutrition, Restaurant, RestaurantLogo } from "../types";
-import { DEMO_STORE_LOCATIONS } from "./geo";
+import { DEMO_STORE_LOCATIONS, SHOWCASE_STORE_LOCATIONS } from "./geo";
 import { REAL_LOGOS } from "./realLogos";
 
 /*
@@ -744,6 +744,316 @@ const tinplateDeli: Restaurant = {
   ],
 };
 
+// ─── Farther-out showcase demo brands (NOT in the frozen study dataset) ───
+/*
+ * FICTIONAL DEMO BRANDS, added 2026-10-02 so the normal-mode map shows options at
+ * different distances (1–2.5 km out, see SHOWCASE_STORE_LOCATIONS). Names were
+ * checked against existing restaurants on 2026-10-02 (no match found); logos are
+ * original prototype marks. Invented menus, prices and nutrition, like every demo
+ * brand. Never shown during research trials or in /baseline.
+ */
+
+// Level 2 · structured demo integration
+const citrineMezze: Restaurant = {
+  id: "citrinemezze",
+  identity: "demo",
+  name: "Citrine Mezze",
+  integrationLevel: 2,
+  cuisine: "Mediterranean",
+  tagline: "Official nutrition · structured menu",
+  location: SHOWCASE_STORE_LOCATIONS.citrinemezze,
+  address: "Fictional demo store G",
+  priceRange: "€€",
+  serviceModes: ["pickup", "in-store"],
+  pickupMinutes: 12,
+  brand: { color: "#167A82", mark: "CM" },
+  logo: demoLogo("citrinemezze", "Citrine Mezze"),
+  meals: [
+    {
+      id: "cm-chicken-shawarma-plate",
+      restaurantId: "citrinemezze",
+      name: "Chicken Shawarma Plate",
+      description: "Spiced chicken shawarma, herbed bulgur, hummus and chopped salad.",
+      price: 16.9,
+      nutrition: n(790, 44, 78, 30),
+      provenance: "official",
+      available: true,
+      dietaryTags: ["high-protein"],
+      palette: ["#D9A54C", "#E8D3A3", "#7DA35A", "#F2E6CC"],
+      modifierGroups: [
+        {
+          id: "bulgur",
+          name: "Bulgur",
+          defaultOptionId: "bulgur-std",
+          options: [
+            opt("bulgur-none", "None", 0, n(-300, -10, -60, -2), "NO BULGUR"),
+            opt("bulgur-half", "Half", 0, n(-150, -5, -30, -1), "HALF BULGUR"),
+            opt("bulgur-std", "Standard", 0, ZERO),
+          ],
+        },
+        {
+          id: "hummus",
+          name: "Hummus",
+          defaultOptionId: "hummus-std",
+          options: [opt("hummus-light", "Light", 0, n(-80, -3, -5, -6), "LIGHT HUMMUS"), opt("hummus-std", "Standard", 0, ZERO), unsupported("hummus-side", "Hummus on the side")],
+        },
+      ],
+    },
+    {
+      id: "cm-halloumi-lentil-salad",
+      restaurantId: "citrinemezze",
+      name: "Halloumi & Lentil Salad",
+      description: "Grilled halloumi, green lentils, cucumber, mint and lemon dressing.",
+      price: 13.5,
+      nutrition: n(610, 31, 48, 32),
+      provenance: "official",
+      available: true,
+      dietaryTags: ["vegetarian"],
+      palette: ["#E9D9A8", "#6F8F4A", "#B9C98A", "#F4F0DE"],
+      modifierGroups: [
+        {
+          id: "dressing",
+          name: "Dressing",
+          defaultOptionId: "dressing-std",
+          options: [opt("dressing-light", "Light", 0, n(-60, 0, -2, -6), "LIGHT DRESSING"), opt("dressing-std", "Standard", 0, ZERO)],
+        },
+      ],
+    },
+    {
+      id: "cm-lamb-kofta-wrap",
+      restaurantId: "citrinemezze",
+      name: "Lamb Kofta Wrap",
+      description: "Lamb kofta, flatbread, pickled onion and garlic yoghurt.",
+      price: 12.0,
+      nutrition: n(780, 36, 66, 40),
+      provenance: "official",
+      available: true,
+      dietaryTags: [],
+      palette: ["#A9603C", "#E9D2AE", "#C24E62", "#F3ECDD"],
+      modifierGroups: [],
+    },
+  ],
+};
+
+// Level 3 · deep demo integration
+const kombuTide: Restaurant = {
+  id: "kombutide",
+  identity: "demo",
+  name: "Kombu Tide",
+  integrationLevel: 3,
+  cuisine: "Japanese-style bowls",
+  tagline: "Verified recipes · portion-level changes",
+  location: SHOWCASE_STORE_LOCATIONS.kombutide,
+  address: "Fictional demo store H",
+  priceRange: "€€",
+  serviceModes: ["pickup", "in-store"],
+  pickupMinutes: 13,
+  brand: { color: "#4A3F8C", mark: "KT" },
+  logo: demoLogo("kombutide", "Kombu Tide"),
+  meals: [
+    {
+      id: "kt-miso-salmon-bowl",
+      restaurantId: "kombutide",
+      name: "Miso Salmon Rice Bowl",
+      description: "Miso-glazed salmon, sushi rice, edamame and pickled vegetables.",
+      price: 17.9,
+      nutrition: n(810, 42, 92, 28),
+      provenance: "verified",
+      available: true,
+      dietaryTags: ["pescatarian", "high-protein"],
+      palette: ["#E58A5C", "#F3EEDF", "#7FAE5A", "#E9C46A"],
+      modifierGroups: [
+        {
+          id: "rice",
+          name: "Rice",
+          defaultOptionId: "rice-std",
+          options: [
+            opt("rice-none", "None", 0, n(-340, -6, -76, 0), "NO RICE"),
+            opt("rice-half", "Half", 0, n(-170, -3, -38, 0), "HALF RICE"),
+            opt("rice-std", "Standard", 0, ZERO),
+          ],
+        },
+        {
+          id: "glaze",
+          name: "Miso glaze",
+          defaultOptionId: "glaze-std",
+          options: [opt("glaze-light", "Light", 0, n(-40, -1, -6, -1), "LIGHT GLAZE"), opt("glaze-std", "Standard", 0, ZERO)],
+        },
+      ],
+    },
+    {
+      id: "kt-chicken-soba",
+      restaurantId: "kombutide",
+      name: "Chicken Soba Noodle Bowl",
+      description: "Buckwheat soba, grilled chicken, spring onion and sesame broth.",
+      price: 14.5,
+      nutrition: n(660, 38, 82, 18),
+      provenance: "verified",
+      available: true,
+      dietaryTags: [],
+      palette: ["#8A6A45", "#EADFC6", "#6E9A4A", "#D9C08A"],
+      modifierGroups: [
+        {
+          id: "noodles",
+          name: "Soba",
+          defaultOptionId: "noodles-std",
+          options: [opt("noodles-half", "Half", 0, n(-150, -6, -30, -1), "HALF SOBA"), opt("noodles-std", "Standard", 0, ZERO)],
+        },
+      ],
+    },
+    {
+      id: "kt-tofu-kimchi-bowl",
+      restaurantId: "kombutide",
+      name: "Tofu Kimchi Bowl",
+      description: "Crispy tofu, kimchi, brown rice and sesame greens.",
+      price: 12.9,
+      nutrition: n(620, 28, 74, 22),
+      provenance: "verified",
+      available: true,
+      dietaryTags: ["vegetarian", "spicy"],
+      palette: ["#E2B26B", "#C8452F", "#7FAE5A", "#F1E7D2"],
+      modifierGroups: [
+        {
+          id: "rice",
+          name: "Brown rice",
+          defaultOptionId: "rice-std",
+          options: [opt("rice-half", "Half", 0, n(-150, -3, -32, -1), "HALF RICE"), opt("rice-std", "Standard", 0, ZERO)],
+        },
+      ],
+    },
+  ],
+};
+
+// Level 2 · structured demo integration
+const greeneryAtlas: Restaurant = {
+  id: "greeneryatlas",
+  identity: "demo",
+  name: "Greenery Atlas",
+  integrationLevel: 2,
+  cuisine: "Vegetarian kitchen",
+  tagline: "Official nutrition · structured menu",
+  location: SHOWCASE_STORE_LOCATIONS.greeneryatlas,
+  address: "Fictional demo store I",
+  priceRange: "€",
+  serviceModes: ["pickup", "in-store"],
+  pickupMinutes: 10,
+  brand: { color: "#5E8C31", mark: "GA" },
+  logo: demoLogo("greeneryatlas", "Greenery Atlas"),
+  meals: [
+    {
+      id: "ga-tempeh-grain-bowl",
+      restaurantId: "greeneryatlas",
+      name: "Tempeh Grain Bowl",
+      description: "Marinated tempeh, freekeh and quinoa, roasted squash and greens.",
+      price: 12.5,
+      nutrition: n(640, 32, 70, 22),
+      provenance: "official",
+      available: true,
+      dietaryTags: ["vegetarian", "vegan"],
+      palette: ["#C9893F", "#E8D9B0", "#6F9A45", "#F2ECDA"],
+      modifierGroups: [
+        {
+          id: "grains",
+          name: "Grains",
+          defaultOptionId: "grains-std",
+          options: [opt("grains-half", "Half", 0, n(-140, -4, -28, -1), "HALF GRAINS"), opt("grains-std", "Standard", 0, ZERO)],
+        },
+      ],
+    },
+    {
+      id: "ga-falafel-beet-salad",
+      restaurantId: "greeneryatlas",
+      name: "Falafel & Beet Salad",
+      description: "Baked falafel, roasted beetroot, leaves and tahini.",
+      price: 11.0,
+      nutrition: n(560, 19, 62, 26),
+      provenance: "official",
+      available: true,
+      dietaryTags: ["vegetarian", "vegan"],
+      palette: ["#A3324A", "#C99A5B", "#7FAE5A", "#F3EBDD"],
+      modifierGroups: [
+        {
+          id: "tahini",
+          name: "Tahini",
+          defaultOptionId: "tahini-std",
+          options: [opt("tahini-light", "Light", 0, n(-70, -2, -3, -6), "LIGHT TAHINI"), opt("tahini-std", "Standard", 0, ZERO)],
+        },
+      ],
+    },
+    {
+      id: "ga-paneer-spinach-wrap",
+      restaurantId: "greeneryatlas",
+      name: "Paneer Spinach Wrap",
+      description: "Grilled paneer, spinach, tomato chutney in a wholewheat wrap.",
+      price: 10.5,
+      nutrition: n(670, 30, 58, 34),
+      provenance: "official",
+      available: true,
+      dietaryTags: ["vegetarian"],
+      palette: ["#E8D2A0", "#5F8F3E", "#D06A3A", "#F4EEDF"],
+      modifierGroups: [],
+    },
+  ],
+};
+
+// Level 1 · not integrated (estimated from a public menu)
+const ironleafGrill: Restaurant = {
+  id: "ironleafgrill",
+  identity: "demo",
+  name: "Ironleaf Grill",
+  integrationLevel: 1,
+  cuisine: "Charcoal grill",
+  tagline: "Public menu only · estimated nutrition",
+  location: SHOWCASE_STORE_LOCATIONS.ironleafgrill,
+  address: "Fictional demo store J",
+  priceRange: "€€",
+  serviceModes: ["in-store"],
+  pickupMinutes: 15,
+  brand: { color: "#7C2D3B", mark: "IG" },
+  logo: demoLogo("ironleafgrill", "Ironleaf Grill"),
+  meals: [
+    {
+      id: "ig-steak-fries",
+      restaurantId: "ironleafgrill",
+      name: "Grilled Steak & Fries",
+      description: "Charcoal-grilled sirloin, fries and pepper sauce.",
+      price: 21.5,
+      nutrition: n(980, 52, 74, 50),
+      provenance: "estimated",
+      available: true,
+      dietaryTags: ["high-protein"],
+      palette: ["#7A3B2E", "#E3B65A", "#C9A15A", "#F2E8D5"],
+      modifierGroups: [],
+    },
+    {
+      id: "ig-half-chicken",
+      restaurantId: "ironleafgrill",
+      name: "Charcoal Half Chicken",
+      description: "Half a charcoal-grilled chicken with slaw.",
+      price: 15.5,
+      nutrition: n(840, 62, 22, 56),
+      provenance: "estimated",
+      available: true,
+      dietaryTags: ["high-protein"],
+      palette: ["#B5652E", "#EBD9B4", "#8FB06A", "#F4EDDE"],
+      modifierGroups: [],
+    },
+    {
+      id: "ig-fish-greens",
+      restaurantId: "ironleafgrill",
+      name: "Grilled Fish & Greens",
+      description: "Catch of the day from the grill with seasonal greens.",
+      price: 18.5,
+      nutrition: n(540, 42, 20, 30),
+      provenance: "estimated",
+      available: true,
+      dietaryTags: ["pescatarian"],
+      palette: ["#D9C9A8", "#6F9A45", "#E8E2D2", "#A6B7A0"],
+      modifierGroups: [],
+    },
+  ],
+};
+
 // ─── REAL restaurants (identity + location only) ──────────────────────────
 /*
  * Each one verified 2026-09-29: the restaurant's own website was live and
@@ -812,7 +1122,7 @@ const REAL_RESTAURANTS: Restaurant[] = [
 ];
 
 /** Every restaurant: map pins, Explore, restaurant pages, agent tools, recommendations, QR demos and orders. */
-export const RESTAURANTS: Restaurant[] = [fitKitchen, urbanBowl, localGrill, pastaMetrica, saffronSteam, tinplateDeli, ...REAL_RESTAURANTS];
+export const RESTAURANTS: Restaurant[] = [fitKitchen, urbanBowl, localGrill, pastaMetrica, saffronSteam, tinplateDeli, citrineMezze, kombuTide, greeneryAtlas, ironleafGrill, ...REAL_RESTAURANTS];
 
 /** Restaurants with (simulated) menu data in the public product. */
 export const MENU_RESTAURANTS: Restaurant[] = RESTAURANTS.filter((r) => r.meals.length > 0);

@@ -13,7 +13,7 @@ V3.5 is a productization pass that **changes the treatment UI**:
 **Treat V3.5 as its own version: run a V3.5 pilot and don't pool it with V3/V3.1 observations.**
 
 What did not change:
-- **Frozen study dataset.** Trials, in both arms, still show exactly FitKitchen, Urban Bowl and Local Grill. The new public demo brands and the 19 real restaurants are never visible during a trial.
+- **Frozen study dataset.** Trials, in both arms, still show exactly FitKitchen, Urban Bowl and Local Grill. The public demo brands (including the 4 farther-out showcase brands) and the 19 real restaurants are never visible during a trial. Normal-mode menu UX added 2026-10-02 (restaurant → full-menu links on recommendation cards, *View full menu*, the full-menu row layout, and best-match-first scanned menus) is hidden during a trial, so the treatment screens are unchanged.
 - **The rest of the study.** The baseline UI, scenarios, optimizer, feasibility rules, outcome definitions and logging events are all unchanged. The only addition is an optional `detail.entry` on `recommendation_selected`.
 - **Premium concept and saved meals** are hidden during trials.
 - **Freeze fingerprint.** It changes (tool descriptions changed), so re-copy it at freeze.
@@ -37,7 +37,7 @@ A session that mixes states exports e.g. `primary+secondary` or `primary+offline
   - The offline agent understands "I don't want X", remembers constraints stated earlier in the session, and no longer narrows a new search to the previously recommended restaurant.
 
   Scenario targets, canonical answers, scoring and logging are unchanged. Details: [study/prepilot-audit-v3.5.md](study/prepilot-audit-v3.5.md).
-- **Treatment identity (pre-pilot audit).** Every session is stamped at *Begin* with `build`: treatment version, commit, baseline nutrition setting, agent mode, whether a proxy is configured, and the study restaurant ids. `analyze.py` analyses only V3.5 sessions by default. Deep links can't leave the study set during a trial. See [study/prepilot-audit-v3.5.md](study/prepilot-audit-v3.5.md) for the freeze inputs and the three decisions still open.
+- **Treatment identity (pre-pilot audit).** Every session is stamped at *Begin* with `build`: treatment version, commit, baseline nutrition setting, the agent engine from the participant link (`engine=live|offline`, never the device's Live AI setting), whether a proxy is configured, and the study restaurant ids. `analyze.py` analyses only V3.5 sessions by default. Deep links can't leave the study set during a trial. See [study/prepilot-audit-v3.5.md](study/prepilot-audit-v3.5.md) for the freeze inputs and the three decisions still open.
 
 ## V3.1 note
 

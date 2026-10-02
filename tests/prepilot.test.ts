@@ -50,7 +50,7 @@ describe("pre-pilot: study boundary on deep links", () => {
 describe("pre-pilot: treatment-version identity in collected data", () => {
   it("stamps each new session and exports the stamp (CSV + JSON)", () => {
     const store = createResearchStore(memKV());
-    const s = store.start({ participantId: "VT001", condition: "macrotable", scenarioId: "A" }, 0, BUILD);
+    const s = store.start({ participantId: "VT001", condition: "macrotable", scenarioId: "A", agentMode: "auto" }, 0, BUILD);
     expect(store.get(s.sessionId)?.build).toEqual(BUILD);
     const csv = sessionsToCSV(store.list()).split("\r\n");
     const cols = csv[0].split(",");
@@ -67,7 +67,7 @@ describe("pre-pilot: treatment-version identity in collected data", () => {
 
   it("an older (unstamped) session exports a blank version — it can never read as V3.5", () => {
     const store = createResearchStore(memKV());
-    store.start({ participantId: "VT002", condition: "baseline", scenarioId: "A" }, 0);
+    store.start({ participantId: "VT002", condition: "baseline", scenarioId: "A", agentMode: "auto" }, 0);
     const [head, row] = sessionsToCSV(store.list()).split("\r\n");
     expect(row.split(",")[head.split(",").indexOf("treatment_version")]).toBe("");
     // New columns are appended, so positional consumers of the old columns are unaffected.

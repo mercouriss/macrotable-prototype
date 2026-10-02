@@ -22,6 +22,19 @@ export const DEMO_STORE_LOCATIONS: Record<"fitkitchen" | "urbanbowl" | "localgri
   tinplate: { lat: 51.9232, lng: 4.5258 },
 };
 
+/**
+ * FARTHER-OUT SHOWCASE DEMO STORES (fictional, added 2026-10-02): 1–2.5 km from the campus cluster in
+ * different directions, so normal-mode Explore shows options at several distances. Points are ordinary
+ * residential addresses checked against OpenStreetMap (no real restaurant at the pin). Never part of
+ * the frozen study set, so never shown during a research trial or in the baseline.
+ */
+export const SHOWCASE_STORE_LOCATIONS: Record<"citrinemezze" | "kombutide" | "greeneryatlas" | "ironleafgrill", GeoPoint> = {
+  citrinemezze: { lat: 51.9305, lng: 4.4985 }, // Oud-Crooswijk (NW)
+  kombutide: { lat: 51.9098, lng: 4.5375 }, // De Esch (SE)
+  greeneryatlas: { lat: 51.93, lng: 4.5395 }, // Prinsenland (NE)
+  ironleafgrill: { lat: 51.904, lng: 4.508 }, // Kop van Zuid-Entrepot (SW, across the Maas)
+};
+
 /** Great-circle distance in km (haversine). */
 export function distanceKm(a: GeoPoint, b: GeoPoint): number {
   const R = 6371;

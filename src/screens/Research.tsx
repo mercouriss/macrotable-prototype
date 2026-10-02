@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Icon } from "../components/Icon";
 import { QRCode } from "../components/QRCode";
 import { Screen } from "../components/Screen";
-import { AgentModeToggle } from "./Account";
+import { LiveAISetting } from "./Account";
 import { Button, Card, Eyebrow } from "../components/ui";
 import { getMeal, STUDY_RESTAURANTS } from "../data/restaurants";
 import { SCENARIO_IDS, SCENARIOS } from "../data/scenarios";
@@ -119,8 +119,9 @@ export function Research() {
         <p className="mt-1.5 text-[12px] text-ink-3">
           {SCENARIOS[scenarioId].summary} · also via <code>?scenario=B</code> on any page, or <Link className="underline" to="/demo">/demo</Link> to reset.
         </p>
-        <AgentModeToggle />
+        <LiveAISetting className="mt-3" />
         <p className="mt-1.5 px-1 text-[12px] text-ink-3">
+          Normal and demo use on this device only. Research trials ignore it: they use the agent engine chosen in the participant link.
           Live proxy: {import.meta.env.VITE_AGENT_PROXY_URL ? import.meta.env.VITE_AGENT_PROXY_URL : "not configured (offline demo agent only)"}
         </p>
         <Card className="mt-3 p-4">
@@ -242,6 +243,8 @@ function LinkBuilder({ sessions, disabled }: { sessions: ParticipantSession[]; d
   const [participant, setParticipant] = useState(suggested);
   const [condition, setCondition] = useState<Mode>(sessions[0]?.condition === "baseline" ? "macrotable" : "baseline");
   const [scenario, setScenarioId] = useState<ScenarioId>("A");
+  // Trial engine: explicit per link. "auto" (live Gemini, offline fallback) is the treatment as configured.
+  const [engine, setEngine] = useState<"auto" | "offline">("auto");
   const [status, setStatus] = useState<string | null>(null);
   const [showQR, setShowQR] = useState(false);
   const navigate = useNavigate();
@@ -249,7 +252,7 @@ function LinkBuilder({ sessions, disabled }: { sessions: ParticipantSession[]; d
   useEffect(() => setParticipant(suggested), [suggested]);
 
   const valid = /^[A-Za-z]{1,4}\d{1,5}$/.test(participant.trim());
-  const path = assignmentPath({ participantId: participant.trim().toUpperCase(), condition, scenarioId: scenario });
+  const path = assignmentPath({ participantId: participant.trim().toUpperCase(), condition, scenarioId: scenario, agentMode: engine });
   const url = appUrl(path);
   const flash = (s: string) => {
     setStatus(s);
@@ -300,6 +303,34 @@ function LinkBuilder({ sessions, disabled }: { sessions: ParticipantSession[]; d
             </button>
           ))}
         </div>
+        {condition === "macrotable" && (
+          <>
+            <p className="mt-3 text-[12.5px] font-medium text-ink-3">Agent engine for this trial</p>
+            <div role="radiogroup" aria-label="Agent engine for this trial" className="mt-1 grid grid-cols-2 gap-1 rounded-xl bg-sunken p-1">
+              {(
+                [
+                  ["auto", "Live Gemini"],
+                  ["offline", "Offline agent"],
+                ] as const
+              ).map(([e, label]) => (
+                <button
+                  key={e}
+                  role="radio"
+                  aria-checked={engine === e}
+                  onClick={() => setEngine(e)}
+                  className={`h-10 rounded-lg text-[13.5px] font-semibold ${engine === e ? "bg-surface text-ink shadow-card" : "text-ink-3"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="mt-1 text-[12px] leading-snug text-ink-3">
+              {engine === "auto"
+                ? "Live Gemini with the offline agent as fallback. Saved in the link, so the participant's own Live AI setting doesn't matter."
+                : "Offline MacroAgent only: no Gemini requests during this trial."}
+            </p>
+          </>
+        )}
         <p className="mt-3 rounded-xl bg-sunken px-3 py-2 font-mono text-[11.5px] break-all text-ink-2">{url}</p>
         <div className="mt-2 grid grid-cols-3 gap-2">
           <Button variant="secondary" full disabled={!valid} onClick={async () => flash((await copyText(url)) ? "Copied" : "Copy failed")} className="px-2 text-[13.5px]">
@@ -421,11 +452,13 @@ function FreezeInfo() {
   const [model, setModel] = useState<string>("checking…");
   const [hash, setHash] = useState<string>("…");
   const [copied, setCopied] = useState(false);
-  useEffect(() => {
-    void sha256Hex(agentConfigDocument()).then((h) => setHash(h.slice(0, 16)));
+  useEffect(() => void sha256Hex(agentConfigDocument()).then((h) => setHash(h.slice(0, 16))), []);
+  // Ask the proxy which model it runs only when these values are opened (no background proxy traffic).
+  const loadModel = () => {
+    if (model !== "checking…") return;
     if (!PROXY_URL) setModel("none — offline demo agent only");
     else void proxyHealth().then((r) => setModel(r.ok ? (r.model ?? "unknown") : `proxy unreachable (${PROXY_URL})`));
-  }, []);
+  };
   const rows: [string, string][] = [
     ["App commit", __APP_COMMIT__],
     ["Agent model (server-side)", model],
@@ -433,11 +466,12 @@ function FreezeInfo() {
     ["Prompt + tools + settings SHA-256", hash],
     ["Generation settings", `temperature ${GENERATION_CONFIG.temperature} · max ${GENERATION_CONFIG.maxOutputTokens} tokens · ≤${MAX_TOOL_ROUNDS} tool rounds`],
     ["Fallback policy", FALLBACK_POLICY],
-    ["Agent mode on this device", settings.agentMode === "offline" ? "offline demo agent only" : "live when available"],
+    ["Live AI on this device (normal mode only)", settings.agentMode === "auto" ? "on — live when available" : "off — offline agent only"],
+    ["Trial agent engine", "set per participant link (engine=live|offline), recorded per session as agent_mode"],
     ["Baseline nutrition on this device", settings.baselineShowNutrition ? "visible" : "hidden"],
   ];
   return (
-    <details className="mt-4 rounded-2xl border border-line bg-surface p-4">
+    <details className="mt-4 rounded-2xl border border-line bg-surface p-4" onToggle={(e) => (e.currentTarget as HTMLDetailsElement).open && loadModel()}>
       <summary className="cursor-pointer text-[14px] font-semibold">Freeze record values</summary>
       <dl className="mt-3 space-y-2 text-[12.5px]">
         {rows.map(([k, v]) => (

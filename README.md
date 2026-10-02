@@ -34,7 +34,7 @@ This is the last productization pass before the pilot and freeze. The audit, inc
   - "MacroTable changed".
   - "How reliable is this?".
   - *Configure order* → *Review order* → *Approve order*.
-- **Explore is populated and honest.** 25 places: 6 fictional **DEMO** brands (monogram pins) and **19 real, unaffiliated restaurants** (dashed dots; name and location only, each verified 2026-09-29 against its own website and OpenStreetMap).
+- **Explore is populated and honest.** 29 places: 10 fictional **DEMO** brands (monogram pins; 6 around campus, 4 farther out at 1–2.5 km) and **19 real, unaffiliated restaurants** (dashed dots; name and location only, each verified 2026-09-29 against its own website and OpenStreetMap).
   - Search.
   - Filters: *Best macro fit · High protein · Within budget · Vegetarian · MacroTable Demo · Real restaurants*. Nutrition filters never include real restaurants.
   - Real places say "Scan the menu to check your fit".
@@ -113,7 +113,7 @@ CI (`.github/workflows/ci.yml`): `npm ci → typecheck → test → build → de
 | `/r/:restaurantId` | Table-QR landing page (opened by the phone's own camera) |
 | `/macrotable/preferences → search → results → meal → configure → review` | Guided (V2) flow, still available |
 | `/macrotable/success/:n`, `/macrotable/ticket/:n` | Pickup/in-store confirmation and kitchen ticket |
-| `/macrotable/profile`, `/macrotable/orders` | Profile, agent mode, your orders |
+| `/macrotable/profile`, `/macrotable/orders` | Profile, Settings (Live AI: *Use Gemini API*, default OFF), your orders |
 | `/baseline` | Conventional ordering (control) |
 | `/experiment?participant=&condition=&scenario=` | Participant assignment link |
 | `/research` | Researcher dashboard |

@@ -166,7 +166,7 @@ interface RealIdentity { website; addressLine; osm /* e.g. node/4140102516 */; v
 
 ## V3.5: expanded dataset, frozen study scope, saved meals
 
-**Dataset.** 6 fictional demo brands and 19 real, unaffiliated restaurants (identity + location only, each verified 2026-09-29 against the restaurant's own website and its OpenStreetMap object).
+**Dataset.** 10 fictional demo brands (6 around campus; 4 farther-out showcase brands added 2026-10-02 at 1–2.5 km, `SHOWCASE_STORE_LOCATIONS`) and 19 real, unaffiliated restaurants (identity + location only, each verified 2026-09-29 against the restaurant's own website and its OpenStreetMap object).
 
 | Brand | Level | Cuisine | In study dataset |
 |---|---|---|---|
@@ -204,6 +204,7 @@ interface SessionBuild {
 ```
 
 - `ParticipantSession.build` is set once, at *Begin*, and is absent on sessions recorded before V3.5.
+- `agentMode` is the trial's agent engine from the participant link (`engine=live` → `"auto"`, `engine=offline` → `"offline"`; links without `engine` → `"auto"`). From 2026-10-02 it no longer reflects the device's Live AI setting, which trials ignore.
 - New CSV columns, appended at the end: `treatment_version`, `app_commit`, `baseline_nutrition_visible`, `agent_mode`, `agent_proxy_configured`.
 - The JSON export adds `exportedBy`. The schema string is unchanged (`macrotable.research.v2`).
 

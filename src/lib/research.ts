@@ -48,7 +48,11 @@ export interface SessionBuild {
   appCommit: string;
   /** Device setting that changes what the baseline shows (/research → Demo settings). */
   baselineNutritionVisible: boolean;
-  /** Device setting: "offline" forces the offline demo agent for the whole trial. */
+  /**
+   * The trial's agent engine, chosen by the researcher in the participant link (engine=live|offline):
+   * "auto" = live Gemini via the proxy with offline fallback, "offline" = offline MacroAgent only.
+   * Independent of the device's normal Live AI setting.
+   */
   agentMode: "auto" | "offline";
   /** Whether this build can reach a live model at all (VITE_AGENT_PROXY_URL set). */
   agentProxyConfigured: boolean;
@@ -93,7 +97,15 @@ export interface Assignment {
   participantId: string;
   condition: Mode;
   scenarioId: ScenarioId;
+  /**
+   * Agent engine for this trial, set explicitly by the researcher (link: engine=live|offline).
+   * Links from before this field existed carry no engine and keep the treatment as it was
+   * configured then: live Gemini with offline fallback ("auto").
+   */
+  agentMode: "auto" | "offline";
 }
+
+const ENGINE_PARAM = { live: "auto", offline: "offline" } as const;
 
 const PARTICIPANT_RE = /^[A-Za-z]{1,4}\d{1,5}$/;
 
@@ -107,12 +119,19 @@ export function parseAssignment(params: URLSearchParams): { ok: true; value: Ass
     errors.push("Participant code must be anonymous, like P001 — never a name, email, phone or student number.");
   if (condition !== "baseline" && condition !== "macrotable") errors.push('Condition must be "baseline" or "macrotable".');
   if (!isScenarioId(scenario)) errors.push("Scenario must be A, B, C or D.");
+  const engine = (params.get("engine") ?? "live").trim().toLowerCase();
+  if (!(engine in ENGINE_PARAM)) errors.push('Engine must be "live" or "offline".');
   if (errors.length) return { ok: false, errors };
-  return { ok: true, value: { participantId: participant.toUpperCase(), condition: condition as Mode, scenarioId: scenario as ScenarioId } };
+  return {
+    ok: true,
+    value: { participantId: participant.toUpperCase(), condition: condition as Mode, scenarioId: scenario as ScenarioId, agentMode: ENGINE_PARAM[engine as keyof typeof ENGINE_PARAM] },
+  };
 }
 
 export function assignmentPath(a: Assignment): string {
-  return `experiment?participant=${encodeURIComponent(a.participantId)}&condition=${a.condition}&scenario=${a.scenarioId}`;
+  const base = `experiment?participant=${encodeURIComponent(a.participantId)}&condition=${a.condition}&scenario=${a.scenarioId}`;
+  // The engine only matters in the MacroTable condition (the baseline has no agent).
+  return a.condition === "macrotable" ? `${base}&engine=${a.agentMode === "offline" ? "offline" : "live"}` : base;
 }
 
 export function nextParticipantId(sessions: ParticipantSession[]): string {

@@ -3,15 +3,17 @@ import { getScopedMeal, isStudyScope } from "../data/restaurants";
 import { runSearch, optimizeMeal } from "../lib/optimizer";
 import { computeConfiguration, defaultSelections, isSelectionSupported } from "../lib/nutrition";
 import { meetsTarget, withinBudget } from "../lib/feasibility";
-import { useAppState } from "./AppState";
+import { useAppState, type MealSelection } from "./AppState";
 import type { Configuration } from "../types";
 
 /**
  * Resolves the meal on screen plus the configuration being discussed.
  * If the user arrives without a selection (e.g. from Discover), the
- * optimiser's configuration for that meal is used and stored.
+ * optimiser's configuration for that meal is used and stored. `restore` (from this screen's own
+ * history entry, see lib/menuNav) brings back the exact selection the user left, e.g. after
+ * looking at another dish on the restaurant's menu, instead of recomputing it.
  */
-export function useMealSelection(mealId: string | undefined) {
+export function useMealSelection(mealId: string | undefined, restore?: MealSelection | null) {
   const { selection, selectMeal, target, prefs } = useAppState();
   const study = isStudyScope();
   // Scoped: during a trial a deep link to a non-study dish resolves to nothing.
@@ -26,25 +28,27 @@ export function useMealSelection(mealId: string | undefined) {
     [result, found],
   );
   const synced = selection?.mealId === mealId;
-  const selections = synced ? selection!.selections : recommended;
+  const restored = !synced && found && restore?.mealId === found.meal.id && isSelectionSupported(found.meal, restore.selections) ? restore : null;
+  const selections = synced ? selection!.selections : (restored?.selections ?? recommended);
 
   useEffect(() => {
-    if (found && !synced) selectMeal({ mealId: found.meal.id, selections: recommended, recommended });
-  }, [found, synced, recommended, selectMeal]);
+    if (found && !synced) selectMeal(restored ?? { mealId: found.meal.id, selections: recommended, recommended });
+  }, [found, synced, recommended, restored, selectMeal]);
 
   let config: Configuration | null = null;
   if (found && found.meal.nutrition && isSelectionSupported(found.meal, selections)) {
     const { nutrition, price } = computeConfiguration(found.meal, selections);
     config = { meal: found.meal, restaurant: found.restaurant, selections, nutrition, price };
   }
-  const isRecommended = JSON.stringify(selections) === JSON.stringify(synced ? (selection!.recommended ?? recommended) : recommended);
+  const baseline = synced ? (selection!.recommended ?? recommended) : (restored?.recommended ?? recommended);
+  const isRecommended = JSON.stringify(selections) === JSON.stringify(baseline);
 
   return {
     found,
     result,
     config,
     selections,
-    recommended: synced ? (selection!.recommended ?? recommended) : recommended,
+    recommended: baseline,
     isRecommended,
     meets: config ? meetsTarget(config.nutrition, target) : false,
     inBudget: config ? withinBudget(config.price, target) : false,

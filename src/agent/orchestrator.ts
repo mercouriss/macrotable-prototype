@@ -18,6 +18,7 @@ export type AgentMode = "auto" | "offline";
 let seq = 0;
 export const msgId = () => `m-${Date.now().toString(36)}-${++seq}`;
 
+/** Live Gemini is used only in "auto" mode with a configured proxy. "offline" never reaches the proxy. */
 export function liveAvailable(mode: AgentMode): boolean {
   return mode === "auto" && !!PROXY_URL;
 }
@@ -186,7 +187,9 @@ export async function runAgentTurn(
   let historyAppend: unknown[] | undefined;
   const snapshot = structuredClone(ctx.state);
 
-  if (liveAvailable(mode) || deps.gemini) {
+  // Cost control: "offline" (Live AI OFF, or an offline trial) never calls a live provider, even an
+  // injected one. Only "auto" may, and then only with a proxy (or a provider injected by tests).
+  if (mode === "auto" && (!!PROXY_URL || !!deps.gemini)) {
     try {
       const g = await (deps.gemini ?? runGeminiTurn)(userText, ctx, history, { onProgress: deps.onProgress });
       provider = "gemini";

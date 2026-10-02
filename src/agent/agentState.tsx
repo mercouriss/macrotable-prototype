@@ -82,14 +82,15 @@ export function AgentStateProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let live = true;
-    if (app.settings.agentMode === "offline") return void setLiveStatus("offline-mode");
+    // Live AI OFF (or an offline trial): no proxy traffic at all, not even a health check.
+    if (app.agentEngine === "offline") return void setLiveStatus("offline-mode");
     if (!PROXY_URL) return void setLiveStatus("not-configured");
     setLiveStatus("checking");
     void checkProxyHealth().then((ok) => live && setLiveStatus(ok ? "live" : "unreachable"));
     return () => {
       live = false;
     };
-  }, [app.settings.agentMode]);
+  }, [app.agentEngine]);
 
   function commit(next: AgentSessionState) {
     ref.current = next;
@@ -126,7 +127,7 @@ export function AgentStateProvider({ children }: { children: ReactNode }) {
     setBusy(true);
     try {
       const ctx = ctxFor();
-      const mode = appRef.current.settings.agentMode === "offline" || liveStatus === "unreachable" ? "offline" : "auto";
+      const mode = appRef.current.agentEngine === "offline" || liveStatus === "unreachable" ? "offline" : "auto";
       setProgress(mode === "auto" ? UNDERSTANDING : null);
       const o = await runAgentTurn(trimmed, ctx, ref.current.providerHistory, mode, { onProgress: setProgress });
       const history = o.historyAppend ? [...ref.current.providerHistory, o.historyAppend].slice(-MAX_HISTORY_TURNS) : ref.current.providerHistory;

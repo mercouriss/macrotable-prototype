@@ -11,10 +11,12 @@ import { distanceFromUser, formatDistance } from "../data/geo";
 import { getMeal } from "../data/restaurants";
 import { PERSONA } from "../data/scenarios";
 import { euro, euroShort, greeting } from "../lib/format";
+import { menuState, restaurantMenuPath } from "../lib/menuNav";
 import type { ScoredConfiguration } from "../lib/optimizer";
 import { useSavedMeals } from "../lib/saved";
 import { useAppState } from "../state/AppState";
 import { useSearch } from "../state/useMealSelection";
+import { useRememberScroll } from "../state/useRememberScroll";
 
 /** Product home: what can MacroTable do for me right now? */
 export function Home() {
@@ -22,6 +24,7 @@ export function Home() {
   const navigate = useNavigate();
   const search = useSearch();
   const saved = useSavedMeals();
+  const scroll = useRememberScroll();
   /** `userTap` lets the scan screen open the camera straight away — permission is only ever requested after a tap. */
   const scan = (type: "menu" | "qr") => {
     log(type === "menu" ? "scan_menu_opened" : "scan_qr_opened");
@@ -41,6 +44,7 @@ export function Home() {
 
   return (
     <Screen nav>
+      <div ref={scroll.ref} />
       <div className="flex items-center justify-between pt-6">
         <div>
           <p className="text-[13px] font-medium text-ink-3">{new Date().toLocaleDateString([], { weekday: "long", day: "numeric", month: "long" })}</p>
@@ -85,6 +89,29 @@ export function Home() {
           <ul className="scrollbar-none -mx-5 mt-2 flex snap-x scroll-px-5 gap-3 overflow-x-auto px-5 pb-1">
             {nearby.map((c, i) => (
               <li key={c.meal.id} className="w-[228px] shrink-0 snap-start">
+                {!lock ? (
+                  // Normal mode: the restaurant row opens its full menu (with this recommendation pinned);
+                  // the dish below opens the recommendation. Two separate targets, never nested.
+                  <div className="flex h-full flex-col overflow-hidden rounded-[20px] border border-line-2 bg-surface shadow-card">
+                    <Link
+                      to={restaurantMenuPath(c.restaurant.id)}
+                      state={menuState("home", c.meal.id, c.selections)}
+                      onClick={scroll.remember}
+                      aria-label={`${c.restaurant.name}: view full menu`}
+                      className="flex min-h-11 items-center gap-2 border-b border-line-2 px-3.5 py-2 hover:bg-sunken/40"
+                    >
+                      <BrandMark restaurant={c.restaurant} size={24} />
+                      <span className="min-w-0 truncate text-[12.5px] font-medium text-ink-2">{c.restaurant.name}</span>
+                      <span className="ml-auto inline-flex shrink-0 items-center text-[11.5px] font-semibold text-brand">
+                        Menu <Icon name="chevronRight" size={13} />
+                      </span>
+                    </Link>
+                    <button onClick={() => open(c, i + 1)} className="block w-full flex-1 px-3.5 pt-1 pb-3.5 text-left hover:bg-sunken/40">
+                      <span className="tnum block text-right text-[11.5px] text-ink-3">{formatDistance(distanceFromUser(c.restaurant.location))}</span>
+                      <NearbyBody c={c} />
+                    </button>
+                  </div>
+                ) : (
                 <button onClick={() => open(c, i + 1)} className="block h-full w-full rounded-[20px] border border-line-2 bg-surface p-3.5 text-left shadow-card hover:bg-sunken/40">
                   <span className="flex items-center gap-2">
                     <BrandMark restaurant={c.restaurant} size={24} />
@@ -107,6 +134,7 @@ export function Home() {
                     {c.meets ? "Fits your target" : "Closest option"}
                   </span>
                 </button>
+                )}
               </li>
             ))}
           </ul>
@@ -149,5 +177,28 @@ export function Home() {
         </div>
       </section>
     </Screen>
+  );
+}
+
+/** The dish part of a "Good options nearby" card (normal-mode layout). */
+function NearbyBody({ c }: { c: ScoredConfiguration }) {
+  return (
+    <>
+      <span className="flex items-center gap-3">
+        <Plate palette={c.meal.palette} size={44} />
+        <span className="min-w-0">
+          <span className="line-clamp-2 block text-[14.5px] leading-snug font-semibold">{c.meal.name}</span>
+        </span>
+      </span>
+      <span className="tnum mt-3 block text-[12.5px] text-ink-2">
+        {approx(c.meal.provenance)}
+        {c.nutrition.calories} kcal · {approx(c.meal.provenance)}
+        {c.nutrition.protein} g · {euro(c.price)}
+      </span>
+      <span className={`mt-1 inline-flex items-center gap-1 text-[12px] font-semibold ${c.meets ? "text-brand" : "text-ink-3"}`}>
+        <Icon name={c.meets ? "check" : "minus"} size={12} stroke={2.6} />
+        {c.meets ? "Fits your target" : "Closest option"}
+      </span>
+    </>
   );
 }

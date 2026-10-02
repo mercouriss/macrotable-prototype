@@ -31,7 +31,7 @@ function completeWith(store: ReturnType<typeof createResearchStore>, sessionId: 
 describe("assignment links", () => {
   it("accepts a valid anonymous assignment and normalises it", () => {
     const r = parseAssignment(new URLSearchParams("participant=p001&condition=Baseline&scenario=a"));
-    expect(r).toEqual({ ok: true, value: { participantId: "P001", condition: "baseline", scenarioId: "A" } });
+    expect(r).toEqual({ ok: true, value: { participantId: "P001", condition: "baseline", scenarioId: "A", agentMode: "auto" } });
   });
 
   it("rejects identifying or malformed parameters", () => {
@@ -45,7 +45,7 @@ describe("assignment links", () => {
   it("suggests the next sequential participant id", () => {
     const store = createResearchStore(memoryKV());
     expect(nextParticipantId(store.list())).toBe("P001");
-    store.start({ participantId: "P007", condition: "baseline", scenarioId: "A" });
+    store.start({ participantId: "P007", condition: "baseline", scenarioId: "A", agentMode: "auto" });
     expect(nextParticipantId(store.list())).toBe("P008");
   });
 });
@@ -55,6 +55,7 @@ describe("condition lock", () => {
     participantId: "P001",
     condition,
     scenarioId: "A",
+    agentMode: "auto",
     sessionId: "s",
     startedAt: 0,
   });
@@ -81,7 +82,7 @@ describe("participant sessions", () => {
   it("creates, logs and completes a session scored against the assigned scenario", () => {
     const kv = memoryKV();
     const store = createResearchStore(kv);
-    const s = store.start({ participantId: "P001", condition: "macrotable", scenarioId: "A" }, 1_000);
+    const s = store.start({ participantId: "P001", condition: "macrotable", scenarioId: "A", agentMode: "auto" }, 1_000);
     store.log(s.sessionId, "meal_viewed", { mealId: DEMO_MEAL_ID }, 2_000);
     store.log(s.sessionId, "modifier_changed", {}, 3_000);
     const done = completeWith(store, s.sessionId, DEMO_MEAL_ID, DEMO_SELECTIONS, 61_000)!;
@@ -105,7 +106,7 @@ describe("participant sessions", () => {
 
   it("ignores events after completion and can't complete twice", () => {
     const store = createResearchStore(memoryKV());
-    const s = store.start({ participantId: "P002", condition: "baseline", scenarioId: "A" }, 0);
+    const s = store.start({ participantId: "P002", condition: "baseline", scenarioId: "A", agentMode: "auto" }, 0);
     completeWith(store, s.sessionId, DEMO_MEAL_ID, {}, 10_000);
     store.log(s.sessionId, "meal_viewed", {}, 11_000);
     completeWith(store, s.sessionId, "lg-chicken-salad", {}, 12_000);
@@ -116,14 +117,14 @@ describe("participant sessions", () => {
 
   it("flags a vegetarian-scenario order of a meat dish as a diet failure", () => {
     const store = createResearchStore(memoryKV());
-    const s = store.start({ participantId: "P003", condition: "baseline", scenarioId: "C" }, 0);
+    const s = store.start({ participantId: "P003", condition: "baseline", scenarioId: "C", agentMode: "auto" }, 0);
     const done = completeWith(store, s.sessionId, DEMO_MEAL_ID, {}, 1)!;
     expect(done.outcome).toMatchObject({ dietOk: false, feasibleOrder: false, targetRange: false });
   });
 
   it("works without storage (in-memory fallback)", () => {
     const store = createResearchStore(null);
-    const s = store.start({ participantId: "P004", condition: "baseline", scenarioId: "B" });
+    const s = store.start({ participantId: "P004", condition: "baseline", scenarioId: "B", agentMode: "auto" });
     expect(store.list()).toHaveLength(1);
     store.abort(s.sessionId);
     expect(store.get(s.sessionId)?.abortedAt).toBeDefined();
@@ -135,11 +136,11 @@ describe("participant sessions", () => {
 describe("exports and summaries", () => {
   function seeded() {
     const store = createResearchStore(memoryKV());
-    const a = store.start({ participantId: "P001", condition: "macrotable", scenarioId: "A" }, 0);
+    const a = store.start({ participantId: "P001", condition: "macrotable", scenarioId: "A", agentMode: "auto" }, 0);
     completeWith(store, a.sessionId, DEMO_MEAL_ID, DEMO_SELECTIONS, 40_000);
-    const b = store.start({ participantId: "P002", condition: "baseline", scenarioId: "A" }, 0);
+    const b = store.start({ participantId: "P002", condition: "baseline", scenarioId: "A", agentMode: "auto" }, 0);
     completeWith(store, b.sessionId, DEMO_MEAL_ID, { chicken: "chicken-100", veg: "veg-double" }, 90_000);
-    store.start({ participantId: "P003", condition: "baseline", scenarioId: "A" }, 0); // left in progress
+    store.start({ participantId: "P003", condition: "baseline", scenarioId: "A", agentMode: "auto" }, 0); // left in progress
     return store;
   }
 

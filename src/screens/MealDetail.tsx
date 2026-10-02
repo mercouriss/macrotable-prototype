@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { AskAgentButton } from "../components/AskAgentButton";
 import { BrandMark } from "../components/BrandMark";
 import { Icon } from "../components/Icon";
@@ -15,6 +15,7 @@ import { Button, Callout, Card, Eyebrow, ReasonLine } from "../components/ui";
 import { EXCLUSION_TEXT } from "../lib/feasibility";
 import { euro } from "../lib/format";
 import { changesFromDefault, describeChange } from "../lib/nutrition";
+import { menuState, readRestore, restaurantMenuPath } from "../lib/menuNav";
 import { explainConfiguration } from "../lib/optimizer";
 import { useAppState } from "../state/AppState";
 import { useMealSelection, useSearch } from "../state/useMealSelection";
@@ -28,15 +29,23 @@ import { NotFound } from "./NotFound";
 export function MealDetail() {
   const { mealId } = useParams();
   const navigate = useNavigate();
-  const { target, prefs, log } = useAppState();
+  const location = useLocation();
+  const { target, prefs, log, lock, selection } = useAppState();
   const { openProvenance } = useSheet();
-  const { found, result, config, meets, inBudget } = useMealSelection(mealId);
+  // Back from the restaurant's full menu: this entry saved the exact selection and scroll position.
+  const restore = readRestore(location.state, mealId);
+  const { found, result, config, meets, inBudget, recommended } = useMealSelection(mealId, restore?.selection);
   const overall = useSearch();
   const [details, setDetails] = useState(false);
+  const top = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (found) log("meal_viewed", { mealId: found.meal.id });
   }, [found, log]);
+  useEffect(() => {
+    if (restore?.scrollTop) top.current?.closest("main")?.scrollTo(0, restore.scrollTop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (!found) return <NotFound />;
   const { meal, restaurant } = found;
@@ -74,6 +83,15 @@ export function MealDetail() {
   const changes = changesFromDefault(meal, config.selections);
   const ap = approx(meal.provenance);
   const verdict = handoff ? "Estimate · menu only" : isBest ? "Best feasible match" : meets ? "Fits your targets" : "Closest feasible version";
+  // Normal mode only: research trials keep the frozen treatment screens unchanged.
+  const openMenu = () => {
+    const current = selection?.mealId === meal.id ? selection : { mealId: meal.id, selections: config.selections, recommended };
+    navigate(`${location.pathname}${location.search}`, {
+      replace: true,
+      state: { ...((location.state as object | null) ?? {}), restore: { selection: current, scrollTop: top.current?.closest("main")?.scrollTop ?? 0 } },
+    });
+    navigate(restaurantMenuPath(restaurant.id), { state: menuState("meal", meal.id, config.selections) });
+  };
 
   return (
     <Screen
@@ -107,7 +125,19 @@ export function MealDetail() {
         )
       }
     >
+      <div ref={top} />
       <MealHeader meal={meal} restaurant={restaurant} />
+      {!lock && (
+        <button
+          onClick={openMenu}
+          aria-label={`View ${restaurant.name}'s full menu`}
+          className="mt-3 inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-surface px-4 text-[13.5px] font-semibold text-ink hover:bg-sunken"
+        >
+          <Icon name="receipt" size={16} className="text-ink-2" />
+          View full menu
+          <Icon name="chevronRight" size={15} className="text-ink-3" />
+        </button>
+      )}
 
       {/* WHAT + PRICE + WHY (visual) */}
       <Card as="section" className="mt-5 p-5">

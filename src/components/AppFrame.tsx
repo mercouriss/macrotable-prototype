@@ -96,10 +96,10 @@ function ShowcasePanel() {
             <input
               type="checkbox"
               className="h-4 w-4 accent-[var(--color-brand)]"
-              checked={settings.agentMode === "offline"}
-              onChange={(e) => setSettings({ agentMode: e.target.checked ? "offline" : "auto" })}
+              checked={settings.agentMode === "auto"}
+              onChange={(e) => setSettings({ agentMode: e.target.checked ? "auto" : "offline" })}
             />
-            Offline agent only
+            Use Gemini API (Live AI)
           </label>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">

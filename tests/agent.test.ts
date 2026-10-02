@@ -55,7 +55,8 @@ describe("tools", () => {
       expect(s.levelLabel).toBe("Real restaurant · not affiliated");
       expect(s.note).toMatch(/no menu, nutrition, prices or ordering/);
     }
-    expect(res.stores.every((s) => s.distanceKm > 0 && s.distanceKm < 2)).toBe(true);
+    // Campus cluster within ~1 km; the farther-out showcase demo brands (2026-10-02) up to ~2.5 km.
+    expect(res.stores.every((s) => s.distanceKm > 0 && s.distanceKm < 2.5)).toBe(true);
   });
   it("prepareOrder only drafts, and hands off for non-integrated restaurants", () => {
     const ctx = ctxA();

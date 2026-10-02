@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAgent } from "../../agent/agentState";
-import type { AgentCard, RecommendationCardData, StoreSummary } from "../../agent/types";
+import type { AgentCard, RecommendationCardData, ScannedItem, ScannedMenu, StoreSummary } from "../../agent/types";
 import { formatDistance } from "../../data/geo";
 import { getRestaurant } from "../../data/restaurants";
 import { getOrders } from "../../lib/experiment";
+import { menuState, restaurantMenuPath } from "../../lib/menuNav";
 import { completedOrderFor } from "../../lib/orderState";
 import { AcceptanceSequence } from "../AcceptanceSequence";
 import { BrandMark } from "../BrandMark";
@@ -13,6 +14,17 @@ import { euro } from "../../lib/format";
 import { Icon } from "../Icon";
 import { approx, ProvenanceBadge } from "../ProvenanceBadge";
 import { useAppState } from "../../state/AppState";
+
+/**
+ * Display order of a message's cards. Normal mode: after a menu scan the best match comes first and
+ * the full scanned menu below it. Research trials keep the frozen order. Each card keeps its ORIGINAL
+ * index, which the order-tracking origin id is built from.
+ */
+export function displayOrder(cards: AgentCard[], inTrial: boolean): { c: AgentCard; i: number }[] {
+  const out = cards.map((c, i) => ({ c, i }));
+  if (!inTrial && cards.some((c) => c.kind === "scan")) out.sort((a, b) => Number(b.c.kind === "recommendation") - Number(a.c.kind === "recommendation"));
+  return out;
+}
 
 /** Cards render ONLY deterministic tool results — the model's text never feeds them. */
 export function AgentCardView({ card, since = 0, originId }: { card: AgentCard; since?: number; originId?: string }) {
@@ -116,7 +128,21 @@ function RecommendationCard({ rec, since, originId }: { rec: RecommendationCardD
       <div className="flex items-start gap-3">
         {r && <BrandMark restaurant={r} size={36} />}
         <div className="min-w-0 flex-1">
-          <p className="text-[12px] text-ink-3">{rec.restaurantName}</p>
+          {r && !lock ? (
+            <Link
+              to={restaurantMenuPath(r.id)}
+              state={menuState("agent", rec.mealId, rec.selections)}
+              aria-label={`${rec.restaurantName}: view full menu`}
+              className="-my-1.5 inline-flex min-h-8 items-center gap-1 text-[12px] text-ink-3 hover:text-ink"
+            >
+              <span className="underline decoration-line underline-offset-2">{rec.restaurantName}</span>
+              <span className="inline-flex items-center font-semibold text-brand">
+                Menu <Icon name="chevronRight" size={11} />
+              </span>
+            </Link>
+          ) : (
+            <p className="text-[12px] text-ink-3">{rec.restaurantName}</p>
+          )}
           <p className="text-[16px] leading-tight font-semibold">{rec.mealName}</p>
         </div>
         <ProvenanceBadge provenance={rec.provenance} restaurantName={rec.restaurantName} size="sm" />
@@ -291,8 +317,11 @@ function OrderCard({ draftId }: { draftId: string }) {
 
 function ScanCard() {
   const { state } = useAgent();
+  const { lock } = useAppState();
   const m = state.scannedMenu;
   if (!m) return <p className="text-[12.5px] text-ink-3">Scan deleted.</p>;
+  const rec = state.currentRecommendation;
+  if (!lock) return <FullScannedMenu menu={m} best={rec?.mealId.startsWith("scan:") ? { id: rec.mealId, meets: rec.meetsTarget } : undefined} />;
   return (
     <div className="rounded-2xl border border-line-2 bg-surface p-4">
       <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-3">
@@ -311,5 +340,102 @@ function ScanCard() {
       </ul>
       {m.uncertainties.length > 0 && <p className="mt-2 text-[12px] text-ink-3">Uncertain: {m.uncertainties.join("; ")}</p>}
     </div>
+  );
+}
+
+const NUTRIENTS = [
+  ["calories", "kcal", "Calories"],
+  ["protein", "g protein", "Protein"],
+  ["carbs", "g carbs", "Carbs"],
+  ["fat", "g fat", "Fat"],
+] as const;
+
+/** Value for one nutrient of a scanned dish: "≈" unless that number was printed on the menu. */
+const scannedValue = (i: ScannedItem, k: (typeof NUTRIENTS)[number][0]) => `${i.printedFields.includes(k) ? "" : "≈ "}${i.nutrition![k]}`;
+
+const SCAN_NOTE: Record<ScannedItem["provenance"], string> = {
+  "menu-read": "All four values are printed on the menu. Not verified by the restaurant.",
+  estimated: "Values marked ≈ are estimated from the menu text and may differ; unmarked values are printed on the menu.",
+  insufficient: "Not enough information to estimate nutrition, so MacroTable won't recommend this dish.",
+};
+
+/**
+ * Normal mode, after a menu scan: every dish read from the menu, under the best match. Only data
+ * that was extracted is shown: no price → "Price not read", no defensible nutrition → "Nutrition
+ * unavailable". Provenance per dish stays MENU-READ / ESTIMATED / INSUFFICIENT (never verified).
+ */
+export function FullScannedMenu({ menu, best }: { menu: ScannedMenu; best?: { id: string; meets: boolean } }) {
+  const [open, setOpen] = useState<string | null>(null);
+  return (
+    <section className="rounded-2xl border border-line-2 bg-surface" aria-label="Full scanned menu" data-section="full-scanned-menu">
+      <div className="border-b border-line-2 px-4 py-2.5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-3">
+          Full scanned menu · {menu.items.length} {menu.items.length === 1 ? "dish" : "dishes"}
+        </p>
+        <p className="mt-0.5 text-[12px] text-ink-3">
+          {menu.restaurantName ? `${menu.restaurantName} · ` : ""}
+          {menu.source === "simulated" ? "offline sample, not read from your photo" : "read by Gemini from your photo"}
+        </p>
+      </div>
+      <ul className="divide-y divide-line-2">
+        {menu.items.map((i) => {
+          const expanded = open === i.id;
+          const isBest = best?.id === `scan:${i.id}`;
+          return (
+            <li key={i.id} className="px-4 py-2.5" data-scan-item={i.id}>
+              <div className="flex items-start gap-2">
+                <button
+                  onClick={() => setOpen(expanded ? null : i.id)}
+                  aria-expanded={expanded}
+                  className="min-h-11 min-w-0 flex-1 text-left"
+                >
+                  <span className="flex items-baseline justify-between gap-2">
+                    <span className="text-[14px] leading-snug font-semibold">
+                      {i.name}
+                      {isBest && (
+                        // Same wording as the recommendation card above: a dish that misses the target is the closest option, not a match.
+                        <span className={`ml-1.5 rounded-full px-1.5 py-0.5 align-middle text-[10.5px] font-bold ${best!.meets ? "bg-brand-soft text-brand" : "bg-sunken text-ink-2"}`}>
+                          {best!.meets ? "BEST MATCH" : "CLOSEST OPTION"}
+                        </span>
+                      )}
+                    </span>
+                    <span className="tnum shrink-0 text-[13.5px] font-semibold">{i.price !== null ? euro(i.price) : <span className="font-normal text-ink-3">Price not read</span>}</span>
+                  </span>
+                  <span className="tnum mt-0.5 block text-[12.5px] text-ink-2">
+                    {i.nutrition ? NUTRIENTS.map(([k, unit]) => `${scannedValue(i, k)} ${unit}`).join(" · ") : "Nutrition unavailable"}
+                  </span>
+                  <span className="mt-1 inline-flex items-center gap-1 text-[12px] font-medium text-ink-3">
+                    {expanded ? "Hide details" : "Details"}
+                    <Icon name="chevronDown" size={12} className={expanded ? "rotate-180" : ""} />
+                  </span>
+                </button>
+                <ProvenanceBadge provenance={i.provenance} size="sm" />
+              </div>
+              {expanded && (
+                <div className="mt-1 mb-1 rounded-xl bg-sunken/70 px-3 py-2.5 text-[12.5px] text-ink-2">
+                  {i.description && <p className="mb-1.5 text-ink">{i.description}</p>}
+                  {i.nutrition && (
+                    <dl className="grid grid-cols-2 gap-x-3 gap-y-1">
+                      {NUTRIENTS.map(([k, unit, label]) => (
+                        <div key={k} className="flex justify-between gap-2">
+                          <dt className="text-ink-3">{label}</dt>
+                          <dd className="tnum">
+                            {scannedValue(i, k)} {unit.split(" ")[0]} <span className="text-[11px] text-ink-3">{i.printedFields.includes(k) ? "printed" : "estimated"}</span>
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  )}
+                  {i.markedDietary.length > 0 && <p className="mt-1.5">Marked on the menu: {i.markedDietary.join(", ")}</p>}
+                  {i.visibleModifiers.length > 0 && <p className="mt-1.5">Options listed on the menu: {i.visibleModifiers.join("; ")}</p>}
+                  <p className="mt-1.5 text-[12px] text-ink-3">{SCAN_NOTE[i.provenance]}</p>
+                </div>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {menu.uncertainties.length > 0 && <p className="border-t border-line-2 px-4 py-2 text-[12px] text-ink-3">Uncertain: {menu.uncertainties.join("; ")}</p>}
+    </section>
   );
 }

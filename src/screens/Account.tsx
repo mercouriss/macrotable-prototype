@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
+import { PROXY_URL } from "../agent/gemini";
 import { BrandMark } from "../components/BrandMark";
 import { Icon, type IconName } from "../components/Icon";
 import { Plate } from "../components/Plate";
@@ -203,6 +204,14 @@ export function Profile() {
         {row("/privacy", "lock", "Privacy & prototype notice")}
       </Card>
 
+      {/* Research trials take their engine from the participant link, so Settings is hidden there. */}
+      {!lock && (
+        <>
+          <Eyebrow className="mt-6 block px-1">Settings</Eyebrow>
+          <LiveAISetting />
+        </>
+      )}
+
       {!lock && (
         <details className="group mt-3 rounded-[22px] border border-line-2 bg-surface shadow-card">
           <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 text-[15px] font-medium [&::-webkit-details-marker]:hidden">
@@ -218,7 +227,6 @@ export function Profile() {
               {row("/research", "flask", "Research dashboard", `Demo scenario: ${SCENARIOS[scenarioId].label}`)}
               {row("/baseline", "compass", "Conventional ordering (baseline)")}
             </div>
-            <AgentModeToggle />
             <div className="mt-3 grid grid-cols-2 gap-2">
               <Button
                 variant="secondary"
@@ -269,23 +277,45 @@ export function Profile() {
   );
 }
 
-/** Live model (when a proxy is configured, with offline fallback) or the deterministic offline agent only. */
-export function AgentModeToggle() {
+/**
+ * Live AI: the one normal-mode permission for paid Gemini calls (settings.agentMode).
+ * OFF (default) = the offline MacroAgent answers and no Gemini request is sent. This doesn't touch
+ * Google billing; it decides whether MacroTable may call its Gemini proxy at all.
+ */
+export function LiveAISetting({ className = "mt-2" }: { className?: string }) {
   const { settings, setSettings } = useAppState();
+  const on = settings.agentMode === "auto";
+  const available = !!PROXY_URL;
   return (
-    <Card className="mt-3 p-4">
-      <label className="flex items-center justify-between gap-3 text-[14px]">
-        <span>
-          <span className="block font-medium">Offline demo agent only</span>
-          <span className="block text-[12px] text-ink-3">For demos without Wi-Fi. Off = live Gemini when available, offline fallback otherwise.</span>
+    <Card className={`p-4 ${className}`}>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[15px] font-semibold">Live AI</p>
+        <span
+          data-live-ai={on ? "on" : "off"}
+          className={`rounded-full px-2.5 py-1 text-[11px] font-bold tracking-[0.06em] ${on ? "bg-brand text-white" : "bg-sunken text-ink-2"}`}
+        >
+          {on ? "LIVE AI ON" : "LIVE AI OFF"}
         </span>
-        <input
-          type="checkbox"
-          className="h-5 w-5 accent-[var(--color-brand)]"
-          checked={settings.agentMode === "offline"}
-          onChange={(e) => setSettings({ agentMode: e.target.checked ? "offline" : "auto" })}
-        />
+      </div>
+      <label className="mt-3 flex min-h-11 items-center justify-between gap-3">
+        <span className="text-[14.5px] font-medium">Use Gemini API</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={on}
+          aria-label="Use Gemini API"
+          disabled={!available && !on}
+          onClick={() => setSettings({ agentMode: on ? "offline" : "auto" })}
+          className={`relative h-7 w-12 shrink-0 rounded-full transition-colors disabled:opacity-40 ${on ? "bg-brand" : "bg-ink-3/35"}`}
+        >
+          <span className={`absolute top-0.5 left-0.5 h-6 w-6 rounded-full bg-white shadow-card transition-transform ${on ? "translate-x-5" : ""}`} />
+        </button>
       </label>
+      <p className="mt-1 text-[13px] font-medium text-ink">{on ? "Gemini API enabled" : "Offline MacroAgent active"}</p>
+      <p className="mt-0.5 text-[12.5px] leading-snug text-ink-3">
+        {on ? "Uses the live Gemini agent when available. API usage may incur costs." : "Uses MacroTable's offline agent. No Gemini API requests are sent."}
+        {!available && " Live AI isn't available in this build (no proxy configured)."}
+      </p>
     </Card>
   );
 }

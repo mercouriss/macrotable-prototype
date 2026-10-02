@@ -8,14 +8,17 @@ import { Screen } from "../components/Screen";
 import { EXCLUSION_TEXT } from "../lib/feasibility";
 import { euro } from "../lib/format";
 import type { ScoredConfiguration } from "../lib/optimizer";
+import { menuState, restaurantMenuPath } from "../lib/menuNav";
 import { useAppState } from "../state/AppState";
+import { useRememberScroll } from "../state/useRememberScroll";
 import { useSearch } from "../state/useMealSelection";
 
 export function Results() {
   const [params] = useSearchParams();
   const scope = params.get("scope");
   const r = useSearch(scope);
-  const { target, selectMeal, log } = useAppState();
+  const { target, selectMeal, log, lock } = useAppState();
+  const scroll = useRememberScroll();
   const navigate = useNavigate();
   const [showAll, setShowAll] = useState(false);
 
@@ -53,7 +56,7 @@ export function Results() {
         <TargetStrip target={target} />
       </div>
 
-      <div className="mt-5 space-y-4">
+      <div ref={scroll.ref} className="mt-5 space-y-4">
         {r.recommendations.map((c, i) => (
           <MealCard
             key={c.meal.id}
@@ -63,6 +66,7 @@ export function Results() {
             label={i === 0 && c.meets ? "BEST MATCH" : `OPTION ${i + 1}`}
             highlight={i === 0 && c.meets}
             onSelect={() => open(c, i + 1)}
+            menu={!lock ? { to: restaurantMenuPath(c.restaurant.id), state: menuState("results", c.meal.id, c.selections), onClick: scroll.remember } : undefined}
           />
         ))}
       </div>

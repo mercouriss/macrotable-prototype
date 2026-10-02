@@ -69,7 +69,7 @@ describe("menu extraction validation", () => {
 describe("agent-aware research export", () => {
   it("records agent usage per session without any message text", () => {
     const store = createResearchStore(null);
-    const s = store.start({ participantId: "VT001", condition: "macrotable", scenarioId: "A" }, 0);
+    const s = store.start({ participantId: "VT001", condition: "macrotable", scenarioId: "A", agentMode: "auto" }, 0);
     store.log(s.sessionId, "agent_message_sent", { detail: { chars: 42, source: "typed" } }, 1);
     store.log(s.sessionId, "agent_tool_called", { detail: { name: "optimizeMeal", ok: true } }, 2);
     store.log(s.sessionId, "agent_reply", { detail: { provider: "gemini" } }, 3);

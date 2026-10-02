@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { euro } from "../lib/format";
 import { changesFromDefault } from "../lib/nutrition";
 import { customizationStatus, fitReasons } from "../lib/optimizer";
@@ -39,6 +40,7 @@ export function MealCard({
   highlight = false,
   onSelect,
   meets,
+  menu,
 }: {
   config: Configuration;
   target: UserTarget;
@@ -46,6 +48,8 @@ export function MealCard({
   highlight?: boolean;
   onSelect: () => void;
   meets: boolean;
+  /** Normal mode: the restaurant name opens its full menu (with this recommendation pinned). */
+  menu?: { to: string; state: unknown; onClick?: () => void };
 }) {
   const { meal, restaurant, nutrition, price } = config;
   const ap = approx(meal.provenance);
@@ -74,10 +78,26 @@ export function MealCard({
         <div className="min-w-0 flex-1">
           <h3 className="text-[18px] leading-tight font-semibold tracking-tight">{meal.name}</h3>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="inline-flex items-center gap-1.5 text-[13.5px] text-ink-2">
-              <BrandMark restaurant={restaurant} size={18} />
-              {restaurant.name}
-            </span>
+            {menu ? (
+              <Link
+                to={menu.to}
+                state={menu.state}
+                onClick={menu.onClick}
+                aria-label={`${restaurant.name}: view full menu`}
+                className="-my-2 inline-flex min-h-11 items-center gap-1.5 text-[13.5px] text-ink-2 hover:text-ink"
+              >
+                <BrandMark restaurant={restaurant} size={18} />
+                <span className="underline decoration-line underline-offset-2">{restaurant.name}</span>
+                <span className="inline-flex items-center text-[12px] font-semibold text-brand">
+                  Menu <Icon name="chevronRight" size={12} />
+                </span>
+              </Link>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-[13.5px] text-ink-2">
+                <BrandMark restaurant={restaurant} size={18} />
+                {restaurant.name}
+              </span>
+            )}
             <RestaurantBadge restaurant={restaurant} size="sm" />
           </div>
         </div>

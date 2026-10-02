@@ -9,6 +9,7 @@ import { executeTool, TOOL_DECLARATIONS } from "../src/agent/tools";
 import type { AgentSessionState } from "../src/agent/types";
 import { BrandMark, markLogoFailed, MAX_ASPECT } from "../src/components/BrandMark";
 import { SheetProvider } from "../src/components/Sheet";
+import { SHOWCASE_STORE_LOCATIONS } from "../src/data/geo";
 import { REAL_LOGOS, USAGE_BASIS } from "../src/data/realLogos";
 import { catalog, getRestaurant, RESTAURANTS, setStudyScope, STUDY_RESTAURANT_IDS } from "../src/data/restaurants";
 import { SCENARIOS } from "../src/data/scenarios";
@@ -144,7 +145,9 @@ describe("demo logos stay fictional", () => {
 
 describe("restaurant data unchanged apart from presentation-only logos", () => {
   it("menus, prices, nutrition, modifiers, identities, locations and integration levels are byte-identical to d6bccdc", () => {
-    const withoutLogos = JSON.stringify(RESTAURANTS, (k, v) => (k === "logo" ? undefined : v));
+    // The farther-out showcase demo brands (added 2026-10-02) are new data; everything that existed is unchanged.
+    const existing = RESTAURANTS.filter((r) => !(r.id in SHOWCASE_STORE_LOCATIONS));
+    const withoutLogos = JSON.stringify(existing, (k, v) => (k === "logo" ? undefined : v));
     expect(createHash("sha256").update(withoutLogos).digest("hex")).toBe("c78de4260d401c7ae810afd0bea2bf11481325108fca58d89bd7af5b9f67da4c");
   });
 });

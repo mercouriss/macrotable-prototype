@@ -17,7 +17,7 @@ Use a laptop browser window ≥1280 px wide. The app appears in a phone frame, w
 2. Tap FitKitchen · Chicken Power Bowl → Recommendation: "Best feasible match", 682 kcal · 49 g protein · €16.50,
    target-vs-meal bars, "MacroTable changed" (+50 g chicken · Half rice · Light sauce · Double vegetables), DEMO VERIFIED
 3. Configure order → Review order (fit bars + provenance) → Approve order → pickup code → Save meal
-4. Explore → 25 places: 6 DEMO brands (monogram pins) + 19 real, unaffiliated restaurants (dashed dots)
+4. Explore → 29 places: 10 DEMO brands (monogram pins; 4 of them 1–2.5 km out, one zoom-out away) + 19 real, unaffiliated restaurants (dashed dots)
    → filters: Best macro fit / High protein / Within budget / Vegetarian / MacroTable Demo / Real restaurants
    → a real place (e.g. Toko Smoor): "What MacroTable knows" → Scan the menu here
 5. Agent → "What should I eat near me?" → Nearby card (demo stores + 3 nearest real, "+16 more") → recommendation card → Configure order
@@ -35,7 +35,7 @@ Open the app at ≥1024 px. The phone sits on the left and the showcase column o
 Before you start, check the Agent pill:
 - **Live · Gemini** means the proxy is deployed and reachable.
 - **Offline demo agent** is fine too. It uses the same tools, but say it's the offline agent.
-- If Wi-Fi is unreliable, turn on Profile → **Offline demo agent only**.
+- **Live AI is OFF by default** (Profile → Settings → Live AI → *Use Gemini API*). OFF sends no Gemini requests and costs nothing. Turn it on only for a live-model demo, and leave it off if Wi-Fi is unreliable.
 
 ```
 1. /demo → Home: 700 kcal · ≥45 g protein remaining, €18

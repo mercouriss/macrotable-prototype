@@ -63,11 +63,11 @@ The fingerprint hashes:
    |---|---|---|
    | **Primary** | Gemini `gemini-3.8-flash` (`GEMINI_MODEL`) through the proxy | `agent_reply.detail`: `provider: "gemini"`, `modelFallback: false`, `model` → CSV `agent_engine` = `primary` |
    | **Secondary** | Gemini `gemini-3.7-flash` (`GEMINI_FALLBACK_MODEL`), called by the proxy **once**, only after a retryable primary failure (429; 500/502/503/504; `RESOURCE_EXHAUSTED` / `UNAVAILABLE` / `DEADLINE_EXCEEDED`; network error or timeout). Never after 400/401/403/404 or a safety-blocked answer | `provider: "gemini"`, `modelFallback: true`, `model` → `agent_engine` = `secondary` |
-   | **Offline** | the deterministic offline demo agent (same tools), when both live models fail, the proxy is unreachable, or the device is set to offline | `provider: "mock"` (plus an `agent_fallback` event when a live attempt failed) → `agent_engine` = `offline` |
+   | **Offline** | the deterministic offline demo agent (same tools), when both live models fail, the proxy is unreachable, or the trial's link sets `engine=offline` | `provider: "mock"` (plus an `agent_fallback` event when a live attempt failed) → `agent_engine` = `offline` |
 
    A session that mixes states exports e.g. `primary+secondary` or `primary+offline`. `agent_models` lists the model ids that answered. Context turns built directly from tool results (`provider: "tools"`) are deterministic and aren't an engine.
 
-   Whichever option you pick, keep every study device on `agentMode = auto`. The value is stamped per session.
+   Whichever option you pick, set it in the participant link: `/research` → *New participant link* → **Agent engine for this trial** (Live Gemini / Offline agent), carried as `engine=live|offline`. The device's Live AI setting (default OFF, a cost control for normal use) doesn't affect trials. The engine is stamped per session as `build.agentMode`.
 2. **Baseline nutrition visibility. Pick one; it applies to all devices.**
    - **(a) Visible.** The control arm sees per-dish macros, per-option macro deltas and the configured total. This tests MacroTable's *optimization/agency* against a nutrition-labelled menu.
    - **(b) Hidden.** The control arm sees only names, descriptions, prices and option labels. This tests MacroTable against a typical menu, so it also measures the value of *information*.
@@ -83,7 +83,7 @@ The fingerprint hashes:
 ## Pilot scope (V3.5, codes `VT001–VT006`)
 - 4–6 participants on the chosen engine and baseline setting, using the AB/BA schedule.
 - Look for: confusing treatment UI, unexpected navigation, any study-scope leak, fallback behaviour, logging or export failures, device-specific failures, and scenario misunderstanding.
-- After each participant, export JSON and check it: `build.treatmentVersion` = V3.5, one commit, the expected `baselineNutritionVisible` and `agentMode`, and a completed event sequence.
+- After each participant, export JSON and check it: `build.treatmentVersion` = V3.5, one commit, the expected `baselineNutritionVisible` and `agentMode` (the link's engine), and a completed event sequence.
 - After the pilot, make **validity-blocking fixes only**, then freeze. Pilot observations are not main-study data.
 
 ## Verified in this audit (desktop Chromium, emulated phone sizes)

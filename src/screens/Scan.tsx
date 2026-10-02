@@ -224,13 +224,13 @@ type MenuPhase = "camera" | "captured" | "consent" | "analyzing" | "error";
 function MenuScan({ autoStart, at }: { autoStart: boolean; at?: Restaurant }) {
   const cam = useCamera();
   const navigate = useNavigate();
-  const { log, settings } = useAppState();
+  const { log, agentEngine } = useAppState();
   const agent = useAgent();
   const [phase, setPhase] = useState<MenuPhase>("camera");
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [record, setRecord] = useState<ScanRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const live = !!PROXY_URL && settings.agentMode !== "offline";
+  const live = !!PROXY_URL && agentEngine === "auto";
 
   useEffect(() => {
     if (autoStart) void cam.start();
@@ -270,7 +270,7 @@ function MenuScan({ autoStart, at }: { autoStart: boolean; at?: Restaurant }) {
     setError(null);
     await updateScanStatus(record.scanSessionId, "analyzing");
     try {
-      let menu = useLive ? await extractMenuFromImage(record.imageBlob, record.scanSessionId) : simulatedExtraction(record.scanSessionId);
+      let menu = useLive ? await extractMenuFromImage(record.imageBlob, record.scanSessionId, agentEngine) : simulatedExtraction(record.scanSessionId);
       // A real photo of this restaurant's menu may carry its name; the offline SAMPLE never does.
       if (at && menu.source === "gemini" && !menu.restaurantName) menu = { ...menu, restaurantName: at.name };
       if (at && menu.source === "simulated") menu = { ...menu, uncertainties: [`Sample data — not ${at.name}'s menu and not read from your photo`] };
@@ -377,8 +377,8 @@ function MenuScan({ autoStart, at }: { autoStart: boolean; at?: Restaurant }) {
           {phase === "consent" && (
             <div className="mt-4">
               <Callout tone="estimated" title="Send this photo to Google Gemini?" icon="info">
-                To read the menu, the photo is sent once via MacroTable's proxy to Google's Gemini model. MacroTable doesn't store it; on
-                Gemini's free tier Google may use submitted content to improve its products. Avoid photos with people or personal details.
+                To read the menu, the photo is sent once via MacroTable's proxy to Google's Gemini model. MacroTable doesn't store it; Google may
+                keep it for a limited time to detect misuse of its service. Avoid photos with people or personal details.
               </Callout>
             </div>
           )}

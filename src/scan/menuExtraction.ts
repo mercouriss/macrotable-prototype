@@ -153,8 +153,13 @@ async function blobToJpegBase64(blob: Blob, maxSide = 1600): Promise<string> {
   return btoa(bin);
 }
 
-/** Send ONE photo (after explicit consent) to the vision model via the proxy. */
-export async function extractMenuFromImage(blob: Blob, scanId: string, opts: { proxyUrl?: string; fetchImpl?: typeof fetch } = {}): Promise<ScannedMenu> {
+/**
+ * Send ONE photo (after explicit consent) to the vision model via the proxy. `engine` must be the
+ * resolved agent engine: anything but "auto" (Live AI OFF, or an offline trial) is refused before any
+ * request is made.
+ */
+export async function extractMenuFromImage(blob: Blob, scanId: string, engine: "auto" | "offline", opts: { proxyUrl?: string; fetchImpl?: typeof fetch } = {}): Promise<ScannedMenu> {
+  if (engine !== "auto") throw new ProviderError("Live AI is off");
   const url = (opts.proxyUrl ?? PROXY_URL).replace(/\/+$/, "");
   if (!url) throw new ProviderError("No proxy configured");
   const body = buildExtractionRequest(await blobToJpegBase64(blob));

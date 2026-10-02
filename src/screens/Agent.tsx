@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAgent, type LiveStatus } from "../agent/agentState";
 import type { AgentMessage, QuickAction } from "../agent/types";
-import { AgentCardView } from "../components/agent/AgentCards";
+import { AgentCardView, displayOrder } from "../components/agent/AgentCards";
 import { Icon } from "../components/Icon";
 import { Screen } from "../components/Screen";
 import { getOrders } from "../lib/experiment";
@@ -112,7 +112,7 @@ export function Agent() {
       {showDisclosure && (
         <div role="note" className="mt-1 rounded-2xl bg-sunken p-3.5 text-[12.5px] leading-snug text-ink-2">
           <p className="font-semibold text-ink">Live AI assistant</p>
-          Your messages are sent via MacroTable's proxy to Google's Gemini model. On the free tier Google may use them to improve its products.
+          Your messages are sent via MacroTable's proxy to Google's Gemini model. Google may keep them for a limited time to detect misuse of its service.
           Please don't share personal information. Nutrition and prices always come from MacroTable's own calculations.
           <button onClick={() => setSettings({ agentDisclosureSeen: true })} className="mt-2 block min-h-9 font-semibold text-brand">
             OK, got it
@@ -174,6 +174,8 @@ const PROVIDER_LABEL = { gemini: "Gemini", mock: "Offline demo agent", tools: "M
 function MessageView({ m, last, onAction }: { m: AgentMessage; last: boolean; onAction: (a: QuickAction) => void }) {
   const [showTools, setShowTools] = useState(false);
   const { state } = useAgent();
+  const { lock } = useAppState();
+  const cards = displayOrder(m.cards ?? [], !!lock);
   // A recommendation that was already ordered can't be prepared again from its quick replies.
   const rec = state.currentRecommendation;
   const recCompleted = !!rec && !!completedOrderFor(rec, { since: m.createdAt }, getOrders());
@@ -198,8 +200,8 @@ function MessageView({ m, last, onAction }: { m: AgentMessage; last: boolean; on
         </ol>
       )}
       <p className="max-w-[92%] animate-rise rounded-2xl rounded-bl-md bg-surface px-3.5 py-2.5 text-[14.5px] leading-snug whitespace-pre-wrap shadow-card">{m.text}</p>
-      {m.cards?.map((c, i) => (
-        <div key={i} className="animate-rise" style={{ animationDelay: `${80 + i * 60}ms` }}>
+      {cards.map(({ c, i }, pos) => (
+        <div key={i} className="animate-rise" style={{ animationDelay: `${80 + pos * 60}ms` }}>
           <AgentCardView card={c} since={m.createdAt} originId={`${m.id}:${i}`} />
         </div>
       ))}

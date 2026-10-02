@@ -13,11 +13,11 @@ const ctx = () => ({ target: { ...A.target }, prefs: { ...A.preferences }, state
 afterEach(() => setStudyScope(false));
 
 describe("V3.5 dataset", () => {
-  it("has 5–8 fictional demo brands with original monograms, and ≥15 real unaffiliated restaurants", () => {
+  it("has 6 campus demo brands + 3–5 farther-out showcase demo brands with original monograms, and ≥15 real unaffiliated restaurants", () => {
     const demo = RESTAURANTS.filter((r) => r.identity === "demo");
     const real = RESTAURANTS.filter((r) => r.identity === "real");
-    expect(demo.length).toBeGreaterThanOrEqual(5);
-    expect(demo.length).toBeLessThanOrEqual(8);
+    expect(demo.length).toBeGreaterThanOrEqual(9);
+    expect(demo.length).toBeLessThanOrEqual(11);
     expect(real.length).toBeGreaterThanOrEqual(15);
     for (const r of demo) expect(r.brand?.mark).toBeTruthy();
     // Integration depth stays mixed — not everything is Level 3.

@@ -8,7 +8,7 @@ import { nextOrderNumber, readJSON, saveOrder, STORAGE_KEYS, writeJSON } from ".
 import { computeConfiguration, configurationId, isSelectionSupported } from "../lib/nutrition";
 import { canPlaceSelection } from "../lib/orderState";
 import { clearSaved } from "../lib/saved";
-import { researchStore, type Assignment, type ExperimentLock } from "../lib/research";
+import { researchStore, type Assignment, type ExperimentLock, type SessionBuild } from "../lib/research";
 import type { ExperimentEvent, PlacedOrder, Preferences, ScenarioId, Selections, ServiceMode, UserTarget } from "../types";
 
 export interface MealSelection {
@@ -25,7 +25,12 @@ export interface MealSelection {
 export interface Settings {
   baselineShowNutrition: boolean;
   onboardingDone: boolean;
-  /** "auto" = live model via proxy when configured (offline fallback); "offline" = deterministic demo agent only. */
+  /**
+   * Live AI (Settings → "Use Gemini API"), the ONE normal-mode permission for paid Gemini calls.
+   * "auto" = live Gemini via the proxy when configured (offline fallback); "offline" = the offline
+   * MacroAgent only, and no Gemini request is ever sent. Default "offline". Research trials don't use
+   * this: their engine comes from the participant link (see resolveAgentEngine).
+   */
   agentMode: "auto" | "offline";
   /** The user acknowledged that live-agent messages are sent to Google Gemini. */
   agentDisclosureSeen: boolean;
@@ -68,10 +73,55 @@ interface AppStateValue extends PersistedState {
   placeOrder: (mode?: ServiceMode, selection?: MealSelection) => PlaceOrderResult | null;
   /** Demo lock: Scenario A, canonical data, no selection, no saved meals. Refused during a research trial. */
   resetDemo: () => boolean;
+  /** The engine every agent turn and menu scan must use right now (resolveAgentEngine). */
+  agentEngine: AgentEngine;
 }
 
 const Ctx = createContext<AppStateValue | null>(null);
-const DEFAULT_SETTINGS: Settings = { baselineShowNutrition: true, onboardingDone: false, agentMode: "auto", agentDisclosureSeen: false };
+const DEFAULT_SETTINGS: Settings = { baselineShowNutrition: true, onboardingDone: false, agentMode: "offline", agentDisclosureSeen: false };
+
+export type AgentEngine = Settings["agentMode"];
+
+/**
+ * Settings schema version. v2: Live AI defaults to OFF. Builds before v2 stored agentMode "auto" as a
+ * silent default rather than a choice, so a value without v2 is discarded once (back to OFF).
+ */
+export const SETTINGS_VERSION = 2;
+
+/** Parse stored settings: anything missing, invalid or from before v2 resolves Live AI to OFF. */
+export function loadSettings(raw: unknown): Settings {
+  const s = (raw && typeof raw === "object" ? raw : {}) as Partial<Record<keyof Settings | "v", unknown>>;
+  return {
+    baselineShowNutrition: typeof s.baselineShowNutrition === "boolean" ? s.baselineShowNutrition : DEFAULT_SETTINGS.baselineShowNutrition,
+    onboardingDone: s.onboardingDone === true,
+    agentMode: s.v === SETTINGS_VERSION && s.agentMode === "auto" ? "auto" : "offline",
+    agentDisclosureSeen: s.agentDisclosureSeen === true,
+  };
+}
+
+export const serializeSettings = (s: Settings) => ({ ...s, v: SETTINGS_VERSION });
+
+/** What a trial records about its build when it begins. The agent engine comes from the link only. */
+export function sessionBuildFor(a: Assignment, settings: Settings): SessionBuild {
+  return {
+    treatmentVersion: TREATMENT_VERSION,
+    appCommit: APP_COMMIT,
+    baselineNutritionVisible: settings.baselineShowNutrition,
+    agentMode: a.agentMode, // the researcher's choice in the link, never this device's Live AI setting
+    agentProxyConfigured: !!PROXY_URL,
+    studyRestaurants: [...STUDY_RESTAURANT_IDS],
+  };
+}
+
+/**
+ * Which agent engine applies. During a research trial: the engine the researcher put in the participant
+ * link (a trial in progress from before that field existed keeps the live default it started with).
+ * Otherwise: the device's Live AI setting. Never both, so Settings can't change a running trial.
+ */
+export function resolveAgentEngine(lock: Pick<ExperimentLock, "agentMode"> | null, settings: Pick<Settings, "agentMode">): AgentEngine {
+  if (lock) return lock.agentMode === "offline" ? "offline" : "auto";
+  return settings.agentMode === "auto" ? "auto" : "offline";
+}
 
 function initialFor(id: ScenarioId): PersistedState {
   const s = SCENARIOS[id];
@@ -98,10 +148,7 @@ function loadState(): PersistedState {
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<PersistedState>(loadState);
-  const [settings, setSettingsState] = useState<Settings>(() => ({
-    ...DEFAULT_SETTINGS,
-    ...readJSON<Partial<Settings>>(STORAGE_KEYS.settings, {}),
-  }));
+  const [settings, setSettingsState] = useState<Settings>(() => loadSettings(readJSON<unknown>(STORAGE_KEYS.settings, null)));
   const stateRef = useRef(state);
   stateRef.current = state;
   // Frozen study dataset while a trial runs. Set during render (idempotent) so every child
@@ -109,7 +156,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   setStudyScope(!!state.lock);
 
   useEffect(() => writeJSON(STORAGE_KEYS.state, state), [state]);
-  useEffect(() => writeJSON(STORAGE_KEYS.settings, settings), [settings]);
+  useEffect(() => writeJSON(STORAGE_KEYS.settings, serializeSettings(settings)), [settings]);
 
   const commit = (next: PersistedState) => {
     stateRef.current = next;
@@ -128,15 +175,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const beginExperiment = useCallback((a: Assignment): ExperimentLock => {
     const current = stateRef.current.lock;
     if (current) researchStore.abort(current.sessionId);
-    const st = settingsRef.current;
-    const session = researchStore.start(a, Date.now(), {
-      treatmentVersion: TREATMENT_VERSION,
-      appCommit: APP_COMMIT,
-      baselineNutritionVisible: st.baselineShowNutrition,
-      agentMode: st.agentMode,
-      agentProxyConfigured: !!PROXY_URL,
-      studyRestaurants: [...STUDY_RESTAURANT_IDS],
-    });
+    const session = researchStore.start(a, Date.now(), sessionBuildFor(a, settingsRef.current));
     const lock: ExperimentLock = { ...a, sessionId: session.sessionId, startedAt: session.startedAt };
     commit({ ...initialFor(a.scenarioId), lock });
     return lock;
@@ -237,6 +276,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         commit({ ...initialFor("A"), demoEpoch: (stateRef.current.demoEpoch ?? 0) + 1 });
         return true;
       },
+      agentEngine: resolveAgentEngine(state.lock, settings),
     }),
     [state, settings, beginExperiment, abortExperiment, log, placeOrder],
   );

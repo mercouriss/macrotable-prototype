@@ -1,7 +1,7 @@
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef, useState } from "react";
-import { DEMO_AREA } from "../data/geo";
+import { DEMO_AREA, distanceKm } from "../data/geo";
 import type { Restaurant } from "../types";
 import { IllustratedMap } from "./IllustratedMap";
 
@@ -12,6 +12,9 @@ import { IllustratedMap } from "./IllustratedMap";
  * Tiles need a network connection; if they fail we switch to the illustrated map.
  * Tiles are not precached (OSM tile usage policy).
  */
+/** Demo brands within this distance of "you" decide the opening view. */
+const FRAME_RADIUS_KM = 1;
+
 export default function LeafletMap({
   restaurants,
   selected,
@@ -55,11 +58,13 @@ export default function LeafletMap({
     }).addTo(m);
 
     m.attributionControl.setPrefix(false);
-    // Frame "you" + the demo brands (after layout, so the container has its real size);
-    // real places further away are a pan away and always in the list. No animation: an
-    // in-flight pan from invalidateSize would otherwise cancel the zoom.
+    // Frame "you" + the demo brands near you (after layout, so the container has its real size).
+    // Farther demo brands (the 1–2.5 km showcase stores) and real places are a zoom-out or pan
+    // away and always in the list; framing them too would shrink the campus cluster into a
+    // pile of overlapping pins on a phone. No animation: an in-flight pan from invalidateSize
+    // would otherwise cancel the zoom.
     const frame = () => {
-      const demo = list.current.filter((r) => r.identity === "demo");
+      const demo = list.current.filter((r) => r.identity === "demo" && distanceKm(DEMO_AREA.user, r.location) <= FRAME_RADIUS_KM);
       m.invalidateSize({ pan: false });
       if (demo.length)
         m.fitBounds(L.latLngBounds([DEMO_AREA.user, ...demo.map((r) => r.location)].map((p) => [p.lat, p.lng] as [number, number])), {

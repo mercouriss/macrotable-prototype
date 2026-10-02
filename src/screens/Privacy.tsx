@@ -12,7 +12,7 @@ const SECTIONS: [string, string][] = [
   ],
   [
     "MacroAgent (AI assistant)",
-    "When the live assistant is available, what you type is sent through MacroTable's proxy to Google's Gemini model to understand your request. On Gemini's free tier, Google may use submitted content to improve its products, so please don't share personal information. The AI never calculates nutrition or prices; MacroTable's own code does, using only options the restaurant supports. If the live model is unavailable, an offline demo agent answers instead, and it's labelled as such.",
+    "When the live assistant is available, what you type is sent through MacroTable's proxy to Google's Gemini model to understand your request. Google may keep submitted content for a limited time to detect misuse of its service, so please don't share personal information. The AI never calculates nutrition or prices; MacroTable's own code does, using only options the restaurant supports. If the live model is unavailable, an offline demo agent answers instead, and it's labelled as such.",
   ],
   [
     "Camera and menu photos",
