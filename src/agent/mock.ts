@@ -105,10 +105,17 @@ export function runMockTurn(userText: string, ctx: ToolContext): MockTurn {
     ...(i.noSpicy ? { noSpicy: true } : {}),
   };
   const removals = i.adjustments.filter((a) => a.request === "none").map((a) => a.group);
-  const prev = ctx.state.stated ?? {};
+  // Precedence: the app's current target (remaining today, from confirmed meals) outranks calories/protein
+  // stated for an earlier meal. Once it has changed, those stated macros are dropped; budget, diet flags
+  // and avoided ingredients are preferences, so they persist.
+  const basis = { calories: ctx.target.calories, protein: ctx.target.protein };
+  const stored = ctx.state.stated ?? {};
+  const targetMoved = !!stored.basis && (stored.basis.calories !== basis.calories || stored.basis.protein !== basis.protein);
+  const { calories: _c, protein: _p, ...preferences } = stored;
+  const prev = targetMoved ? preferences : stored;
   const avoid = [...new Set([...(prev.avoid ?? []), ...removals])];
-  ctx.state.stated = { ...prev, ...said, ...(avoid.length ? { avoid } : {}) };
-  const { avoid: _avoid, ...remembered } = ctx.state.stated;
+  ctx.state.stated = { ...prev, ...said, ...(avoid.length ? { avoid } : {}), basis };
+  const { avoid: _avoid, basis: _basis, ...remembered } = ctx.state.stated;
   const overrides = { ...remembered, ...said };
   /** Remembered "no X" requests plus this turn's adjustments (deduplicated by part). */
   const withAvoid = (adj: Adjustment[]) => [...adj, ...avoid.filter((g) => !adj.some((a) => a.group === g)).map((g) => ({ group: g, request: "none" as const }))];
@@ -133,19 +140,22 @@ export function runMockTurn(userText: string, ctx: ToolContext): MockTurn {
     };
   }
 
-  // 2. Adjust the current dish ("less rice", "no sauce", "more chicken").
-  if (i.adjustments.length && cur && !i.restaurantId && !i.compare) {
+  // 2. Adjust the current dish ("less rice", "no sauce", "more chicken"). A follow-up that also changes a
+  // hard constraint ("budget €14 and no rice") is a new search instead (step 6), and so is a change the
+  // current dish can't meet only because of the constraints: that dish failing doesn't mean nothing fits.
+  let searchInstead = false;
+  if (i.adjustments.length && cur && !i.restaurantId && !i.compare && !Object.keys(said).length) {
     const r = call("optimizeMeal", { mealId: cur.mealId, adjustments: withAvoid(i.adjustments), ...overrides });
     const rec = ctx.state.currentRecommendation;
     if (!r.ok || !rec || rec === cur) {
       const why = ((r.result as { notPossible?: string[] }).notPossible ?? [])[0];
-      return { text: why ?? "That change isn't possible within your budget with the options this restaurant supports.", toolRuns: runs };
-    }
-    return { text: recText(rec, "Done — re-optimised with your change using only supported options:"), toolRuns: runs };
+      if (why) return { text: why, toolRuns: runs }; // the restaurant doesn't support it: say so
+      searchInstead = true;
+    } else return { text: recText(rec, "Done — re-optimised with your change using only supported options:"), toolRuns: runs };
   }
 
   // 3. Why / confidence.
-  if (i.why && cur && !i.compare) {
+  if (i.why && cur && !i.compare && !searchInstead) {
     call("explainProvenance", { mealId: cur.mealId });
     const r = call("optimizeMeal", { mealId: cur.mealId });
     const e = (r.result as { explanation?: { meets: string[]; tradeoffs: string[]; confidence: string } }).explanation;
@@ -158,7 +168,7 @@ export function runMockTurn(userText: string, ctx: ToolContext): MockTurn {
   }
 
   // 4. Menu of a restaurant.
-  if (i.menu) {
+  if (i.menu && !searchInstead) {
     const rid = i.restaurantId ?? referencedRestaurantId(ctx.state) ?? undefined;
     if (!rid) return { text: "Which restaurant? Try: FitKitchen, Urban Bowl or Local Grill.", toolRuns: runs };
     const r = call("getMenu", { restaurantId: rid });
@@ -167,7 +177,7 @@ export function runMockTurn(userText: string, ctx: ToolContext): MockTurn {
   }
 
   // 5. Scanned menu.
-  if (i.scan || i.restaurantId === SCAN_RESTAURANT_ID) {
+  if (!searchInstead && (i.scan || i.restaurantId === SCAN_RESTAURANT_ID)) {
     if (!ctx.state.scannedMenu) return { text: "Scan the menu first (Scan → Scan menu). I'll read it and find what fits.", toolRuns: runs };
     call("analyzeMenuImage");
     const r = call("optimizeMeal", { restaurantId: SCAN_RESTAURANT_ID, ...overrides });

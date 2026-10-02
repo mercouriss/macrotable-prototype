@@ -30,7 +30,7 @@ describe("freeze fingerprint", () => {
     const doc = JSON.parse(agentConfigDocument());
     expect(Object.keys(doc)).toEqual(["systemPromptScenarioA", "tools", "generationConfig", "maxToolRounds", "fallbackPolicy"]);
     expect(doc.tools.map((t: { name: string }) => t.name)).toContain("optimizeMeal");
-    expect(doc.generationConfig).toEqual({ temperature: 0.2, maxOutputTokens: 1024 });
+    expect(doc.generationConfig).toEqual({ temperature: 0.2, maxOutputTokens: 2048 });
     const a = await sha256Hex(agentConfigDocument());
     expect(a).toMatch(/^[0-9a-f]{64}$/);
     expect(await sha256Hex(agentConfigDocument())).toBe(a);

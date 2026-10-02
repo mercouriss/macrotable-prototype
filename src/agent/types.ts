@@ -168,4 +168,10 @@ export interface StatedConstraints {
   noSpicy?: boolean;
   /** Ingredients the user said they don't want ("no rice", "I don't want rice"). */
   avoid?: string[];
+  /**
+   * The app's remaining calories/protein when these were stated. If the app's target has changed since
+   * (a confirmed meal, a reset or a Preferences edit), the stated calories/protein were for a meal that
+   * no longer applies and are dropped; budget, diet flags and avoided ingredients persist.
+   */
+  basis?: { calories: number; protein: number };
 }

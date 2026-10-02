@@ -51,6 +51,11 @@ export function actionsFor(ctx: ToolContext, runs: ToolRun[]): QuickAction[] {
   const integrated = rec.integrationLevel >= 2 && rec.restaurantId !== SCAN_RESTAURANT_ID;
   const r = getRestaurant(rec.restaurantId);
   const out: QuickAction[] = [{ kind: "send", label: "Why this?", text: "Why this?" }, { kind: "send", label: "Compare stores", text: "Compare stores" }];
+  // Never offer to order something over the budget that applies now: this turn's search, else the budget
+  // the user stated earlier (offline agent), else the app's. A failed search leaves the old pick in place.
+  const lastSearch = [...runs].reverse().find((x) => x.name === "optimizeMeal");
+  const budget = [lastSearch?.args?.maxBudget, ctx.state.stated?.maxBudget, ctx.target.maxBudget].find((b): b is number => typeof b === "number");
+  if (budget !== undefined && rec.price > budget) return out;
   if (integrated) {
     if (r?.serviceModes.includes("pickup")) out.push({ kind: "prepare", label: "Prepare pickup", mode: "pickup" });
     if (r?.serviceModes.includes("in-store")) out.push({ kind: "prepare", label: "Order in-store", mode: "in-store" });
@@ -143,8 +148,17 @@ const CLAIMS: { level: number; re: RegExp }[] = [
   { level: 2, re: /\b(menu-read|printed on the menu)\b/gi },
 ];
 const ABSOLUTE = /\b(exact(?:ly)?|guaranteed?|precise(?:ly)?)\b/gi;
-/** A negator up to three words before the claim: "not", "never", "no", "cannot", "without", any "…n't" (haven't, isn’t). */
-const NEGATED = /(?:\b(?:not|never|no|cannot|without)|n['’]t)\s+(?:[\w'’-]+\s+){0,3}$|\bun-$/i;
+/**
+ * A negator up to three words before the claim: "not", "never", "no", "cannot", "without", any "…n't"
+ * (haven't, isn’t), or a contrast that sets the claim aside ("rather than verified", "instead of exact").
+ */
+const NEGATED = /(?:\b(?:not|never|no|cannot|without|rather\s+than|instead\s+of)|n['’]t)\s+(?:[\w'’-]+\s+){0,3}$|\bun-$/i;
+/**
+ * A negation that carries over a coordination to the claim in the same clause: "cannot verify their data
+ * or guarantee exact values", "isn't measured nor verified". A contrast word ends the negation's scope
+ * ("not cheap, but verified" is still a claim).
+ */
+const NEGATED_COORD = /(?:\b(?:not|never|no|cannot|without)|n['’]t)\s(?:(?!\b(?:but|however|although|though|yet|while|whereas)\b)[^.;!?\n])*?\b(?:or|nor)\s+(?:[\w'’-]+\s+){0,2}$/i;
 /** A clause that refers back to something named earlier ("It's verified", "These values are official"). */
 const REFERS_BACK = /\b(?:it|its|it['’]s|this|these|those|they|they['’]re|their|that['’]s|that is|the (?:dish|meal|data|nutrition|values|numbers|figures|label))\b/i;
 const NUTRITION_QTY = String.raw`\d+(?:[.,]\d+)?\s*(?:kcal|calories|g|grams)\b`;
@@ -217,7 +231,11 @@ export function overstatedConfidence(text: string, runs: ToolRun[], ctx: ToolCon
     const earlier = REFERS_BACK.test(text.slice(start, end)) ? mentions.filter((m) => m.at < pos).sort((x, y) => y.at - x.at)[0] : undefined;
     return before ?? after ?? earlier;
   };
-  const negated = (at: number) => NEGATED.test(text.slice(Math.max(0, at - 40), at));
+  const negated = (at: number) => {
+    if (NEGATED.test(text.slice(Math.max(0, at - 40), at))) return true;
+    const before = text.slice(Math.max(0, at - 120), at);
+    return NEGATED_COORD.test(before.slice(Math.max(...[".", ";", "!", "?", "\n"].map((d) => before.lastIndexOf(d))) + 1));
+  };
   for (const { level, re } of CLAIMS) {
     for (const m of text.matchAll(re)) {
       const at = m.index ?? 0;

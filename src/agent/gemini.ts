@@ -16,7 +16,7 @@ import { COMPOSING, STEP_ACTIVE, UNDERSTANDING } from "./steps";
 export const PROXY_URL: string = (import.meta.env.VITE_AGENT_PROXY_URL ?? "").replace(/\/+$/, "");
 export const MAX_TOOL_ROUNDS = 6;
 /** Frozen model settings for the agent (recorded in the freeze fingerprint). */
-export const GENERATION_CONFIG = { temperature: 0.2, maxOutputTokens: 1024 } as const;
+export const GENERATION_CONFIG = { temperature: 0.2, maxOutputTokens: 2048 } as const;
 
 export class ProviderError extends Error {}
 

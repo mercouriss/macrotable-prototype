@@ -84,8 +84,10 @@ describe("pre-pilot: freeze fingerprint", () => {
     const hex = createHash("sha256").update(agentConfigDocument()).digest("hex");
     // Re-pinned before the pilot (nothing frozen yet). History:
     //   24e9ac49… (2fbb74b) → e6b5839d… (fdd863f: fallback policy gained the secondary model)
-    //   → current: the policy names the models (gemini-3.8-flash → gemini-3.7-flash) and optimizeMeal
-    //     documents the "no X" semantics (MacroAgent audit gaps 1 + 4).
-    expect(hex).toBe("20e66fac682e2aa11717dcfb174d6973b44b2dff214edb90ea555fd58fb8f639");
+    //   → 20e66fac… (the policy names the models gemini-3.8-flash → gemini-3.7-flash; optimizeMeal
+    //     documents the "no X" semantics; MacroAgent audit gaps 1 + 4)
+    //   → current: maxOutputTokens 1024 → 2048 (final pre-demo repair M3: thinking used 981 of 1024 tokens
+    //     and cut a live reply off in the 2026-10-02 soak).
+    expect(hex).toBe("2d8f23d1f00c9438ffb0791c9e92ea17356835bd2d54d86178168766a85280a4");
   });
 });
