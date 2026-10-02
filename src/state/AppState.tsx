@@ -1,10 +1,11 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import { getMeal, setStudyScope, STUDY_RESTAURANT_IDS } from "../data/restaurants";
 import { PROXY_URL } from "../agent/gemini";
 import { APP_COMMIT, TREATMENT_VERSION } from "../lib/version";
 import { SCENARIOS } from "../data/scenarios";
 import { meetsTarget } from "../lib/feasibility";
-import { nextOrderNumber, readJSON, saveOrder, STORAGE_KEYS, writeJSON } from "../lib/experiment";
+import { getOrders, nextOrderNumber, readJSON, saveOrder, STORAGE_KEYS, writeJSON } from "../lib/experiment";
+import { consumedToday, dailyLedger, localDay, readLedger, recordCounterHandoff, resetLedger, type CounterHandoff, type DailyLedger } from "../lib/ledger";
 import { computeConfiguration, configurationId, isSelectionSupported } from "../lib/nutrition";
 import { canPlaceSelection } from "../lib/orderState";
 import { clearSaved } from "../lib/saved";
@@ -54,6 +55,17 @@ export interface PlaceOrderResult {
 }
 
 interface AppStateValue extends PersistedState {
+  /**
+   * What's left for today — what every screen, recommendation and the agent use. Outside research:
+   * the base target minus today's confirmed meals (lib/ledger). During a trial: the assigned target.
+   */
+  target: UserTarget;
+  /** The daily target the user sets in Preferences (what `setTarget` edits). */
+  baseTarget: UserTarget;
+  /** Today's ledger (base, consumed, remaining, over). Null during a research trial: trials never use it. */
+  ledger: DailyLedger | null;
+  /** Log a confirmed counter hand-off that has no order record (a scanned-menu dish). Ignored in trials. */
+  recordCounterHandoff: (h: CounterHandoff) => void;
   settings: Settings;
   setSettings: (patch: Partial<Settings>) => void;
   /** Ignored while a research trial is locked. */
@@ -71,7 +83,7 @@ interface AppStateValue extends PersistedState {
   log: (event: string, extra?: Partial<Pick<ExperimentEvent, "mealId" | "configurationId" | "detail">>) => void;
   /** Places the current selection, or `selection` when given (the agent approves a specific draft). */
   placeOrder: (mode?: ServiceMode, selection?: MealSelection) => PlaceOrderResult | null;
-  /** Demo lock: Scenario A, canonical data, no selection, no saved meals. Refused during a research trial. */
+  /** Demo lock: Scenario A, canonical data, no selection, no saved meals, a fresh daily ledger (order history kept). Refused during a research trial. */
   resetDemo: () => boolean;
   /** The engine every agent turn and menu scan must use right now (resolveAgentEngine). */
   agentEngine: AgentEngine;
@@ -138,6 +150,11 @@ function dietToRestrictions(diet: Preferences["diet"]): string[] {
   return diet === "none" ? [] : [diet];
 }
 
+/** Today's ledger for a base target, read from the stored confirmations. Never used during a trial. */
+export function ledgerFor(base: UserTarget, now = Date.now()): DailyLedger {
+  return dailyLedger(base, consumedToday(getOrders(), readLedger(), now));
+}
+
 /** Guard against stale/partial persisted state from an older version. */
 function loadState(): PersistedState {
   const raw = readJSON<Partial<PersistedState> | null>(STORAGE_KEYS.state, null);
@@ -151,6 +168,15 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [settings, setSettingsState] = useState<Settings>(() => loadSettings(readJSON<unknown>(STORAGE_KEYS.settings, null)));
   const stateRef = useRef(state);
   stateRef.current = state;
+  // Bumped whenever a confirmation or a reset changes the ledger (and at local midnight).
+  const [ledgerTick, bumpLedger] = useReducer((n: number) => n + 1, 0);
+  const today = localDay(Date.now());
+  useEffect(() => {
+    const now = new Date();
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime();
+    const t = setTimeout(bumpLedger, midnight - now.getTime() + 1000);
+    return () => clearTimeout(t);
+  }, [today]);
   // Frozen study dataset while a trial runs. Set during render (idempotent) so every child
   // that renders in the same pass already sees the right restaurant scope.
   setStudyScope(!!state.lock);
@@ -199,6 +225,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     // Study boundary: during a trial only the frozen study restaurants can complete it.
     if (s.lock && !(STUDY_RESTAURANT_IDS as readonly string[]).includes(found.restaurant.id)) return null;
     const { nutrition, price } = computeConfiguration(found.meal, s.selection.selections);
+    // "Fits" is judged against what was left before this meal (the assigned target during a trial).
+    const before = s.lock ? s.target : ledgerFor(s.target).remaining;
     const order: PlacedOrder = {
       orderNumber: nextOrderNumber(),
       placedAt: Date.now(),
@@ -215,9 +243,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       pickupCode: pickupCodeFor(nextOrderNumber()),
       sessionId: s.lock?.sessionId,
       ...(s.selection.origin ? { origin: s.selection.origin } : {}),
-      meetsTarget: meetsTarget(nutrition, s.target),
+      meetsTarget: meetsTarget(nutrition, before),
     };
     saveOrder(order);
+    bumpLedger();
     const placedSelection = { ...s.selection, placedOrderNumber: order.orderNumber };
     if (s.lock) {
       researchStore.complete(s.lock.sessionId, {
@@ -239,46 +268,60 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AppStateValue>(
-    () => ({
-      ...state,
-      settings,
-      setSettings: (patch) => setSettingsState((p) => ({ ...p, ...patch })),
-      setScenario: (id) => {
-        if (stateRef.current.lock) return;
-        commit(initialFor(id));
-      },
-      setTarget: (patch) => setState((s) => ({ ...s, target: { ...s.target, ...patch } })),
-      setPrefs: (patch) =>
-        setState((s) => {
-          const prefs = { ...s.prefs, ...patch };
-          return { ...s, prefs, target: { ...s.target, dietaryRestrictions: dietToRestrictions(prefs.diet) } };
-        }),
-      resetTargets: () =>
-        setState((s) => ({ ...s, target: { ...SCENARIOS[s.scenarioId].target }, prefs: { ...SCENARIOS[s.scenarioId].preferences } })),
-      selectMeal: (selection) => setState((s) => ({ ...s, selection })),
-      setOption: (groupId, optionId) =>
-        setState((s) =>
-          s.selection
-            ? { ...s, selection: { ...s.selection, selections: { ...s.selection.selections, [groupId]: optionId }, placedOrderNumber: undefined } }
-            : s,
-        ),
-      resetSelection: () =>
-        setState((s) =>
-          s.selection?.recommended ? { ...s, selection: { ...s.selection, selections: { ...s.selection.recommended }, placedOrderNumber: undefined } } : s,
-        ),
-      beginExperiment,
-      abortExperiment,
-      log,
-      placeOrder,
-      resetDemo: () => {
-        if (stateRef.current.lock) return false;
-        clearSaved();
-        commit({ ...initialFor("A"), demoEpoch: (stateRef.current.demoEpoch ?? 0) + 1 });
-        return true;
-      },
-      agentEngine: resolveAgentEngine(state.lock, settings),
-    }),
-    [state, settings, beginExperiment, abortExperiment, log, placeOrder],
+    () => {
+      // Research isolation: a trial sees exactly its assigned target, and no ledger.
+      const ledger = state.lock ? null : ledgerFor(state.target);
+      return {
+        ...state,
+        target: ledger ? ledger.remaining : state.target,
+        baseTarget: state.target,
+        ledger,
+        recordCounterHandoff: (h) => {
+          if (stateRef.current.lock) return;
+          if (recordCounterHandoff(h)) bumpLedger();
+        },
+        settings,
+        setSettings: (patch) => setSettingsState((p) => ({ ...p, ...patch })),
+        setScenario: (id) => {
+          if (stateRef.current.lock) return;
+          commit(initialFor(id));
+        },
+        setTarget: (patch) => setState((s) => ({ ...s, target: { ...s.target, ...patch } })),
+        setPrefs: (patch) =>
+          setState((s) => {
+            const prefs = { ...s.prefs, ...patch };
+            return { ...s, prefs, target: { ...s.target, dietaryRestrictions: dietToRestrictions(prefs.diet) } };
+          }),
+        resetTargets: () =>
+          setState((s) => ({ ...s, target: { ...SCENARIOS[s.scenarioId].target }, prefs: { ...SCENARIOS[s.scenarioId].preferences } })),
+        selectMeal: (selection) => setState((s) => ({ ...s, selection })),
+        setOption: (groupId, optionId) =>
+          setState((s) =>
+            s.selection
+              ? { ...s, selection: { ...s.selection, selections: { ...s.selection.selections, [groupId]: optionId }, placedOrderNumber: undefined } }
+              : s,
+          ),
+        resetSelection: () =>
+          setState((s) =>
+            s.selection?.recommended ? { ...s, selection: { ...s.selection, selections: { ...s.selection.recommended }, placedOrderNumber: undefined } } : s,
+          ),
+        beginExperiment,
+        abortExperiment,
+        log,
+        placeOrder,
+        resetDemo: () => {
+          if (stateRef.current.lock) return false;
+          clearSaved();
+          resetLedger();
+          bumpLedger();
+          commit({ ...initialFor("A"), demoEpoch: (stateRef.current.demoEpoch ?? 0) + 1 });
+          return true;
+        },
+        agentEngine: resolveAgentEngine(state.lock, settings),
+      };
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [state, settings, beginExperiment, abortExperiment, log, placeOrder, ledgerTick, today],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

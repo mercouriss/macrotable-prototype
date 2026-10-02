@@ -3,6 +3,7 @@ import { AskAgentButton } from "../components/AskAgentButton";
 import { BrandMark } from "../components/BrandMark";
 import { Icon } from "../components/Icon";
 import { MacroSummary } from "../components/MacroSummary";
+import { TrialMacroSummary } from "../components/TrialMacroSummary";
 import { Plate } from "../components/Plate";
 import { approx } from "../components/ProvenanceBadge";
 import { Screen } from "../components/Screen";
@@ -20,7 +21,7 @@ import { useRememberScroll } from "../state/useRememberScroll";
 
 /** Product home: what can MacroTable do for me right now? */
 export function Home() {
-  const { target, settings, lock, log, selectMeal } = useAppState();
+  const { target, ledger, settings, lock, log, selectMeal } = useAppState();
   const navigate = useNavigate();
   const search = useSearch();
   const saved = useSavedMeals();
@@ -65,8 +66,11 @@ export function Home() {
             <Icon name="chevronRight" size={14} />
           </button>
         </div>
-        <MacroSummary target={target} />
-        <p className="mt-3 text-[11.5px] text-ink-3">Sample day — food logging is simulated in this prototype.</p>
+        {/* Locked trial: the frozen pre-repair presentation (trial targets, no ledger). Otherwise the real ledger. */}
+        {ledger ? <MacroSummary ledger={ledger} /> : <TrialMacroSummary target={target} />}
+        <p className="mt-3 text-[11.5px] text-ink-3">
+          {ledger ? "Your daily target minus the meals you confirmed in MacroTable today." : "Sample day — food logging is simulated in this prototype."}
+        </p>
       </Card>
 
       <div className="mt-4 space-y-2.5">

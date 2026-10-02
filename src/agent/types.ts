@@ -133,6 +133,10 @@ export interface AgentMessage {
 
 export interface AgentSessionState {
   messages: AgentMessage[];
+  /**
+   * Where the user explicitly IS (restaurant/QR/meal page, "Ask about X", a scanned menu). Shown to the
+   * live model as "Currently at". Never set by a recommendation: a cross-store pick is not presence.
+   */
   currentRestaurantId: string | null;
   scannedMenu: ScannedMenu | null;
   currentRecommendation: RecommendationCardData | null;
@@ -145,6 +149,12 @@ export interface AgentSessionState {
    * cross-store recommendation.
    */
   anchorRestaurantId?: string | null;
+  /**
+   * The restaurant the conversation last referred to: the latest recommendation's, or an explicitly
+   * opened one, whichever came last. Only resolves follow-ups that name no restaurant ("show the
+   * menu", provenance, quick replies) — never presented as the user's location.
+   */
+  referenceRestaurantId?: string | null;
   /** Offline agent: constraints the user stated earlier in this session (later statements win). */
   stated?: StatedConstraints;
 }

@@ -1,7 +1,7 @@
 import { catalog } from "../data/restaurants";
 import { euro } from "../lib/format";
 import type { Adjustment } from "../lib/optimizer";
-import { executeTool, SCAN_RESTAURANT_ID, type ToolContext } from "./tools";
+import { executeTool, referencedRestaurantId, SCAN_RESTAURANT_ID, type ToolContext } from "./tools";
 import type { RecommendationCardData, StoreSummary, ToolRun } from "./types";
 import { provenanceLabel } from "../lib/provenance";
 import type { Provenance } from "../types";
@@ -159,7 +159,7 @@ export function runMockTurn(userText: string, ctx: ToolContext): MockTurn {
 
   // 4. Menu of a restaurant.
   if (i.menu) {
-    const rid = i.restaurantId ?? ctx.state.currentRestaurantId ?? undefined;
+    const rid = i.restaurantId ?? referencedRestaurantId(ctx.state) ?? undefined;
     if (!rid) return { text: "Which restaurant? Try: FitKitchen, Urban Bowl or Local Grill.", toolRuns: runs };
     const r = call("getMenu", { restaurantId: rid });
     const dishes = ((r.result as { dishes?: { name: string; price_eur: number | null; available: boolean }[] }).dishes ?? []).filter((d) => d.available);

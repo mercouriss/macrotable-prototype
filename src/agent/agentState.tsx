@@ -176,6 +176,8 @@ export function AgentStateProvider({ children }: { children: ReactNode }) {
           commit({ ...ref.current, orderDrafts: ref.current.orderDrafts.map((x) => (x.id === draftId ? { ...x, status: "approved", ...patch } : x)) });
         if (!getMeal(d.mealId)) {
           markDone({}); // scanned-menu dish: nothing to send — the user orders at the counter
+          // …but they confirmed the meal, so it counts toward today (normal mode only; once per draft).
+          appRef.current.recordCounterHandoff({ id: d.id, at: Date.now(), nutrition: d.nutrition });
           return null;
         }
         const selection = { mealId: d.mealId, selections: d.selections, recommended: d.selections };
@@ -189,9 +191,12 @@ export function AgentStateProvider({ children }: { children: ReactNode }) {
       },
       cancelDraft: (draftId) =>
         commit({ ...ref.current, orderDrafts: ref.current.orderDrafts.map((x) => (x.id === draftId ? { ...x, status: "cancelled" } : x)) }),
-      setScannedMenu: (m) => commit({ ...ref.current, scannedMenu: m, currentRestaurantId: m ? "scan" : ref.current.currentRestaurantId === "scan" ? null : ref.current.currentRestaurantId }),
-      setCurrentRestaurant: (id) => commit({ ...ref.current, currentRestaurantId: id }),
-      clear: () => commit({ ...empty(), scannedMenu: ref.current.scannedMenu, currentRestaurantId: ref.current.currentRestaurantId }),
+      setScannedMenu: (m) => {
+        const next = (id: string | null | undefined) => (m ? "scan" : id === "scan" ? null : (id ?? null));
+        commit({ ...ref.current, scannedMenu: m, currentRestaurantId: next(ref.current.currentRestaurantId), referenceRestaurantId: next(ref.current.referenceRestaurantId) });
+      },
+      setCurrentRestaurant: (id) => commit({ ...ref.current, currentRestaurantId: id, referenceRestaurantId: id }),
+      clear: () => commit({ ...empty(), scannedMenu: ref.current.scannedMenu, currentRestaurantId: ref.current.currentRestaurantId, referenceRestaurantId: ref.current.referenceRestaurantId }),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [state, busy, progress, liveStatus, send],

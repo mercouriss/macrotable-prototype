@@ -1,9 +1,9 @@
-import { getRestaurant } from "../data/restaurants";
+import { catalog, getRestaurant } from "../data/restaurants";
 import { provenanceLabel } from "../lib/provenance";
 import { stepsFor, VERIFYING } from "./steps";
 import { runGeminiTurn, PROXY_URL } from "./gemini";
 import { runMockTurn } from "./mock";
-import { executeTool, SCAN_RESTAURANT_ID, type ToolContext } from "./tools";
+import { executeTool, referencedRestaurantId, SCAN_RESTAURANT_ID, setPresence, type ToolContext } from "./tools";
 import type { AgentCard, AgentMessage, AgentProviderId, QuickAction, ToolRun } from "./types";
 
 /*
@@ -44,7 +44,7 @@ export const scanAction = (restaurantId?: string): QuickAction => ({
 /** Quick replies derived from state after the turn (identical for live and offline agents). */
 export function actionsFor(ctx: ToolContext, runs: ToolRun[]): QuickAction[] {
   const rec = ctx.state.currentRecommendation;
-  const here = getRestaurant(ctx.state.currentRestaurantId ?? undefined);
+  const here = getRestaurant(referencedRestaurantId(ctx.state) ?? undefined);
   if (here?.identity === "real" && (!rec || rec.restaurantId !== here.id)) return [scanAction(here.id)];
   const hasOrderCard = runs.some((r) => r.card?.kind === "order");
   if (hasOrderCard || !rec) return rec ? [] : [{ kind: "send", label: "What should I eat near me?", text: "What should I eat near me?" }];
@@ -60,17 +60,74 @@ export function actionsFor(ctx: ToolContext, runs: ToolRun[]): QuickAction[] {
   return out;
 }
 
+/** Earlier turns, as Gemini contents: tool outputs (functionResponse) and the user's own words. */
+function fromHistory(history: unknown[][]) {
+  const toolResults: unknown[] = [];
+  const userTexts: string[] = [];
+  for (const c of history.flat() as { role?: string; parts?: { text?: unknown; functionResponse?: { response?: unknown } }[] }[]) {
+    for (const p of c?.parts ?? []) {
+      if (p.functionResponse) toolResults.push(p.functionResponse.response);
+      // Only the USER's text — never the model's own earlier wording, which could repeat a made-up number.
+      else if (c.role === "user" && typeof p.text === "string") userTexts.push(p.text);
+    }
+  }
+  return { toolResults, userTexts };
+}
+
+type Quantity = "calories" | "protein" | "carbs" | "fat" | "price";
+const VALUE_KEYS: Record<string, Quantity> = { calories: "calories", protein: "protein", protein_g: "protein", carbs: "carbs", carbs_g: "carbs", fat: "fat", fat_g: "fat", price: "price", price_eur: "price" };
+const TARGET_KEYS: Record<string, Quantity> = { protein_min_g: "protein", maxBudget: "price", budget_max_eur: "price" };
+
+/** Targets and values per quantity in tool data (targets: `targetUsed`, `remaining`, budget/minimum keys). */
+function quantities(data: unknown[], target: ToolContext["target"]) {
+  const targets = new Map<Quantity, Set<number>>();
+  const values = new Map<Quantity, Set<number>>();
+  const add = (m: typeof targets, q: Quantity, n: number) => (m.get(q) ?? m.set(q, new Set()).get(q)!).add(n);
+  const walk = (x: unknown, isTarget: boolean) => {
+    if (Array.isArray(x)) return x.forEach((y) => walk(y, isTarget));
+    if (!x || typeof x !== "object") return;
+    for (const [k, v] of Object.entries(x)) {
+      if (typeof v === "number") {
+        if (TARGET_KEYS[k]) add(targets, TARGET_KEYS[k], v);
+        else if (VALUE_KEYS[k]) add(isTarget ? targets : values, VALUE_KEYS[k], v);
+      } else walk(v, isTarget || k === "targetUsed" || k === "remaining");
+    }
+  };
+  walk(data, false);
+  walk({ remaining: { calories: target.calories, protein: target.protein, carbs: target.carbs, fat: target.fat, price: target.maxBudget } }, false);
+  return { targets, values };
+}
+
 /**
- * VERIFY: every "<number> kcal", "<number> g" and "€<number>" in the model's text
- * must appear in this turn's tool results or the current recommendation.
+ * The narrow derived-number rule: N is grounded if it is exactly |target − value| for the SAME
+ * quantity, both from tool data (e.g. "1 g short" of a 45 g minimum with 44 g). No other arithmetic.
  */
-export function unverifiedNumbers(text: string, runs: ToolRun[], ctx: ToolContext): string[] {
-  const haystack = JSON.stringify(runs.map((r) => r.result)) + JSON.stringify(ctx.state.currentRecommendation ?? {}) + JSON.stringify({ t: ctx.target });
+function isTargetGap(n: number, qs: Quantity[], q: ReturnType<typeof quantities>) {
+  const r = (x: number) => Math.round(x * 100) / 100;
+  return qs.some((k) => [...(q.targets.get(k) ?? [])].some((t) => [...(q.values.get(k) ?? [])].some((v) => r(Math.abs(t - v)) === r(n))));
+}
+
+/**
+ * VERIFY: every "<number> kcal", "<number> g" and "€<number>" in the model's text must come from
+ * MacroTable's tools (this turn or earlier turns), the current recommendation, the target, or the
+ * user's own messages — or be the exact gap between a target and a value for the same quantity.
+ */
+export function unverifiedNumbers(text: string, runs: ToolRun[], ctx: ToolContext, extra: { userTexts?: string[]; history?: unknown[][] } = {}): string[] {
+  const past = fromHistory(extra.history ?? []);
+  const tools = [...runs.map((r) => r.result), ...past.toolResults, ctx.state.currentRecommendation ?? {}];
+  const haystack = JSON.stringify(tools) + JSON.stringify({ t: ctx.target });
+  const said = [...(extra.userTexts ?? []), ...past.userTexts].join(" ");
   const found = new Set<string>();
-  const nums = new Set((haystack.match(/-?\d+(\.\d+)?/g) ?? []).map((n) => String(Number(n))));
+  const nums = new Set([...(haystack.match(/-?\d+(\.\d+)?/g) ?? []), ...(said.match(/\d+(?:[.,]\d+)?/g) ?? []).map((n) => n.replace(",", "."))].map((n) => String(Number(n))));
+  let q: ReturnType<typeof quantities> | undefined;
   for (const m of text.matchAll(/(\d+(?:[.,]\d+)?)\s*(kcal|calories|g\b|grams)|€\s?(\d+(?:[.,]\d+)?)/gi)) {
     const raw = (m[1] ?? m[3]).replace(",", ".");
-    if (!nums.has(String(Number(raw)))) found.add(m[0].trim());
+    if (nums.has(String(Number(raw)))) continue;
+    // Which quantity the number is: kcal → calories, € → price, g → the nutrient named next (else any).
+    const named = /^\s*(?:of\s+)?(protein|carb|fat)/i.exec(text.slice((m.index ?? 0) + m[0].length))?.[1].toLowerCase();
+    const qs: Quantity[] = m[3] ? ["price"] : /kcal|calories/i.test(m[2]) ? ["calories"] : named ? [named === "carb" ? "carbs" : (named as Quantity)] : ["protein", "carbs", "fat"];
+    if (isTargetGap(Number(raw), qs, (q ??= quantities(tools, ctx.target)))) continue;
+    found.add(m[0].trim());
   }
   return [...found];
 }
@@ -86,7 +143,21 @@ const CLAIMS: { level: number; re: RegExp }[] = [
   { level: 2, re: /\b(menu-read|printed on the menu)\b/gi },
 ];
 const ABSOLUTE = /\b(exact(?:ly)?|guaranteed?|precise(?:ly)?)\b/gi;
-const NEGATED = /\b(not|never|no|isn't|aren't|wasn't|n't|un)\s*(?:\w+\s+){0,2}$/i;
+/** A negator up to three words before the claim: "not", "never", "no", "cannot", "without", any "…n't" (haven't, isn’t). */
+const NEGATED = /(?:\b(?:not|never|no|cannot|without)|n['’]t)\s+(?:[\w'’-]+\s+){0,3}$|\bun-$/i;
+/** A clause that refers back to something named earlier ("It's verified", "These values are official"). */
+const REFERS_BACK = /\b(?:it|its|it['’]s|this|these|those|they|they['’]re|their|that['’]s|that is|the (?:dish|meal|data|nutrition|values|numbers|figures|label))\b/i;
+const NUTRITION_QTY = String.raw`\d+(?:[.,]\d+)?\s*(?:kcal|calories|g|grams)\b`;
+const NUTRIENT_NOUN = String.raw`(?:calories|calorie|kcal|nutrition|nutritional|macros?|protein|carbs?|fat|values|numbers|counts?|figures)`;
+/** "exact(ly)/precise(ly)" asserting an exact nutrition QUANTITY — not "hits your minimum exactly". */
+function assertsExactNutrition(text: string, at: number, word: string) {
+  const before = text.slice(Math.max(0, at - 40), at);
+  const after = text.slice(at + word.length, at + word.length + 40);
+  if (new RegExp(String.raw`^\s+(?:about\s+)?${NUTRITION_QTY}`, "i").test(after)) return true; // exactly 640 kcal
+  if (new RegExp(String.raw`${NUTRITION_QTY}(?:\s+(?:of\s+)?(?:protein|carbs?|fat))?\s*,?\s*$`, "i").test(before)) return true; // 640 kcal exactly
+  if (/^(exact|precise)$/i.test(word) && new RegExp(String.raw`^\s+(?:[\w-]+\s+)?${NUTRIENT_NOUN}\b`, "i").test(after)) return true; // exact calories
+  return new RegExp(String.raw`\b${NUTRIENT_NOUN}\s+(?:is|are|will be)\s+$`, "i").test(before); // the calories are exact
+}
 
 /** Dish / restaurant names → the data provenance the TOOLS reported for them this turn. */
 function provenanceIndex(runs: ToolRun[], ctx: ToolContext): Map<string, string> {
@@ -132,8 +203,10 @@ export function overstatedConfidence(text: string, runs: ToolRun[], ctx: ToolCon
   const problems: string[] = [];
   /**
    * What a claim word refers to: the nearest dish/restaurant mentioned BEFORE it in the same clause
-   * ("X is verified"), else the nearest after it in that clause ("verified data for X"), else the
-   * nearest earlier mention in the text. Clauses end at . ; ! ? or a line break.
+   * ("X is verified"), else the nearest after it in that clause ("verified data for X"), else — only
+   * if the clause refers back ("It's verified") — the nearest earlier mention in the text. A clause
+   * that names nothing and refers to nothing ("verified options from partner restaurants") isn't
+   * about an earlier dish. Clauses end at . ; ! ? or a line break.
    */
   const nearest = (pos: number) => {
     const start = Math.max(...[".", ";", "!", "?", "\n"].map((d) => text.lastIndexOf(d, pos - 1))) + 1;
@@ -141,13 +214,14 @@ export function overstatedConfidence(text: string, runs: ToolRun[], ctx: ToolCon
     const end = ends.length ? Math.min(...ends) : text.length;
     const before = mentions.filter((m) => m.at >= start && m.at < pos).sort((x, y) => y.at - x.at)[0];
     const after = mentions.filter((m) => m.at > pos && m.at < end).sort((x, y) => x.at - y.at)[0];
-    const earlier = mentions.filter((m) => m.at < pos).sort((x, y) => y.at - x.at)[0];
+    const earlier = REFERS_BACK.test(text.slice(start, end)) ? mentions.filter((m) => m.at < pos).sort((x, y) => y.at - x.at)[0] : undefined;
     return before ?? after ?? earlier;
   };
+  const negated = (at: number) => NEGATED.test(text.slice(Math.max(0, at - 40), at));
   for (const { level, re } of CLAIMS) {
     for (const m of text.matchAll(re)) {
       const at = m.index ?? 0;
-      if (NEGATED.test(text.slice(Math.max(0, at - 24), at))) continue;
+      if (negated(at)) continue;
       const ref = nearest(at);
       if (!ref) continue;
       const actual = idx.get(ref.name)!;
@@ -156,9 +230,10 @@ export function overstatedConfidence(text: string, runs: ToolRun[], ctx: ToolCon
   }
   for (const m of text.matchAll(ABSOLUTE)) {
     const at = m.index ?? 0;
-    if (NEGATED.test(text.slice(Math.max(0, at - 24), at))) continue;
+    if (negated(at)) continue;
     const sentence = text.slice(Math.max(0, text.lastIndexOf(".", at) + 1), text.indexOf(".", at) < 0 ? text.length : text.indexOf(".", at));
-    if (/kcal|calorie|protein|carb|fat|macro|nutrition/i.test(sentence)) problems.push(`"${m[0]}": nutrition is calculated or estimated, never exact`);
+    const flagged = /^guarantee/i.test(m[0]) ? /kcal|calorie|protein|carb|fat|macro|nutrition/i.test(sentence) : assertsExactNutrition(text, at, m[0]);
+    if (flagged) problems.push(`"${m[0]}": nutrition is calculated or estimated, never exact`);
   }
   return [...new Set(problems)];
 }
@@ -200,7 +275,9 @@ export async function runAgentTurn(
       historyAppend = g.contents;
     } catch (e) {
       fallbackReason = (e as Error).message || "Live model unavailable";
-      Object.assign(ctx.state, structuredClone(snapshot)); // undo partial tool effects
+      // Undo partial tool effects, including optional keys the snapshot didn't have.
+      for (const k of Object.keys(ctx.state)) if (!(k in snapshot)) delete (ctx.state as unknown as Record<string, unknown>)[k];
+      Object.assign(ctx.state, structuredClone(snapshot));
       const m = runMockTurn(userText, ctx);
       text = m.text;
       runs = m.toolRuns;
@@ -214,7 +291,7 @@ export async function runAgentTurn(
   const cards = cardsFrom(runs);
   deps.onProgress?.(VERIFYING);
   if (provider === "gemini") {
-    const bad = unverifiedNumbers(text, runs, ctx);
+    const bad = unverifiedNumbers(text, runs, ctx, { userTexts: [userText], history });
     if (bad.length)
       cards.unshift({ kind: "notice", tone: "warn", text: `Check: ${bad.join(", ")} in this reply wasn't produced by MacroTable's tools. The card values are authoritative.` });
     const over = overstatedConfidence(text, runs, ctx);
@@ -257,6 +334,7 @@ export function runContextTurn(kind: "restaurant" | "meal" | "scan" | "prepare",
     const d = ctx.state.orderDrafts.at(-1);
     text = d?.mode === "handoff" ? `Here's a summary to show at the counter — ${d.restaurantName} isn't connected, so nothing is sent.` : d ? `Order prepared for ${d.mode}. Review it and tap Approve to send it — nothing is ordered until you do.` : "There's no recommendation to order yet.";
   } else if (kind === "scan") {
+    setPresence(ctx.state, SCAN_RESTAURANT_ID);
     call("analyzeMenuImage");
     const r = call("optimizeMeal", { restaurantId: SCAN_RESTAURANT_ID });
     const rec = ctx.state.currentRecommendation;
@@ -266,7 +344,7 @@ export function runContextTurn(kind: "restaurant" | "meal" | "scan" | "prepare",
       : `I read the menu${src}, but no dish has enough information and a known price to recommend. You could ask staff for nutrition details.`;
   } else if (kind === "restaurant" && getRestaurant(arg)?.identity === "real") {
     const r = getRestaurant(arg)!;
-    ctx.state.currentRestaurantId = r.id;
+    setPresence(ctx.state, r.id);
     ctx.state.anchorRestaurantId = r.id;
     call("getMenu", { restaurantId: r.id });
     text = `You're at ${r.name}, a real restaurant that isn't affiliated with MacroTable. I have no menu, prices or nutrition for it, and I won't guess. Scan the menu and I'll read it and find what fits your ${t.calories} kcal / ≥${t.protein} g protein, with lower confidence.`;
@@ -288,8 +366,11 @@ export function runContextTurn(kind: "restaurant" | "meal" | "scan" | "prepare",
     const args = kind === "meal" ? { mealId: arg } : { restaurantId: arg };
     const r = call("optimizeMeal", args);
     const rec = ctx.state.currentRecommendation;
-    // The user opened the agent FROM this restaurant (QR, restaurant or meal page): follow-ups stay here.
-    ctx.state.anchorRestaurantId = kind === "restaurant" ? (arg ?? null) : (rec?.restaurantId ?? null);
+    // The user opened the agent FROM this restaurant (QR, restaurant or meal page): they are there,
+    // and follow-ups stay there. (The recommendation itself never sets presence.)
+    const opened = kind === "restaurant" ? (arg ?? null) : (rec?.restaurantId ?? null);
+    ctx.state.anchorRestaurantId = opened;
+    if (opened && catalog().some((x) => x.id === opened)) setPresence(ctx.state, opened);
     const name = kind === "restaurant" ? getRestaurant(arg)?.name : rec?.restaurantName;
     if (!r.ok || !rec) {
       text = `You're at ${name ?? "this restaurant"}. Nothing here fits ${t.calories} kcal / ≥${t.protein} g protein within €${t.maxBudget} using supported options. Want me to compare other stores?`;

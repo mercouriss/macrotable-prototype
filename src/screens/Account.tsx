@@ -149,7 +149,7 @@ function EmptyState({ icon, title, text, cta, to }: { icon: IconName; title: str
 }
 
 export function Profile() {
-  const { scenarioId, target, lock, resetDemo } = useAppState();
+  const { scenarioId, baseTarget: target, lock, resetDemo } = useAppState();
   const navigate = useNavigate();
   const saved = useSavedMeals();
   const [note, setNote] = useState<string | null>(null);

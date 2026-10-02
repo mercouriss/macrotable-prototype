@@ -21,7 +21,8 @@ const DIETS: { id: Diet; label: string }[] = [
 ];
 
 export function Preferences() {
-  const { target, prefs, setTarget, setPrefs, resetTargets, scenarioId, lock, log } = useAppState();
+  // Preferences edit the daily BASE target; what is left today is derived from it (lib/ledger).
+  const { baseTarget: target, prefs, setTarget, setPrefs, resetTargets, scenarioId, lock, log } = useAppState();
   const [params] = useSearchParams();
   const scope = params.get("scope");
   const navigate = useNavigate();

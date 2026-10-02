@@ -131,6 +131,17 @@ const summary = (c: ScoredConfiguration) => ({
   reachesTarget: c.meets,
 });
 
+/** The restaurant a follow-up without a restaurant refers to (see AgentSessionState.referenceRestaurantId). */
+export function referencedRestaurantId(state: AgentSessionState): string | null {
+  return state.referenceRestaurantId ?? state.currentRestaurantId ?? state.currentRecommendation?.restaurantId ?? null;
+}
+
+/** Explicit context: the user is at this restaurant (also what follow-ups now refer to). */
+export function setPresence(state: AgentSessionState, restaurantId: string | null) {
+  state.currentRestaurantId = restaurantId;
+  state.referenceRestaurantId = restaurantId;
+}
+
 // ─── Tools ────────────────────────────────────────────────────────────────
 
 const getUserContext: ToolDef = {
@@ -350,7 +361,9 @@ const optimizeMeal: ToolDef = {
     }
     const card = toCard(best, target, [...rejected]);
     ctx.state.currentRecommendation = card;
-    ctx.state.currentRestaurantId = best.restaurant.id;
+    // A recommendation is something to refer back to, not where the user is: presence
+    // (currentRestaurantId → "Currently at") is only set by explicit context.
+    ctx.state.referenceRestaurantId = best.restaurant.id;
     const e = explainConfiguration(best, target);
     return {
       ok: true,
@@ -373,7 +386,7 @@ const explainProvenance: ToolDef = {
   parameters: { type: "object", properties: { mealId: { type: "string" }, restaurantId: { type: "string" } } },
   run: (a, { state }) => {
     const f = typeof a.mealId === "string" ? resolveMeal(a.mealId, state) : undefined;
-    const r = f?.restaurant ?? restaurantsInScope(typeof a.restaurantId === "string" ? a.restaurantId : (state.currentRestaurantId ?? undefined), state)[0];
+    const r = f?.restaurant ?? restaurantsInScope(typeof a.restaurantId === "string" ? a.restaurantId : (referencedRestaurantId(state) ?? undefined), state)[0];
     if (!r) return { ok: false, result: { error: "Specify mealId or restaurantId." } };
     const prov = f?.meal.provenance ?? (r.integrationLevel === 3 ? "verified" : r.integrationLevel === 2 ? "official" : "estimated");
     const meaning: Record<string, string> = {
