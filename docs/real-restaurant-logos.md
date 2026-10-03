@@ -25,7 +25,7 @@ When no authentic first-party asset exists, the neutral dashed placeholder stays
 
 ## Real restaurants: audit of all 19 (checked 2026-09-30)
 
-**AUTHENTIC REAL LOGOS: 16 / 19 · PLACEHOLDERS REMAINING: 3 / 19**
+**AUTHENTIC REAL LOGOS: 17 / 19 · PLACEHOLDERS REMAINING: 2 / 19** (Lokanta added 2026-10-03)
 
 | Restaurant | Official website | Authentic logo found? | Exact first-party source | Asset type | Local file | Notes |
 |---|---|---|---|---|---|---|
@@ -36,7 +36,7 @@ When no authentic first-party asset exists, the neutral dashed placeholder stays
 | Coffeecompany Erasmus | coffeecompany.nl | **YES** | `coffeecompany.nl/assets/svg/logo-cbc777e6….svg` | header logo (**SVG**) | `logos/real/coffeecompany-eur.svg` | Chain brand logo; byte-identical SVG |
 | Erasmus Sport Café | erasmussport.nl | **YES** (parent brand) | `erasmussport.nl/wp-content/uploads/2020/05/Logo_Erasmus_Sport_2019_RGB-1.png` | parent-brand header logo (PNG) | `logos/real/erasmus-sport-cafe.webp` | The café is part of Erasmus Sport (its address is on erasmussport.nl); there's no café-specific mark |
 | Restobar Colette | coletterotterdam.nl | **YES** | `coletterotterdam.nl/_webblocks/images/colette_logo.svg` | header logo (**SVG**) | `logos/real/restobar-colette.svg` | Byte-identical SVG. The same site serves an "Osteria Vicini" `logo.svg` (a different restaurant): not used |
-| Lokanta Proeflokaal | lokanta-proeflokaal.nl | **NO** | — | — | — | **The official site is currently disabled**: host returns HTTP 402 "DEPLOYMENT_DISABLED" (it was live on 2026-09-29). The previously seen asset `/_astro/lokantaproeflokaal.….png` also returns 402. Its operating status may need re-checking; not changed here |
+| Lokanta Proeflokaal | lokanta-proeflokaal.nl | **YES** (2026-10-03) | `lokanta-proeflokaal.nl/_astro/lokantaproeflokaal.DsuDs63m.png` | header logo (PNG; the page's alt text is "Lokanta Proeflokaal Logo") | `logos/real/lokanta-proeflokaal.webp` | Re-checked 2026-10-03: the official site is live again (it returned HTTP 402 "DEPLOYMENT_DISABLED" on 2026-09-30). Resized to 360 px, lossless WebP, artwork unchanged |
 | Café Stobbe | cafestobbe.nl | **YES** | `cafestobbe.nl/wp-content/uploads/2019/08/Logo-Stobbe-Wit.svg` | header logo (**SVG**, white) | `logos/real/cafe-stobbe.svg` | Byte-identical; shown on a dark tile instead of being recoloured |
 | De Specialiteit | despecialiteit.nl | **YES** | `prod1-plate-attachments.s3.amazonaws.com/images/db26aa44d9/logo de specialiteit groen RGB.png`, loaded by `despecialiteit.nl/locatie/pniel` | header logo (PNG) from the site's own CMS media store | `logos/real/de-specialiteit-pniel.webp` | Multi-location brand logo |
 | De Boshut | deboshutrotterdam.nl | **YES** | `deboshutrotterdam.nl/wp-content/uploads/2025/08/favicon.png` | official site icon (round "DE BOS HUT" mark) | `logos/real/de-boshut.webp` | The horizontal header logo is cream-on-transparent and unreadable at card size; the name-bearing round mark is used instead |

@@ -124,9 +124,9 @@ describe("real-logo registry: authentic first-party assets with provenance", () 
 
   it("real venues without an entry keep the placeholder (no logo field at all)", () => {
     const without = REAL.filter((r) => !REAL_LOGOS[r.id]).map((r) => r.id).sort();
-    expect(without).toEqual(["lokanta-proeflokaal", "macho-mama", "the-commons"]);
+    expect(without).toEqual(["macho-mama", "the-commons"]);
     for (const id of without) expect(getRestaurant(id)!.logo).toBeUndefined();
-    expect(Object.keys(REAL_LOGOS)).toHaveLength(16);
+    expect(Object.keys(REAL_LOGOS)).toHaveLength(17);
   });
 });
 
@@ -146,8 +146,9 @@ describe("demo logos stay fictional", () => {
 describe("restaurant data unchanged apart from presentation-only logos", () => {
   it("menus, prices, nutrition, modifiers, identities, locations and integration levels are byte-identical to d6bccdc", () => {
     // The farther-out showcase demo brands (added 2026-10-02) are new data; everything that existed is unchanged.
+    // `tableService` (2026-10-03) is normal-mode fulfilment presentation (Dine in + table), never study data.
     const existing = RESTAURANTS.filter((r) => !(r.id in SHOWCASE_STORE_LOCATIONS));
-    const withoutLogos = JSON.stringify(existing, (k, v) => (k === "logo" ? undefined : v));
+    const withoutLogos = JSON.stringify(existing, (k, v) => (k === "logo" || k === "tableService" ? undefined : v));
     expect(createHash("sha256").update(withoutLogos).digest("hex")).toBe("c78de4260d401c7ae810afd0bea2bf11481325108fca58d89bd7af5b9f67da4c");
   });
 });
@@ -159,8 +160,8 @@ describe("honest labels stay next to every logo (Explore)", () => {
   it("every real restaurant card: 'Real · not affiliated' — with its authentic logo or the placeholder", () => {
     const real = cards.filter((c) => c.includes("not affiliated"));
     expect(real).toHaveLength(REAL.length);
-    expect(real.filter((c) => c.includes('data-logo="real-official-site"'))).toHaveLength(16);
-    expect(real.filter((c) => c.includes('data-logo="placeholder"'))).toHaveLength(3);
+    expect(real.filter((c) => c.includes('data-logo="real-official-site"'))).toHaveLength(17);
+    expect(real.filter((c) => c.includes('data-logo="placeholder"'))).toHaveLength(2);
     for (const c of real) {
       expect(c).not.toContain(">DEMO<");
       expect(c).not.toMatch(/Full integration|Menu data/);

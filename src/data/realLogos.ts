@@ -256,4 +256,17 @@ export const REAL_LOGOS: Record<string, RealLogo> = {
     usageBasis: USAGE_BASIS,
     note: "Gold 'MAAS' wordmark the official (Wix-built) site loads from its own Wix media library.",
   },
+  "lokanta-proeflokaal": {
+    file: "logos/real/lokanta-proeflokaal.webp",
+    pageUrl: "https://lokanta-proeflokaal.nl/", // the page's rel=canonical
+    assetUrl: "https://www.lokanta-proeflokaal.nl/_astro/lokantaproeflokaal.DsuDs63m.png",
+    sourceDomain: "lokanta-proeflokaal.nl",
+    sourceType: "official-site-logo",
+    retrievedOn: "2026-10-03",
+    processing: RESIZE(360),
+    background: "light",
+    aspect: 2.8,
+    usageBasis: USAGE_BASIS,
+    note: "Teal mark and 'LOKANTA PROEFLOKAAL' wordmark from the site's header (alt text 'Lokanta Proeflokaal Logo'). The site was disabled (HTTP 402) on 2026-09-30 and is live again.",
+  },
 };

@@ -14,6 +14,7 @@ import { PERSONA } from "../data/scenarios";
 import { euro, euroShort, greeting } from "../lib/format";
 import { menuState, restaurantMenuPath } from "../lib/menuNav";
 import type { ScoredConfiguration } from "../lib/optimizer";
+import { cameFromQr } from "../lib/qrEntry";
 import { useSavedMeals } from "../lib/saved";
 import { useAppState } from "../state/AppState";
 import { useSearch } from "../state/useMealSelection";
@@ -37,8 +38,9 @@ export function Home() {
     navigate(`/macrotable/meal/${c.meal.id}`);
   };
 
-  // First run: short onboarding (skipped during research trials to keep timing comparable).
-  if (!settings.onboardingDone && !lock) return <Navigate to="/welcome" replace />;
+  // First run: short onboarding (skipped during research trials to keep timing comparable, and for a tab that
+  // arrived through a restaurant QR: that visitor was taken straight to the restaurant and returns here after ordering).
+  if (!settings.onboardingDone && !lock && !cameFromQr()) return <Navigate to="/welcome" replace />;
 
   const nearby = search.recommendations;
   const lastSaved = !lock ? saved.map((s) => ({ s, f: getMeal(s.mealId) })).find((x) => x.f) : undefined;

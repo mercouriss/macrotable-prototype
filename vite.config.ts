@@ -29,7 +29,7 @@ const commit = (() => {
  *    (participant links, /demo, /research…) so those return HTTP 200. Pages redirects
  *    /experiment → /experiment/ (query kept); the app strips the trailing slash.
  */
-const ENTRY_ROUTES = ["macrotable", "baseline", "research", "experiment", "demo", "privacy", "welcome"];
+const ENTRY_ROUTES = ["macrotable", "baseline", "research", "experiment", "demo", "privacy", "welcome", "r/fitkitchen"]; // r/fitkitchen: the Demo Day presentation QR
 
 function spaFallback(): Plugin {
   return {

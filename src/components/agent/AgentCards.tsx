@@ -5,6 +5,7 @@ import type { AgentCard, RecommendationCardData, ScannedItem, ScannedMenu, Store
 import { formatDistance } from "../../data/geo";
 import { getRestaurant } from "../../data/restaurants";
 import { getOrders } from "../../lib/experiment";
+import { needsTable, normalizeTable, TABLES } from "../../lib/fulfillment";
 import { menuState, restaurantMenuPath } from "../../lib/menuNav";
 import { completedOrderFor } from "../../lib/orderState";
 import { AcceptanceSequence } from "../AcceptanceSequence";
@@ -232,7 +233,7 @@ function RecommendationCard({ rec, since, originId }: { rec: RecommendationCardD
 function OrderCard({ draftId }: { draftId: string }) {
   const { state, approveDraft, cancelDraft } = useAgent();
   const navigate = useNavigate();
-  const { lock } = useAppState();
+  const { lock, dining, setDining } = useAppState();
   const [justApproved, setJustApproved] = useState(false);
   const d = state.orderDrafts.find((x) => x.id === draftId);
   if (!d) return null;
@@ -241,10 +242,13 @@ function OrderCard({ draftId }: { draftId: string }) {
   const elsewhere = d.status === "awaiting-approval" ? completedOrderFor(d, { since: d.createdAt ?? Number.MAX_SAFE_INTEGER }, getOrders()) : undefined;
   const placed = d.orderNumber ? getOrders().find((o) => o.orderNumber === d.orderNumber) : undefined;
   const restaurant = getRestaurant(d.restaurantId);
+  // Normal mode, table-service restaurant: an in-store draft is dine-in and needs the user's table (trials unchanged).
+  const dineIn = !!restaurant && needsTable(restaurant, d.mode === "in-store" ? "in-store" : "pickup", !!lock);
+  const table = dineIn && dining?.restaurantId === d.restaurantId ? (normalizeTable(dining.table) ?? undefined) : undefined;
   return (
     <div className="rounded-2xl border border-ink/15 bg-surface p-4 shadow-card">
       <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-3">
-        {handoff ? "Show at the counter" : d.mode === "pickup" ? `Pickup order · ready ~${d.readyInMinutes ?? 15} min` : "In-store order"}
+        {handoff ? "Show at the counter" : d.mode === "pickup" ? `Pickup order · ready ~${d.readyInMinutes ?? 15} min` : dineIn ? (table ? `Dine in · Table ${table}` : "Dine-in order") : "In-store order"}
       </p>
       <p className="mt-1 flex items-center gap-2 text-[15px] font-semibold">
         {restaurant && <BrandMark restaurant={restaurant} size={22} />}
@@ -264,16 +268,35 @@ function OrderCard({ draftId }: { draftId: string }) {
         </p>
       ) : d.status === "awaiting-approval" ? (
         <>
+          {dineIn && (
+            <label className="mt-3 flex min-h-12 items-center justify-between gap-3 rounded-xl border border-line px-3 py-1.5">
+              <span className="text-[13.5px] font-semibold">Your table</span>
+              <select
+                aria-label="Your table"
+                value={table ?? ""}
+                onChange={(e) => setDining({ restaurantId: d.restaurantId, mode: "in-store", table: e.target.value || undefined })}
+                className="min-h-10 rounded-lg border border-line bg-surface px-2.5 text-[14px] font-semibold text-ink"
+              >
+                <option value="">Choose…</option>
+                {TABLES.map((t) => (
+                  <option key={t} value={t}>
+                    Table {t}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
             <button
+              {...(dineIn ? { disabled: !table } : {})}
               onClick={() => {
-                const r = approveDraft(d.id);
+                const r = approveDraft(d.id, table);
                 if (r?.research) navigate("/experiment/done", { replace: true, state: { completed: true } });
                 else if (r) setJustApproved(true);
               }}
-              className="min-h-11 rounded-xl bg-brand px-4 text-[14px] font-semibold text-white hover:bg-brand-hover"
+              className={`min-h-11 rounded-xl bg-brand px-4 text-[14px] font-semibold text-white hover:bg-brand-hover${dineIn ? " disabled:opacity-50" : ""}`}
             >
-              {handoff ? "Done — I'll order at the counter" : "Approve & send order"}
+              {handoff ? "Done — I'll order at the counter" : dineIn && !table ? "Choose your table" : "Approve & send order"}
             </button>
             <button onClick={() => cancelDraft(d.id)} className="min-h-11 rounded-xl border border-line px-4 text-[14px] font-medium text-ink-2">
               Cancel
@@ -288,7 +311,7 @@ function OrderCard({ draftId }: { draftId: string }) {
           <AcceptanceSequence order={placed} restaurant={restaurant} animate={justApproved} compact>
             <div className="flex items-center justify-between gap-2">
               <p className="text-[13px] font-semibold text-brand">
-                {d.mode === "in-store" ? "Counter" : "Pickup"} code {placed.pickupCode}
+                {placed.table ? `Table ${placed.table} · code` : d.mode === "in-store" ? "Counter code" : "Pickup code"} {placed.pickupCode}
               </p>
               <Link to={`/macrotable/ticket/${placed.orderNumber}`} className="text-[12.5px] font-semibold text-brand underline underline-offset-2">
                 Kitchen ticket

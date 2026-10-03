@@ -42,7 +42,8 @@ interface AgentApi {
   send: (text: string, source?: "typed" | "chip") => Promise<void>;
   openContext: (kind: "restaurant" | "meal" | "scan", id?: string, entry?: string) => void;
   prepare: (mode: ServiceMode | "handoff") => void;
-  approveDraft: (draftId: string) => { order: PlacedOrder; research: boolean } | null;
+  /** `table`: required when dining in at a table-service restaurant (normal mode). */
+  approveDraft: (draftId: string, table?: string) => { order: PlacedOrder; research: boolean } | null;
   cancelDraft: (draftId: string) => void;
   setScannedMenu: (m: ScannedMenu | null) => void;
   setCurrentRestaurant: (id: string | null) => void;
@@ -167,7 +168,7 @@ export function AgentStateProvider({ children }: { children: ReactNode }) {
         appRef.current.log("order_prepared", { detail: { mode } });
         runContext("prepare", mode === "handoff" ? "pickup" : mode);
       },
-      approveDraft: (draftId) => {
+      approveDraft: (draftId, table) => {
         const d = ref.current.orderDrafts.find((x) => x.id === draftId);
         if (!d || d.status !== "awaiting-approval") return null;
         // Already ordered through another path after this draft was prepared → no duplicate.
@@ -184,7 +185,7 @@ export function AgentStateProvider({ children }: { children: ReactNode }) {
         appRef.current.selectMeal(selection);
         // Log before placing: placing an order completes (and unlocks) a research trial.
         appRef.current.log("order_approved_in_agent", { mealId: d.mealId, detail: { mode: d.mode } });
-        const result = appRef.current.placeOrder(d.mode === "in-store" ? "in-store" : "pickup", selection);
+        const result = appRef.current.placeOrder(d.mode === "in-store" ? "in-store" : "pickup", selection, { table });
         if (!result) return null;
         markDone({ orderNumber: result.order.orderNumber, pickupCode: result.order.pickupCode });
         return result;

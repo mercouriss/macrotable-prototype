@@ -105,6 +105,12 @@ export interface Restaurant {
   priceRange?: "€" | "€€" | "€€€";
   /** Simulated service modes (demo brands). Empty for real restaurants: MacroTable makes no claim about them. */
   serviceModes: ServiceMode[];
+  /**
+   * Demo brands only: a full-service restaurant whose in-store option is table service ("Dine in", with a
+   * table number). Quick-service brands leave it unset (in-store = order at the counter). Normal mode only:
+   * research trials keep the original in-store presentation. Never sent to the agent's tools.
+   */
+  tableService?: boolean;
   pickupMinutes?: number;
   /** Original monogram identity for fictional demo brands (never used for real restaurants). Also the logo fallback. */
   brand?: { color: string; mark: string };
@@ -190,6 +196,8 @@ export interface PlacedOrder {
   serviceMode: ServiceMode | "handoff";
   /** Simulated pickup / counter code shown to the user and printed on the ticket. */
   pickupCode: string;
+  /** Dine-in at a table-service restaurant (normal mode): the table the user chose before approving. */
+  table?: string;
   sessionId?: string;
   meetsTarget: boolean;
   /** Agent recommendation card the order came from, if any (drives that card's "Order completed" state). */

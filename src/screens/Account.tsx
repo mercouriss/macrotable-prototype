@@ -39,7 +39,7 @@ export function Orders() {
                     {f && <BrandMark restaurant={f.restaurant} size={36} />}
                     <div className="min-w-0 flex-1">
                       <p className="text-[12.5px] text-ink-3">
-                        #{o.orderNumber} · {clock(o.placedAt)} · {o.handoff ? "Order at counter" : o.serviceMode === "in-store" ? `In-store · ${o.pickupCode}` : `Pickup · ${o.pickupCode}`}
+                        #{o.orderNumber} · {clock(o.placedAt)} · {o.handoff ? "Order at counter" : o.table ? `Dine in · Table ${o.table} · ${o.pickupCode}` : o.serviceMode === "in-store" ? `In-store · ${o.pickupCode}` : `Pickup · ${o.pickupCode}`}
                       </p>
                       <p className="truncate text-[15.5px] font-semibold">{f?.meal.name}</p>
                       <p className="tnum text-[13px] text-ink-2">

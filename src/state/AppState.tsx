@@ -5,6 +5,7 @@ import { APP_COMMIT, TREATMENT_VERSION } from "../lib/version";
 import { SCENARIOS } from "../data/scenarios";
 import { meetsTarget } from "../lib/feasibility";
 import { getOrders, nextOrderNumber, readJSON, saveOrder, STORAGE_KEYS, writeJSON } from "../lib/experiment";
+import { needsTable, normalizeTable, type DiningChoice } from "../lib/fulfillment";
 import { consumedToday, dailyLedger, localDay, readLedger, recordCounterHandoff, resetLedger, type CounterHandoff, type DailyLedger } from "../lib/ledger";
 import { computeConfiguration, configurationId, isSelectionSupported } from "../lib/nutrition";
 import { canPlaceSelection } from "../lib/orderState";
@@ -46,6 +47,8 @@ interface PersistedState {
   lock: ExperimentLock | null;
   /** Incremented by Reset demo so other session stores (the agent conversation) reset too. */
   demoEpoch?: number;
+  /** Normal mode: how the user is eating at a restaurant (Dine in + table, or Pickup), chosen on its QR landing or Review. */
+  dining?: DiningChoice | null;
 }
 
 export interface PlaceOrderResult {
@@ -81,8 +84,13 @@ interface AppStateValue extends PersistedState {
   abortExperiment: () => void;
   /** Research logging — a no-op outside an assigned trial (demo mode never logs). */
   log: (event: string, extra?: Partial<Pick<ExperimentEvent, "mealId" | "configurationId" | "detail">>) => void;
-  /** Places the current selection, or `selection` when given (the agent approves a specific draft). */
-  placeOrder: (mode?: ServiceMode, selection?: MealSelection) => PlaceOrderResult | null;
+  /**
+   * Places the current selection, or `selection` when given (the agent approves a specific draft). Dining in at a
+   * table-service restaurant (normal mode) needs `table`; without a valid one nothing is placed.
+   */
+  placeOrder: (mode?: ServiceMode, selection?: MealSelection, opts?: { table?: string }) => PlaceOrderResult | null;
+  /** Remember the dining choice for a restaurant (normal mode; ignored during a research trial). */
+  setDining: (choice: DiningChoice | null) => void;
   /** Demo lock: Scenario A, canonical data, no selection, no saved meals, a fresh daily ledger (order history kept). Refused during a research trial. */
   resetDemo: () => boolean;
   /** The engine every agent turn and menu scan must use right now (resolveAgentEngine). */
@@ -214,7 +222,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     commit({ ...initialFor(s.scenarioId), lock: null });
   }, []);
 
-  const placeOrder = useCallback((mode: ServiceMode = "pickup", explicit?: MealSelection): PlaceOrderResult | null => {
+  const placeOrder = useCallback((mode: ServiceMode = "pickup", explicit?: MealSelection, opts?: { table?: string }): PlaceOrderResult | null => {
     const s = explicit ? { ...stateRef.current, selection: explicit } : stateRef.current;
     if (!s.selection) return null;
     // Idempotent: an attempt that was already ordered can never be submitted again (double tap,
@@ -224,6 +232,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     if (!found || !found.meal.nutrition || !isSelectionSupported(found.meal, s.selection.selections)) return null;
     // Study boundary: during a trial only the frozen study restaurants can complete it.
     if (s.lock && !(STUDY_RESTAURANT_IDS as readonly string[]).includes(found.restaurant.id)) return null;
+    // Dine in at a table-service restaurant needs a table (normal mode; trials keep the original in-store flow).
+    const tableNeeded = needsTable(found.restaurant, mode, !!s.lock);
+    const table = tableNeeded ? normalizeTable(opts?.table) : null;
+    if (tableNeeded && !table) return null;
     const { nutrition, price } = computeConfiguration(found.meal, s.selection.selections);
     // "Fits" is judged against what was left before this meal (the assigned target during a trial).
     const before = s.lock ? s.target : ledgerFor(s.target).remaining;
@@ -243,6 +255,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       pickupCode: pickupCodeFor(nextOrderNumber()),
       sessionId: s.lock?.sessionId,
       ...(s.selection.origin ? { origin: s.selection.origin } : {}),
+      ...(table ? { table } : {}),
       meetsTarget: meetsTarget(nutrition, before),
     };
     saveOrder(order);
@@ -287,6 +300,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           commit(initialFor(id));
         },
         setTarget: (patch) => setState((s) => ({ ...s, target: { ...s.target, ...patch } })),
+        setDining: (choice) => {
+          if (stateRef.current.lock) return;
+          commit({ ...stateRef.current, dining: choice });
+        },
         setPrefs: (patch) =>
           setState((s) => {
             const prefs = { ...s.prefs, ...patch };

@@ -9,13 +9,14 @@ import { approx, ProvenanceBadge } from "../components/ProvenanceBadge";
 import { Screen } from "../components/Screen";
 import { Button, Callout, Card } from "../components/ui";
 import { euro } from "../lib/format";
+import { fulfilmentLabel, needsTable, normalizeTable, offersDineIn, TABLES } from "../lib/fulfillment";
 import { changesFromDefault, describeChange } from "../lib/nutrition";
 import { useAppState } from "../state/AppState";
 import { useMealSelection } from "../state/useMealSelection";
 
 /** Screen 8 — explicit approval. Nothing is ordered automatically. */
 export function Review() {
-  const { selection, placeOrder, target, prefs } = useAppState();
+  const { selection, placeOrder, target, prefs, lock, dining, setDining } = useAppState();
   const navigate = useNavigate();
   const { found, config, inBudget } = useMealSelection(selection?.mealId);
   const [mode, setMode] = useState<ServiceMode>("pickup");
@@ -26,9 +27,17 @@ export function Review() {
   const changes = changesFromDefault(meal, config.selections);
   const ap = approx(meal.provenance);
 
+  // Normal mode at a table-service restaurant: "Dine in" (with a table) or "Pickup", remembered per restaurant.
+  // Trials and quick-service restaurants keep the original Pickup / Eat in-store choice below.
+  const dineInFlow = !lock && !handoff && offersDineIn(restaurant);
+  const choice = dineInFlow && dining?.restaurantId === restaurant.id ? dining : null;
+  const orderMode: ServiceMode = dineInFlow ? (choice?.mode ?? "pickup") : mode;
+  const table = orderMode === "in-store" ? (normalizeTable(choice?.table) ?? undefined) : undefined;
+  const tableMissing = needsTable(restaurant, orderMode, !!lock) && !table;
+
   const placed = selection?.placedOrderNumber;
   const confirm = () => {
-    const result = placeOrder(mode);
+    const result = placeOrder(orderMode, undefined, { table });
     if (!result) return;
     if (result.research) navigate("/experiment/done", { replace: true, state: { completed: true } });
     else navigate(`/macrotable/success/${result.order.orderNumber}`, { replace: true, state: { fresh: true } });
@@ -50,8 +59,8 @@ export function Review() {
               </Link>
             </>
           ) : (
-            <Button disabled={!inBudget} onClick={confirm} icon={handoff ? "handoff" : "check"}>
-              {handoff ? "Approve hand-off summary" : "Approve order"}
+            <Button disabled={!inBudget || tableMissing} onClick={confirm} icon={handoff ? "handoff" : "check"}>
+              {handoff ? "Approve hand-off summary" : tableMissing ? "Choose your table to approve" : "Approve order"}
             </Button>
           )}
           <p className="text-center text-[12.5px] text-ink-3">Nothing is ordered until you approve · simulated, no payment</p>
@@ -60,7 +69,7 @@ export function Review() {
     >
       <h2 className="mt-2 font-display text-[26px] font-semibold tracking-[-0.02em]">{handoff ? "Ready to hand off" : "Ready to order"}</h2>
       <p className="mt-1 flex items-center gap-1.5 text-[14px] text-ink-2">
-        <BrandMark restaurant={restaurant} size={20} /> {restaurant.name} · {handoff ? "order at the counter" : "pickup or in-store"}
+        <BrandMark restaurant={restaurant} size={20} /> {restaurant.name} · {handoff ? "order at the counter" : dineInFlow ? "dine in or pickup" : "pickup or in-store"}
       </p>
 
       <Card className="mt-5 p-5">
@@ -106,7 +115,55 @@ export function Review() {
         </div>
       </Card>
 
-      {!handoff && (
+      {dineInFlow && (
+        <fieldset className="mt-4">
+          <legend className="mb-2 text-[13px] font-medium text-ink-2">How will you eat?</legend>
+          <div role="radiogroup" aria-label="Dining option" className="grid grid-cols-2 gap-1 rounded-2xl bg-sunken p-1">
+            {(
+              [
+                ["in-store", "Dine in"],
+                ["pickup", `Pickup · ~${restaurant.pickupMinutes} min`],
+              ] as [ServiceMode, string][]
+            )
+              .filter(([m]) => restaurant.serviceModes.includes(m))
+              .map(([m, label]) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="radio"
+                  aria-checked={orderMode === m}
+                  onClick={() => setDining({ restaurantId: restaurant.id, mode: m, table: choice?.table })}
+                  className={`min-h-11 rounded-xl text-[13.5px] font-semibold ${orderMode === m ? "bg-surface text-ink shadow-card" : "text-ink-3"}`}
+                >
+                  {label}
+                </button>
+              ))}
+          </div>
+          {orderMode === "in-store" && (
+            <label className="mt-3 flex min-h-14 items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-4 py-2">
+              <span className="text-[14.5px] font-semibold">Your table</span>
+              <select
+                aria-label="Your table"
+                value={table ?? ""}
+                onChange={(e) => setDining({ restaurantId: restaurant.id, mode: "in-store", table: e.target.value || undefined })}
+                className="min-h-11 rounded-xl border border-line bg-surface px-3 text-[15px] font-semibold text-ink"
+              >
+                <option value="">Choose…</option>
+                {TABLES.map((t) => (
+                  <option key={t} value={t}>
+                    Table {t}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <p data-fulfilment className="mt-3 text-center text-[12.5px] font-semibold tracking-[0.08em] text-ink-2">
+            {tableMissing ? "DINE IN · CHOOSE YOUR TABLE" : fulfilmentLabel({ serviceMode: orderMode, table })}
+          </p>
+        </fieldset>
+      )}
+
+      {!handoff && !dineInFlow && (
         <fieldset className="mt-4">
           <legend className="mb-2 text-[13px] font-medium text-ink-2">How will you get it?</legend>
           <div role="radiogroup" aria-label="Order type" className="grid grid-cols-2 gap-1 rounded-2xl bg-sunken p-1">

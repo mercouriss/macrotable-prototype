@@ -81,7 +81,7 @@ export function Success() {
           <AcceptanceSequence order={order} restaurant={restaurant} animate={fresh}>
             <div className="text-center">
               <p className="tnum inline-block rounded-full bg-brand-soft px-4 py-2 text-[13.5px] font-medium text-brand">
-                {order.serviceMode === "in-store" ? "In-store" : "Pickup"} code <span className="font-bold">{order.pickupCode}</span>
+                {order.table ? `Dine in · Table ${order.table} · ` : order.serviceMode === "in-store" ? "In-store " : "Pickup "}code <span className="font-bold">{order.pickupCode}</span>
                 {order.serviceMode === "pickup" ? ` · ready in ~${restaurant.pickupMinutes} min` : ""}
               </p>
               <div className="mt-6">
