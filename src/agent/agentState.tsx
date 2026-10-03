@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getMeal } from "../data/restaurants";
 import { getOrders } from "../lib/experiment";
+import { scanLedgerId } from "../lib/ledger";
 import { completedOrderFor } from "../lib/orderState";
 import { useAppState } from "../state/AppState";
 import type { PlacedOrder, ServiceMode } from "../types";
@@ -178,7 +179,15 @@ export function AgentStateProvider({ children }: { children: ReactNode }) {
         if (!getMeal(d.mealId)) {
           markDone({}); // scanned-menu dish: nothing to send — the user orders at the counter
           // …but they confirmed the meal, so it counts toward today (normal mode only; once per draft).
-          appRef.current.recordCounterHandoff({ id: d.id, at: Date.now(), nutrition: d.nutrition });
+          const scan = ref.current.scannedMenu;
+          appRef.current.recordCounterHandoff({
+            id: scan ? scanLedgerId(scan.scanId, d.mealId) : d.id, // same id as "Add to today" for this dish: never counted twice
+            at: Date.now(),
+            nutrition: d.nutrition,
+            name: d.mealName,
+            provenance: d.provenance,
+            source: "counter-handoff",
+          });
           return null;
         }
         const selection = { mealId: d.mealId, selections: d.selections, recommended: d.selections };

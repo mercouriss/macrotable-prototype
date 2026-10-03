@@ -139,7 +139,7 @@ describe("full menu structure", () => {
 
 describe("scanned menu: best match first, then every dish read", () => {
   const menu = simulatedExtraction("scan-1", 0);
-  const scanned = (best?: { id: string; meets: boolean }) => decode(renderToString(h(SheetProvider, null, h(FullScannedMenu, { menu, best }))));
+  const scanned = (best?: { id: string; meets: boolean }) => decode(renderToString(h(AppStateProvider, null, h(SheetProvider, null, h(FullScannedMenu, { menu, best })))));
   const item = (html: string, name: string) => rows(html, "data-scan-item").find((x) => x.includes(`>${name}`))!;
 
   it("9. the recommendation card comes before the scanned menu (normal mode only)", () => {

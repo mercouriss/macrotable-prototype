@@ -7,6 +7,7 @@ import { getRestaurant } from "../../data/restaurants";
 import { getOrders } from "../../lib/experiment";
 import { needsTable, normalizeTable, TABLES } from "../../lib/fulfillment";
 import { menuState, restaurantMenuPath } from "../../lib/menuNav";
+import { isLogged, scanMealEntry } from "../../lib/ledger";
 import { completedOrderFor } from "../../lib/orderState";
 import { AcceptanceSequence } from "../AcceptanceSequence";
 import { BrandMark } from "../BrandMark";
@@ -14,6 +15,7 @@ import { MacroFit } from "../MacroFit";
 import { euro } from "../../lib/format";
 import { Icon } from "../Icon";
 import { approx, ProvenanceBadge } from "../ProvenanceBadge";
+import { useSheet } from "../Sheet";
 import { useAppState } from "../../state/AppState";
 
 /**
@@ -376,6 +378,75 @@ const NUTRIENTS = [
 /** Value for one nutrient of a scanned dish: "≈" unless that number was printed on the menu. */
 const scannedValue = (i: ScannedItem, k: (typeof NUTRIENTS)[number][0]) => `${i.printedFields.includes(k) ? "" : "≈ "}${i.nutrition![k]}`;
 
+/** How a scanned dish's nutrition was obtained, in the Add-to-today confirmation (the label itself is unchanged). */
+const SCAN_CONFIDENCE: Record<Exclude<ScannedItem["provenance"], "insufficient">, string> = {
+  "menu-read": "Printed on the menu you scanned. Not verified by the restaurant.",
+  estimated: "Estimated from the scanned menu. Actual nutrition may differ.",
+};
+
+/**
+ * "Add to today" for one dish on a scanned (external) menu: the user records the meal they actually chose.
+ * Nothing happens until they confirm. It reuses the daily ledger's non-order entry (no order, ticket or
+ * payment, nothing sent), keeps the dish's ORIGINAL provenance, and is idempotent per dish and scan, so a
+ * repeated tap, a refresh or the agent's counter hand-off for the same dish never counts it twice.
+ */
+function AddToToday({ item, scanId }: { item: ScannedItem; scanId: string }) {
+  const { recordCounterHandoff } = useAppState(); // re-renders when the ledger changes
+  const sheet = useSheet();
+  const entry = scanMealEntry(item, scanId);
+  if (!entry)
+    return (
+      <p data-add-today="unavailable" className="mt-1 text-[12px] text-ink-3">
+        Not enough nutrition information to add this to today reliably.
+      </p>
+    );
+  if (isLogged(entry.id))
+    return (
+      <p data-add-today="added" className="mt-1 inline-flex items-center gap-1 text-[12.5px] font-semibold text-brand">
+        <Icon name="check" size={13} stroke={2.6} /> Added to today
+      </p>
+    );
+  const add = () => {
+    recordCounterHandoff({ ...entry, at: Date.now() }); // deterministic ledger update; idempotent per dish
+    sheet.close();
+  };
+  return (
+    <button
+      type="button"
+      data-add-today="offer"
+      onClick={() => sheet.openCustom("Add this meal to today?", <AddToTodayConfirm item={item} onCancel={sheet.close} onAdd={add} />)}
+      className="mt-1 inline-flex min-h-9 items-center gap-1 rounded-full border border-line px-3 text-[12.5px] font-semibold text-brand"
+    >
+      + Add to today
+    </button>
+  );
+}
+
+/** The confirmation shown before a scanned dish is added to today: name, macros (≈ = estimated), its own label. */
+export function AddToTodayConfirm({ item, onCancel, onAdd }: { item: ScannedItem; onCancel: () => void; onAdd: () => void }) {
+  if (item.provenance === "insufficient" || !item.nutrition) return null;
+  return (
+    <div data-add-today="confirm">
+      <p className="text-[17px] font-semibold">{item.name}</p>
+      <p className="tnum mt-1 text-[15px] text-ink">{NUTRIENTS.map(([k, unit]) => `${scannedValue(item, k)} ${unit}`).join(" · ")}</p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <ProvenanceBadge provenance={item.provenance} size="sm" />
+        <span className="text-[13px] text-ink-2">{SCAN_CONFIDENCE[item.provenance]}</span>
+      </div>
+      {item.printedFields.length < 4 && <p className="mt-1.5 text-[12.5px] text-ink-3">Values marked ≈ are estimates.</p>}
+      <p className="mt-3 text-[12.5px] text-ink-3">You're logging this yourself: it isn't an order, and nothing is sent to the restaurant.</p>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <button type="button" onClick={onCancel} className="min-h-11 rounded-xl border border-line px-4 text-[14px] font-medium text-ink-2">
+          Cancel
+        </button>
+        <button type="button" onClick={onAdd} className="min-h-11 rounded-xl bg-brand px-4 text-[14px] font-semibold text-white hover:bg-brand-hover">
+          Add to today
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const SCAN_NOTE: Record<ScannedItem["provenance"], string> = {
   "menu-read": "All four values are printed on the menu. Not verified by the restaurant.",
   estimated: "Values marked ≈ are estimated from the menu text and may differ; unmarked values are printed on the menu.",
@@ -434,6 +505,7 @@ export function FullScannedMenu({ menu, best }: { menu: ScannedMenu; best?: { id
                 </button>
                 <ProvenanceBadge provenance={i.provenance} size="sm" />
               </div>
+              <AddToToday item={i} scanId={menu.scanId} />
               {expanded && (
                 <div className="mt-1 mb-1 rounded-xl bg-sunken/70 px-3 py-2.5 text-[12.5px] text-ink-2">
                   {i.description && <p className="mb-1.5 text-ink">{i.description}</p>}

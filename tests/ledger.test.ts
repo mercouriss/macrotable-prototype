@@ -161,7 +161,8 @@ describe("C: hand-offs", () => {
     a.recordCounterHandoff({ id: "draft-1", at: Date.now(), nutrition: { calories: 610, protein: 42, carbs: 55, fat: 22 } });
     a.recordCounterHandoff({ id: "draft-1", at: Date.now(), nutrition: { calories: 610, protein: 42, carbs: 55, fat: 22 } });
     expect(load().ledger!.consumed.calories).toBe(610);
-    expect(readFileSync("src/agent/agentState.tsx", "utf8")).toMatch(/recordCounterHandoff\(\{ id: d\.id, at: Date\.now\(\), nutrition: d\.nutrition \}\)/);
+    // The agent's scanned-dish hand-off records under the same per-dish id as "Add to today" (never counted twice).
+    expect(readFileSync("src/agent/agentState.tsx", "utf8")).toMatch(/recordCounterHandoff\(\{\s*id: scan \? scanLedgerId\(scan\.scanId, d\.mealId\) : d\.id,[^}]*nutrition: d\.nutrition,[^}]*source: "counter-handoff",\s*\}\)/);
   });
 });
 

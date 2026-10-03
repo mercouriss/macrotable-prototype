@@ -1,4 +1,4 @@
-import type { Nutrition, PlacedOrder, UserTarget } from "../types";
+import type { Nutrition, PlacedOrder, Provenance, UserTarget } from "../types";
 import { readJSON, writeJSON } from "./experiment";
 
 /*
@@ -20,13 +20,39 @@ export type Macros = Pick<Nutrition, "calories" | "protein" | "carbs" | "fat">;
 export const MACRO_KEYS = ["calories", "protein", "carbs", "fat"] as const;
 const ZERO: Macros = { calories: 0, protein: 0, carbs: 0, fat: 0 };
 
-/** A confirmed meal with no order record: a scanned-menu dish the user said they'd order at the counter. */
+/**
+ * A confirmed meal with no order record: a scanned-menu dish the user said they'd order at the counter
+ * (agent hand-off) or added to today themselves (Add to today). Never an order, ticket or transaction.
+ */
 export interface CounterHandoff {
-  /** The agent draft id — confirming the same draft twice records it once. */
+  /** Stable per dish (`scanLedgerId`), so confirming the same dish again — by either path — records it once. */
   id: string;
   at: number;
   nutrition: Macros;
+  /** Optional context, kept as given: the dish, its ORIGINAL provenance (never upgraded) and how it was logged. */
+  name?: string;
+  provenance?: Provenance;
+  source?: "counter-handoff" | "manual-scan";
 }
+
+/** Ledger id for a dish on a scanned menu (one scan, one dish). */
+export const scanLedgerId = (scanId: string, itemId: string) => `scan:${scanId}:${itemId.replace(/^scan:/, "")}`;
+
+/**
+ * The ledger entry for "Add to today" on a scanned dish, or null when its nutrition is INSUFFICIENT (nothing
+ * reliable to log). The dish keeps its own provenance (MENU-READ / ESTIMATED), never upgraded.
+ */
+export function scanMealEntry(
+  item: { id: string; name: string; nutrition: Nutrition | null; provenance: Provenance },
+  scanId: string,
+  at = Date.now(),
+): CounterHandoff | null {
+  if (!item.nutrition || item.provenance === "insufficient") return null;
+  return { id: scanLedgerId(scanId, item.id), at, nutrition: pick(item.nutrition), name: item.name, provenance: item.provenance, source: "manual-scan" };
+}
+
+/** True if this confirmation is already in today's ledger history. */
+export const isLogged = (id: string) => readLedger().handoffs.some((h) => h.id === id);
 
 interface LedgerMeta {
   /** Reset demo boundary: confirmations before this instant no longer count (history is kept). */
@@ -52,11 +78,12 @@ export function resetLedger(now = Date.now()): void {
   write({ ...readLedger(), since: now });
 }
 
-/** Record a confirmed counter hand-off for a scanned dish. Idempotent by draft id. */
+/** Record a confirmed scanned-menu meal. Idempotent by id: a repeated tap, refresh or second path adds nothing. */
 export function recordCounterHandoff(h: CounterHandoff): boolean {
   const meta = readLedger();
   if (meta.handoffs.some((x) => x.id === h.id)) return false;
-  write({ ...meta, handoffs: [...meta.handoffs, { id: h.id, at: h.at, nutrition: pick(h.nutrition) }] });
+  const extra = { ...(h.name ? { name: h.name } : {}), ...(h.provenance ? { provenance: h.provenance } : {}), ...(h.source ? { source: h.source } : {}) };
+  write({ ...meta, handoffs: [...meta.handoffs, { id: h.id, at: h.at, nutrition: pick(h.nutrition), ...extra }] });
   return true;
 }
 
