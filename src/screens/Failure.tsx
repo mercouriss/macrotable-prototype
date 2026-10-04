@@ -8,6 +8,7 @@ import { Button, Card, Eyebrow } from "../components/ui";
 import { euro, euroShort } from "../lib/format";
 import { changesFromDefault, describeChange } from "../lib/nutrition";
 import { infeasibilityReasons } from "../lib/optimizer";
+import { activeCount, foodPhrase, NO_FOOD_FILTER } from "../lib/discovery";
 import { useAppState } from "../state/AppState";
 import { useSearch } from "../state/useMealSelection";
 
@@ -15,24 +16,30 @@ import { useSearch } from "../state/useMealSelection";
 export function Failure() {
   const [params] = useSearchParams();
   const scope = params.get("scope");
-  const r = useSearch(scope);
-  const { target, prefs, selectMeal, log } = useAppState();
+  const { target, prefs, selectMeal, log, lock, discovery, setDiscovery } = useAppState();
+  // Normal mode: the "What do you feel like?" choice. Never silently swapped for a different kind of food.
+  const food = !lock && activeCount(discovery.food) ? discovery.food : undefined;
+  const r = useSearch(scope, food);
   const navigate = useNavigate();
   const c = r.closest;
   const where = r.scope ? r.scope.name : "any restaurant nearby";
-  // Which hard constraint failed first: diet → budget → macro match.
-  const kind: "diet" | "budget" | "match" = r.stats.matchingDiet === 0 ? "diet" : r.ranked.length === 0 ? "budget" : "match";
+  // Which constraint failed first: the food choice itself (no such dish at all) → diet → budget → macro match.
+  const kind: "food" | "diet" | "budget" | "match" =
+    food && r.stats.meals === 0 ? "food" : r.stats.matchingDiet === 0 ? "diet" : r.ranked.length === 0 ? "budget" : "match";
+  const want = food ? foodPhrase(food) : "";
   const cheapest = r.meals
     .map((m) => m.cheapestOverBudget)
     .filter((x): x is NonNullable<typeof x> => !!x)
     .sort((a, b) => a.price - b.price)[0];
   const dietLabel = prefs.diet === "none" ? "" : prefs.diet;
   const title = {
+    food: `Nothing on the menus${r.scope ? ` at ${r.scope.name}` : ""} matches ${want}`,
     diet: `No ${dietLabel || "matching"} meals${r.scope ? ` at ${r.scope.name}` : ""}`,
     budget: `Nothing fits ${euroShort(target.maxBudget)}`,
     match: "No exact configuration available",
   }[kind];
   const body = {
+    food: `None of the restaurants with menu data${r.scope ? ` (${r.scope.name})` : ""} has a dish matching ${want}. MacroTable only uses their own menus, so it won't suggest a different kind of food instead.`,
     diet: `None of the available dishes${r.scope ? ` at ${r.scope.name}` : ""} match your preferences${
       prefs.diet !== "none" ? ` (${prefs.diet}${prefs.noSpicy ? ", no spicy food" : ""})` : prefs.noSpicy ? " (no spicy food)" : ""
     }. MacroTable only uses the restaurant's own dietary labels and doesn't guess.`,
@@ -41,6 +48,10 @@ export function Failure() {
       : `Nothing is available within ${euroShort(target.maxBudget)}.`,
     match: `No supported configuration at ${where} reaches ${target.calories} kcal (±10%) with at least ${target.protein} g protein within ${euroShort(target.maxBudget)}. MacroTable won't invent modifications to get there.`,
   }[kind];
+  const showAllFood = () => {
+    setDiscovery({ food: NO_FOOD_FILTER });
+    navigate(`/macrotable/search${scope ? `?scope=${scope}` : ""}`);
+  };
 
   const showClosest = () => {
     if (!c) return;
@@ -55,7 +66,12 @@ export function Failure() {
       back="/macrotable/preferences"
       footer={
         <div className="space-y-2">
-          {c && <Button onClick={showClosest}>Show closest option</Button>}
+          {c && <Button onClick={showClosest}>{food ? `Show closest ${want} option` : "Show closest option"}</Button>}
+          {food && (
+            <Button variant="secondary" onClick={showAllFood}>
+              Show all kinds of food instead
+            </Button>
+          )}
           {kind !== "match" && (
             <Button icon="sliders" onClick={() => navigate(`/macrotable/preferences${scope ? `?scope=${scope}` : ""}`)}>
               {kind === "budget" ? "Adjust budget" : "Adjust preferences"}
@@ -79,6 +95,11 @@ export function Failure() {
         </span>
         <h2 className="mt-4 font-display text-[25px] leading-tight font-semibold tracking-[-0.02em]">{title}</h2>
         <p className="mt-2 text-[14.5px] leading-relaxed text-ink-2">{body}</p>
+        {food && kind !== "food" && (
+          <p data-food-failure className="mt-2 text-[14px] leading-relaxed text-ink-2">
+            You asked for <span className="font-semibold text-ink">{want}</span>, so only those dishes were considered.
+          </p>
+        )}
       </div>
 
       {c ? (

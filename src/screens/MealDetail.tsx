@@ -150,9 +150,16 @@ export function MealDetail() {
           </p>
           <p className="tnum text-[22px] leading-tight font-semibold tracking-[-0.02em]">{euro(config.price)}</p>
         </div>
-        <p className="mt-1 text-[12.5px] text-ink-3">
-          Your target: {target.calories} kcal · ≥{target.protein} g protein · €{target.maxBudget} max
-        </p>
+        {target.protein > 0 ? (
+          <p className="mt-1 text-[12.5px] text-ink-3">
+            Your target: {target.calories} kcal · ≥{target.protein} g protein · €{target.maxBudget} max
+          </p>
+        ) : (
+          // Normal mode, after today's protein minimum is reached (never in a research trial).
+          <p className="mt-1 text-[12.5px] text-ink-3">
+            Your target: {target.calories} kcal · protein goal met · €{target.maxBudget} max
+          </p>
+        )}
         <div className="mt-4">
           <MacroFit nutrition={config.nutrition} target={target} prefs={prefs} provenance={meal.provenance} />
         </div>

@@ -51,13 +51,13 @@ export function MacroSummary({ ledger }: { ledger: DailyLedger }) {
           const isOver = !goalMet && over[m.key] > 0;
           return (
             <li key={m.key}>
-              <div className="flex items-baseline justify-between">
-                <span className="flex items-center gap-1.5 text-[13px] text-ink-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="flex shrink-0 items-center gap-1.5 text-[13px] text-ink-2">
                   <span className="h-2 w-2 rounded-full" style={{ background: m.color }} aria-hidden="true" />
                   {m.label}
                 </span>
                 {goalMet ? (
-                  <span className="tnum text-[15px] font-semibold" data-protein-goal="met">
+                  <span className="tnum text-[15px] font-semibold whitespace-nowrap" data-protein-goal="met">
                     <span className="text-[12px] font-medium text-brand">Goal met</span>
                     {over.protein > 0 ? ` · +${over.protein} g` : ""}
                   </span>

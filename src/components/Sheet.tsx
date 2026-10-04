@@ -7,12 +7,13 @@ import { LEVEL_META } from "./RestaurantBadge";
 type SheetContent =
   | { kind: "provenance"; provenance: Provenance; restaurantName?: string }
   | { kind: "level"; level: IntegrationLevel; restaurantName?: string }
-  | { kind: "custom"; title: string; body: ReactNode };
+  | { kind: "custom"; title: string; body: ReactNode; stickyHeader?: boolean };
 
 interface SheetApi {
   openProvenance: (provenance: Provenance, restaurantName?: string) => void;
   openLevel: (level: IntegrationLevel, restaurantName?: string) => void;
-  openCustom: (title: string, body: ReactNode) => void;
+  /** `stickyHeader`: title + close stay in view while a long body scrolls (the Filters sheet). */
+  openCustom: (title: string, body: ReactNode, opts?: { stickyHeader?: boolean }) => void;
   close: () => void;
 }
 
@@ -48,7 +49,7 @@ export function SheetProvider({ children, onOpen }: { children: ReactNode; onOpe
   const api: SheetApi = {
     openProvenance: (provenance, restaurantName) => open({ kind: "provenance", provenance, restaurantName }),
     openLevel: (level, restaurantName) => open({ kind: "level", level, restaurantName }),
-    openCustom: (title, body) => open({ kind: "custom", title, body }),
+    openCustom: (title, body, opts) => open({ kind: "custom", title, body, stickyHeader: opts?.stickyHeader }),
     close,
   };
 
@@ -66,15 +67,19 @@ export function SheetProvider({ children, onOpen }: { children: ReactNode; onOpe
             aria-labelledby="sheet-title"
             className="relative max-h-[85%] animate-sheet-in overflow-y-auto rounded-t-[28px] bg-surface px-6 pt-3 pb-8 shadow-lift outline-none"
           >
-            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-line" />
-            <button
-              onClick={close}
-              aria-label="Close"
-              className="absolute top-4 right-4 grid h-10 w-10 place-items-center rounded-full bg-sunken text-ink-2 hover:bg-line"
-            >
-              <Icon name="x" size={18} />
-            </button>
-            <SheetBody content={content} />
+            {!(content.kind === "custom" && content.stickyHeader) && (
+              <>
+                <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-line" />
+                <button
+                  onClick={close}
+                  aria-label="Close"
+                  className="absolute top-4 right-4 grid h-10 w-10 place-items-center rounded-full bg-sunken text-ink-2 hover:bg-line"
+                >
+                  <Icon name="x" size={18} />
+                </button>
+              </>
+            )}
+            <SheetBody content={content} close={close} />
           </div>
         </div>
       )}
@@ -82,7 +87,26 @@ export function SheetProvider({ children, onOpen }: { children: ReactNode; onOpe
   );
 }
 
-function SheetBody({ content }: { content: SheetContent }) {
+function SheetBody({ content, close }: { content: SheetContent; close: () => void }) {
+  if (content.kind === "custom" && content.stickyHeader) {
+    // Pinned to the top of the scrolling panel (offsets cancel the panel's pt-3 / px-6).
+    return (
+      <>
+        <div className="sticky -top-3 z-10 -mx-6 -mt-3 border-b border-line-2 bg-surface px-6 pt-3 pb-3">
+          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-line" />
+          <div className="flex items-center justify-between gap-3">
+            <h2 id="sheet-title" className="text-[20px] font-semibold tracking-tight">
+              {content.title}
+            </h2>
+            <button onClick={close} aria-label="Close" className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-sunken text-ink-2 hover:bg-line">
+              <Icon name="x" size={18} />
+            </button>
+          </div>
+        </div>
+        <div className="mt-3 text-[15px] leading-relaxed text-ink-2">{content.body}</div>
+      </>
+    );
+  }
   if (content.kind === "custom") {
     return (
       <>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Icon } from "../components/Icon";
 import { Screen } from "../components/Screen";
+import { activeCount, foodLabel } from "../lib/discovery";
 import { useAppState } from "../state/AppState";
 import { useSearch } from "../state/useMealSelection";
 
@@ -11,14 +12,19 @@ const STEP_MS = 420;
 export function Search() {
   const [params] = useSearchParams();
   const scope = params.get("scope");
-  const r = useSearch(scope);
-  const { log, target } = useAppState();
+  const { log, target, discovery, lock } = useAppState();
+  // Normal mode: "What do you feel like?" narrows the candidates (trials: always everything, as before).
+  const food = !lock && activeCount(discovery.food) ? discovery.food : undefined;
+  const r = useSearch(scope, food);
   const navigate = useNavigate();
   const [done, setDone] = useState(0);
   const finished = useRef(false);
 
   const s = r.stats;
   const steps = [
+    ...(food
+      ? [{ label: "Matching what you feel like", detail: `${foodLabel(food)}: ${s.meals} ${s.meals === 1 ? "dish" : "dishes"} at ${s.restaurants} ${s.restaurants === 1 ? "restaurant" : "restaurants"}` }]
+      : []),
     { label: "Checking menus", detail: `${s.restaurants} ${s.restaurants === 1 ? "restaurant" : "restaurants"} · ${s.meals} meals` },
     {
       label: "Filtering feasible meals",

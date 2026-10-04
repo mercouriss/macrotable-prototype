@@ -1,10 +1,13 @@
 import { useEffect, useId, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { FoodFiltersPanel } from "../components/FoodFilters";
 import { Icon, type IconName } from "../components/Icon";
+import { useSheet } from "../components/Sheet";
 import { Screen } from "../components/Screen";
 import { Button, Card, Eyebrow } from "../components/ui";
 import { SCENARIOS } from "../data/scenarios";
 import { targetDrafts, TARGET_FIELDS, validateTargetField, type TargetKey } from "../lib/validation";
+import { activeCount, foodLabel } from "../lib/discovery";
 import { useAppState } from "../state/AppState";
 import type { Diet, Priority } from "../types";
 
@@ -22,7 +25,9 @@ const DIETS: { id: Diet; label: string }[] = [
 
 export function Preferences() {
   // Preferences edit the daily BASE target; what is left today is derived from it (lib/ledger).
-  const { baseTarget: target, prefs, setTarget, setPrefs, resetTargets, scenarioId, lock, log } = useAppState();
+  const { baseTarget: target, prefs, setTarget, setPrefs, resetTargets, scenarioId, lock, log, discovery } = useAppState();
+  const { openCustom, close } = useSheet();
+  const food = discovery.food;
   const [params] = useSearchParams();
   const scope = params.get("scope");
   const navigate = useNavigate();
@@ -119,6 +124,31 @@ export function Preferences() {
             </button>
           ))}
         </div>
+        {/* Normal mode only: what kind of food (shared with Explore's Filters). Nested here, not a new sibling, so
+            research trials render exactly as before (same element positions and generated ids). */}
+        {!lock && (
+          <div role="group" className="mt-6" aria-labelledby="food-h">
+            <Eyebrow>
+              <span id="food-h">What do you feel like?</span>
+            </Eyebrow>
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              data-food-choice={activeCount(food) ? "set" : "any"}
+              onClick={() => openCustom("What do you feel like?", <FoodFiltersPanel mode="meal" onDone={close} />, { stickyHeader: true })}
+              className={`mt-2 flex min-h-14 w-full items-center gap-3 rounded-2xl border px-4 py-2.5 text-left transition-colors ${
+                activeCount(food) ? "border-ink bg-surface" : "border-line bg-surface hover:bg-sunken/60"
+              }`}
+            >
+              <Icon name="search" size={18} className="shrink-0 text-ink-3" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] font-semibold">{activeCount(food) ? foodLabel(food) : "Anything"}</span>
+                <span className="block text-[12.5px] text-ink-3">{activeCount(food) ? "Only matching dishes are considered" : "Pasta, bowls, salads or a cuisine"}</span>
+              </span>
+              <span className="shrink-0 text-[13.5px] font-semibold text-brand">{activeCount(food) ? "Change" : "Choose"}</span>
+            </button>
+          </div>
+        )}
       </section>
 
       <section className="mt-6" aria-labelledby="prio-h">

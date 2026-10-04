@@ -4,6 +4,7 @@ import { runSearch, optimizeMeal } from "../lib/optimizer";
 import { computeConfiguration, defaultSelections, isSelectionSupported } from "../lib/nutrition";
 import { meetsTarget, withinBudget } from "../lib/feasibility";
 import { useAppState, type MealSelection } from "./AppState";
+import { foodPredicate, type FoodFilter } from "../lib/discovery";
 import type { Configuration } from "../types";
 
 /**
@@ -55,9 +56,14 @@ export function useMealSelection(mealId: string | undefined, restore?: MealSelec
   };
 }
 
-export function useSearch(scope?: string | null) {
+/**
+ * `food` (Find My Next Meal, normal mode): only matching dishes enter the same deterministic search.
+ * Omitted (Home, research trials): the search is exactly as before.
+ */
+export function useSearch(scope?: string | null, food?: FoodFilter) {
   const { target, prefs } = useAppState();
   const study = isStudyScope();
+  const key = food ? `${food.cuisines.join(",")}|${food.dishes.join(",")}` : "";
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  return useMemo(() => runSearch(target, prefs, scope ?? undefined), [target, prefs, scope, study]);
+  return useMemo(() => runSearch(target, prefs, scope ?? undefined, food && foodPredicate(food)), [target, prefs, scope, study, key]);
 }

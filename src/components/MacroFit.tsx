@@ -41,7 +41,8 @@ export function MacroFit({
         const s = status[i];
         const good = s.tone === "good";
         const pct = (v: number) => `${Math.min(100, (v / max) * 100)}%`;
-        const goalText = r.key === "protein" ? `≥${goal} ${r.unit}` : `${goal} ${r.unit}`;
+        // Protein is a minimum; once today's minimum is reached (remaining 0, normal mode only) say so instead of "≥0 g".
+        const goalText = r.key === "protein" ? (goal > 0 ? `≥${goal} ${r.unit}` : "goal met") : `${goal} ${r.unit}`;
         return (
           <li key={r.key}>
             <div className="flex items-baseline justify-between gap-2">

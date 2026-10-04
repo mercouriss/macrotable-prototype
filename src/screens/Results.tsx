@@ -9,6 +9,7 @@ import { EXCLUSION_TEXT } from "../lib/feasibility";
 import { euro } from "../lib/format";
 import type { ScoredConfiguration } from "../lib/optimizer";
 import { menuState, restaurantMenuPath } from "../lib/menuNav";
+import { activeCount, foodLabel } from "../lib/discovery";
 import { useAppState } from "../state/AppState";
 import { useRememberScroll } from "../state/useRememberScroll";
 import { useSearch } from "../state/useMealSelection";
@@ -16,8 +17,9 @@ import { useSearch } from "../state/useMealSelection";
 export function Results() {
   const [params] = useSearchParams();
   const scope = params.get("scope");
-  const r = useSearch(scope);
-  const { target, selectMeal, log, lock } = useAppState();
+  const { target, selectMeal, log, lock, discovery } = useAppState();
+  const food = !lock && activeCount(discovery.food) ? discovery.food : undefined;
+  const r = useSearch(scope, food);
   const scroll = useRememberScroll();
   const navigate = useNavigate();
   const [showAll, setShowAll] = useState(false);
@@ -52,6 +54,21 @@ export function Results() {
       <p className="mt-1 text-[14px] text-ink-3">
         {r.ranked.length} feasible meals compared · ranked by {byPriority}
       </p>
+      {food && (
+        <p data-food-results className="mt-2 flex min-h-9 items-center gap-2 rounded-xl bg-sunken/70 px-3 text-[13px] text-ink-2">
+          <Icon name="search" size={14} className="shrink-0 text-ink-3" />
+          <span className="min-w-0 flex-1">
+            Only: <span className="font-semibold text-ink">{foodLabel(food)}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => navigate(`/macrotable/preferences${scope ? `?scope=${scope}` : ""}`)}
+            className="min-h-9 shrink-0 rounded-full px-2 font-semibold text-brand hover:bg-brand-soft"
+          >
+            Change
+          </button>
+        </p>
+      )}
       <div className="mt-4">
         <TargetStrip target={target} />
       </div>

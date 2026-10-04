@@ -178,4 +178,4 @@
   border: 3px solid #fff;
   box-shadow: 0 0 0 6px rgb(42 111 219 / 0.18);
 }
-.leaflet-container { font-family: var(--font-sans); background: #eef0ea; }
+.leaflet-container { font-family: var(--font-sans); background: #eef0ea; isolation: isolate; } /* keep Leaflet's pane z-indexes (400–1000) below app sheets (z-50) */

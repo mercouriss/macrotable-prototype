@@ -144,10 +144,15 @@ export interface SearchResult {
   };
 }
 
-export function runSearch(target: UserTarget, prefs: Preferences, restaurantId?: string): SearchResult {
+/**
+ * `mealFilter` (optional) narrows the CANDIDATES before optimisation — e.g. "Pasta" in Find My Next Meal.
+ * Scoring, feasibility and ranking are unchanged; without it the search is exactly as before.
+ */
+export function runSearch(target: UserTarget, prefs: Preferences, restaurantId?: string, mealFilter?: (m: Meal, r: Restaurant) => boolean): SearchResult {
   const pool = menuRestaurants();
-  const restaurants = restaurantId ? pool.filter((r) => r.id === restaurantId) : pool;
-  const meals = restaurants.flatMap((r) => r.meals.map((m) => optimizeMeal(m, r, target, prefs)));
+  const scoped = restaurantId ? pool.filter((r) => r.id === restaurantId) : pool;
+  const restaurants = mealFilter ? scoped.filter((r) => r.meals.some((m) => mealFilter(m, r))) : scoped;
+  const meals = restaurants.flatMap((r) => (mealFilter ? r.meals.filter((m) => mealFilter(m, r)) : r.meals).map((m) => optimizeMeal(m, r, target, prefs)));
   const ranked = meals
     .map((m) => m.best)
     .filter((b): b is ScoredConfiguration => !!b)
@@ -162,7 +167,7 @@ export function runSearch(target: UserTarget, prefs: Preferences, restaurantId?:
   }
 
   return {
-    scope: restaurantId ? restaurants[0] : undefined,
+    scope: restaurantId ? scoped[0] : undefined,
     meals,
     recommendations,
     ranked,

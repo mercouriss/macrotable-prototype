@@ -5,6 +5,7 @@ import { APP_COMMIT, TREATMENT_VERSION } from "../lib/version";
 import { SCENARIOS } from "../data/scenarios";
 import { meetsTarget } from "../lib/feasibility";
 import { getOrders, nextOrderNumber, readJSON, saveOrder, STORAGE_KEYS, writeJSON } from "../lib/experiment";
+import { cleanDiscovery, NO_DISCOVERY, type Discovery } from "../lib/discovery";
 import { needsTable, normalizeTable, type DiningChoice } from "../lib/fulfillment";
 import { consumedToday, dailyLedger, localDay, readLedger, recordCounterHandoff, resetLedger, type CounterHandoff, type DailyLedger } from "../lib/ledger";
 import { computeConfiguration, configurationId, isSelectionSupported } from "../lib/nutrition";
@@ -49,6 +50,8 @@ interface PersistedState {
   demoEpoch?: number;
   /** Normal mode: how the user is eating at a restaurant (Dine in + table, or Pickup), chosen on its QR landing or Review. */
   dining?: DiningChoice | null;
+  /** Normal mode: what food the user is looking for (Explore + Find My Next Meal) and Explore's view. */
+  discovery?: Discovery;
 }
 
 export interface PlaceOrderResult {
@@ -91,6 +94,10 @@ interface AppStateValue extends PersistedState {
   placeOrder: (mode?: ServiceMode, selection?: MealSelection, opts?: { table?: string }) => PlaceOrderResult | null;
   /** Remember the dining choice for a restaurant (normal mode; ignored during a research trial). */
   setDining: (choice: DiningChoice | null) => void;
+  /** Normal mode: the food filter and Explore view (always the empty filter during a research trial). */
+  discovery: Discovery;
+  /** Update the food filter / Explore view (ignored during a research trial). */
+  setDiscovery: (patch: Partial<Discovery>) => void;
   /** Demo lock: Scenario A, canonical data, no selection, no saved meals, a fresh daily ledger (order history kept). Refused during a research trial. */
   resetDemo: () => boolean;
   /** The engine every agent turn and menu scan must use right now (resolveAgentEngine). */
@@ -303,6 +310,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         setDining: (choice) => {
           if (stateRef.current.lock) return;
           commit({ ...stateRef.current, dining: choice });
+        },
+        // Research isolation: trials always see the empty filter, and can't set one.
+        discovery: state.lock ? NO_DISCOVERY : cleanDiscovery(state.discovery),
+        setDiscovery: (patch) => {
+          if (stateRef.current.lock) return;
+          commit({ ...stateRef.current, discovery: { ...cleanDiscovery(stateRef.current.discovery), ...patch } });
         },
         setPrefs: (patch) =>
           setState((s) => {
