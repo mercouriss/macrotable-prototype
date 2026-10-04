@@ -186,7 +186,7 @@ export function foodPhrase(f: FoodFilter): string {
 /** Keep only known ids (stored state from an older build may carry anything). */
 export function cleanFilter(raw: unknown): FoodFilter {
   const f = (raw && typeof raw === "object" ? raw : {}) as Partial<FoodFilter>;
-  const keep = (xs: unknown, ok: Record<string, unknown>) => (Array.isArray(xs) ? [...new Set(xs.filter((x): x is string => typeof x === "string" && x in ok))] : []);
+  const keep = (xs: unknown, ok: Record<string, unknown>) => (Array.isArray(xs) ? [...new Set(xs.filter((x): x is string => typeof x === "string" && Object.hasOwn(ok, x)))] : []);
   return { cuisines: keep(f.cuisines, CUISINE_BY_ID), dishes: keep(f.dishes, DISH_BY_ID) };
 }
 

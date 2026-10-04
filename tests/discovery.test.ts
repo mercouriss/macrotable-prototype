@@ -223,6 +223,20 @@ describe("Explore (normal mode)", () => {
     expect(readFileSync("src/state/AppState.tsx", "utf8")).toMatch(/function initialFor\(id: ScenarioId\): PersistedState \{[\s\S]*?return \{ scenarioId: id, target: \{ \.\.\.s\.target \}, prefs: \{ \.\.\.s\.preferences \}, selection: null, lock: null \};/);
     expect(cleanDiscovery({ food: { cuisines: ["klingon"], dishes: ["pasta", 3] }, show: "nope" })).toEqual({ food: F([], ["pasta"]), show: "all" });
   });
+
+  it("corrupt stored ids that are inherited object properties ('constructor', 'toString') are discarded; Explore still renders", () => {
+    const corrupt = ["constructor", "toString", "__proto__", "hasOwnProperty", "valueOf"];
+    const stored = { food: { cuisines: [...corrupt, "italian"], dishes: [...corrupt, "pasta"] }, show: "constructor" };
+    expect(cleanDiscovery(stored)).toEqual({ food: F(["italian"], ["pasta"]), show: "all" }); // valid ids survive
+    expect(cleanDiscovery({ food: { cuisines: corrupt, dishes: corrupt } })).toEqual(NO_DISCOVERY);
+    withSettings();
+    persist({ discovery: stored });
+    expect(load().discovery).toEqual({ food: F(["italian"], ["pasta"]), show: "all" });
+    const html = render(h(Explore)); // used to throw in matchRestaurant
+    expect(html).toContain("Filters (2)");
+    expect(html).toMatch(/data-card-link[^>]*>Pasta Metrica</);
+    expect(html).not.toMatch(/data-card-link[^>]*>(FitKitchen|Urban Bowl)</);
+  });
 });
 
 describe("Find My Next Meal: the food choice narrows candidates; the optimizer still decides", () => {
