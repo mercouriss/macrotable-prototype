@@ -26,13 +26,18 @@ const DIETS: { id: Diet; label: string }[] = [
 
 export function Preferences() {
   // Preferences edit the daily BASE target; what is left today is derived from it (lib/ledger).
-  const { baseTarget: target, prefs, setTarget, setPrefs, resetTargets, scenarioId, lock, log, discovery } = useAppState();
+  const { baseTarget: target, prefs, setTarget, setPrefs, resetTargets, scenarioId, lock, log, discovery, ledger } = useAppState();
   const { openCustom, close } = useSheet();
   const food = discovery.food;
   const [params] = useSearchParams();
   const scope = params.get("scope");
   const navigate = useNavigate();
   const [drafts, setDrafts] = useState(() => targetDrafts(target));
+  const fitNote = (
+    <p className="mt-3 text-[12px] leading-snug text-ink-3">
+      A meal fits when calories are within ±10% and protein is at least your target. Carbs and fat guide the ranking.
+    </p>
+  );
 
   // Keep drafts in sync when targets change elsewhere (scenario switch, reset).
   useEffect(() => setDrafts(targetDrafts(target)), [target]);
@@ -225,7 +230,8 @@ export function Preferences() {
 
       <Card as="section" className="mt-6 mb-6 p-5">
         <div className="flex items-center justify-between gap-2">
-          <Eyebrow>Remaining today</Eyebrow>
+          {/* In a trial this IS what's left for the task; in normal mode it's the daily target the food log is subtracted from. */}
+          <Eyebrow>{lock ? "Remaining today" : "Daily target"}</Eyebrow>
           <button
             type="button"
             onClick={resetTargets}
@@ -240,9 +246,18 @@ export function Preferences() {
             <TargetField key={k} k={k} value={drafts[k]} error={errors[k]} onChange={edit} />
           ))}
         </div>
-        <p className="mt-3 text-[12px] leading-snug text-ink-3">
-          A meal fits when calories are within ±10% and protein is at least your target. Carbs and fat guide the ranking.
-        </p>
+        {/* One child slot either way: an extra sibling here would renumber the fields' generated ids in trials. */}
+        {ledger ? (
+          <>
+            {fitNote}
+            <p className="tnum mt-3 rounded-xl bg-sunken px-3 py-2 text-[12.5px] text-ink-2" data-left-today>
+              Left today after your food log: <span className="font-semibold text-ink">{ledger.remaining.calories} kcal</span> ·{" "}
+              {ledger.remaining.protein > 0 ? `≥${ledger.remaining.protein} g protein` : "protein goal met"} · {ledger.remaining.carbs} g carbs · {ledger.remaining.fat} g fat
+            </p>
+          </>
+        ) : (
+          fitNote
+        )}
       </Card>
     </Screen>
   );

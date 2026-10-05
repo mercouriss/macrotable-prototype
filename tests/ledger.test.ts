@@ -204,7 +204,7 @@ describe("C: days, reset and persistence", () => {
 describe("C: what the user sees, and what recommendations / the agent use", () => {
   const home = () => {
     writeJSON(STORAGE_KEYS.settings, { v: 2, onboardingDone: true });
-    return renderToString(h(MemoryRouter, null, h(AppStateProvider, null, h(Home))));
+    return renderToString(h(MemoryRouter, null, h(AppStateProvider, null, h(SheetProvider, null, h(Home)))));
   };
 
   it("Home: ring, bars and numbers come from the same ledger (before → after an order → after reload)", () => {
@@ -276,7 +276,7 @@ describe("C: locked research trials keep the frozen pre-repair Home presentation
   const sha = (s: string) => createHash("sha256").update(s).digest("hex");
   const trialHome = (id: keyof typeof PRE_REPAIR) => {
     writeJSON(STORAGE_KEYS.state, { scenarioId: id, target: SCENARIOS[id].target, prefs: SCENARIOS[id].preferences, selection: null, lock: { participantId: "P001", condition: "macrotable", scenarioId: id, agentMode: "offline", sessionId: "s-fixed", startedAt: 1 } });
-    return renderToString(h(MemoryRouter, null, h(AppStateProvider, null, h(Home))));
+    return renderToString(h(MemoryRouter, null, h(AppStateProvider, null, h(SheetProvider, null, h(Home)))));
   };
 
   it.each(["A", "B", "C", "D"] as const)("scenario %s: the trial summary is byte-identical to the pre-repair render", (id) => {
@@ -293,7 +293,7 @@ describe("C: locked research trials keep the frozen pre-repair Home presentation
 
   it("normal mode uses the real ledger, not the trial fixture", () => {
     writeJSON(STORAGE_KEYS.settings, { v: 2, onboardingDone: true });
-    const html = renderToString(h(MemoryRouter, null, h(AppStateProvider, null, h(Home))));
+    const html = renderToString(h(MemoryRouter, null, h(AppStateProvider, null, h(SheetProvider, null, h(Home)))));
     expect(html).toContain('data-ledger-consumed="0"');
     expect(html).not.toContain(renderToString(h(TrialMacroSummary, { target: BASE })));
   });
@@ -333,7 +333,7 @@ describe("C: protein is a minimum — reaching it reads as a goal met, not 'over
   it("Home after the configured bowl: protein reads 'Goal met · +4 g'", () => {
     load().placeOrder("pickup", bowl());
     writeJSON(STORAGE_KEYS.settings, { v: 2, onboardingDone: true });
-    expect(renderToString(h(MemoryRouter, null, h(AppStateProvider, null, h(Home))))).toMatch(/Goal met<\/span>(<!-- -->)? · \+4 g/);
+    expect(renderToString(h(MemoryRouter, null, h(AppStateProvider, null, h(SheetProvider, null, h(Home)))))).toMatch(/Goal met<\/span>(<!-- -->)? · \+4 g/);
   });
 });
 

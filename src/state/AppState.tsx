@@ -7,7 +7,21 @@ import { meetsTarget } from "../lib/feasibility";
 import { getOrders, nextOrderNumber, readJSON, saveOrder, STORAGE_KEYS, writeJSON } from "../lib/experiment";
 import { cleanDiscovery, NO_DISCOVERY, type Discovery } from "../lib/discovery";
 import { needsTable, normalizeTable, type DiningChoice } from "../lib/fulfillment";
-import { consumedToday, dailyLedger, localDay, readLedger, recordCounterHandoff, resetLedger, type CounterHandoff, type DailyLedger } from "../lib/ledger";
+import {
+  consumedToday,
+  dailyLedger,
+  foodEntryId,
+  localDay,
+  readLedger,
+  recordCounterHandoff,
+  removeHandoff,
+  resetLedger,
+  todayEntries,
+  type CounterHandoff,
+  type DailyLedger,
+  type Macros,
+  type TodayEntry,
+} from "../lib/ledger";
 import { computeConfiguration, configurationId, isSelectionSupported } from "../lib/nutrition";
 import { canPlaceSelection } from "../lib/orderState";
 import { clearSaved } from "../lib/saved";
@@ -54,6 +68,13 @@ interface PersistedState {
   discovery?: Discovery;
 }
 
+/** Food the user adds to today themselves (normal mode): eaten elsewhere, or a signed correction of the totals. */
+export interface FoodEntryInput {
+  name: string;
+  nutrition: Macros;
+  source: "manual-food" | "adjustment";
+}
+
 export interface PlaceOrderResult {
   order: PlacedOrder;
   /** True when this order completed a research trial — show the neutral completion screen. */
@@ -98,6 +119,12 @@ interface AppStateValue extends PersistedState {
   discovery: Discovery;
   /** Update the food filter / Explore view (ignored during a research trial). */
   setDiscovery: (patch: Partial<Discovery>) => void;
+  /** Today's food log, newest first (empty during a research trial). */
+  todayLog: TodayEntry[];
+  /** Add food eaten elsewhere / adjust today's totals. Ignored during a research trial. */
+  addFood: (entry: FoodEntryInput) => boolean;
+  /** Remove an entry the user added. Ignored during a research trial. */
+  removeFood: (id: string) => void;
   /** Demo lock: Scenario A, canonical data, no selection, no saved meals, a fresh daily ledger (order history kept). Refused during a research trial. */
   resetDemo: () => boolean;
   /** The engine every agent turn and menu scan must use right now (resolveAgentEngine). */
@@ -299,6 +326,18 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         recordCounterHandoff: (h) => {
           if (stateRef.current.lock) return;
           if (recordCounterHandoff(h)) bumpLedger();
+        },
+        todayLog: state.lock ? [] : todayEntries(getOrders(), readLedger()),
+        addFood: (e) => {
+          if (stateRef.current.lock) return false;
+          const at = Date.now();
+          const ok = recordCounterHandoff({ id: foodEntryId(at), at, nutrition: e.nutrition, name: e.name, source: e.source });
+          if (ok) bumpLedger();
+          return ok;
+        },
+        removeFood: (id) => {
+          if (stateRef.current.lock) return;
+          if (removeHandoff(id)) bumpLedger();
         },
         settings,
         setSettings: (patch) => setSettingsState((p) => ({ ...p, ...patch })),

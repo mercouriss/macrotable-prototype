@@ -22,7 +22,8 @@ const ZERO: Macros = { calories: 0, protein: 0, carbs: 0, fat: 0 };
 
 /**
  * A confirmed meal with no order record: a scanned-menu dish the user said they'd order at the counter
- * (agent hand-off) or added to today themselves (Add to today). Never an order, ticket or transaction.
+ * (agent hand-off) or added to today themselves (Add to today), food eaten elsewhere that the user added
+ * ("Add food"), or a signed correction of today's totals ("Adjust totals"). Never an order, ticket or transaction.
  */
 export interface CounterHandoff {
   /** Stable per dish (`scanLedgerId`), so confirming the same dish again — by either path — records it once. */
@@ -32,8 +33,14 @@ export interface CounterHandoff {
   /** Optional context, kept as given: the dish, its ORIGINAL provenance (never upgraded) and how it was logged. */
   name?: string;
   provenance?: Provenance;
-  source?: "counter-handoff" | "manual-scan";
+  source?: "counter-handoff" | "manual-scan" | "manual-food" | "adjustment";
 }
+
+/** Entries the user typed in themselves can be removed again (orders and scanned dishes can't). */
+export const REMOVABLE_SOURCES: CounterHandoff["source"][] = ["manual-food", "adjustment"];
+
+/** A fresh id for an entry the user adds (each one counts: eating the same food twice is two entries). */
+export const foodEntryId = (at: number) => `food:${at}:${Math.random().toString(36).slice(2, 8)}`;
 
 /** Ledger id for a dish on a scanned menu (one scan, one dish). */
 export const scanLedgerId = (scanId: string, itemId: string) => `scan:${scanId}:${itemId.replace(/^scan:/, "")}`;
@@ -87,6 +94,15 @@ export function recordCounterHandoff(h: CounterHandoff): boolean {
   return true;
 }
 
+/** Remove an entry the user added (Add food / Adjust totals). Orders and scanned dishes are never removed here. */
+export function removeHandoff(id: string): boolean {
+  const meta = readLedger();
+  const h = meta.handoffs.find((x) => x.id === id);
+  if (!h || !REMOVABLE_SOURCES.includes(h.source)) return false;
+  write({ ...meta, handoffs: meta.handoffs.filter((x) => x.id !== id) });
+  return true;
+}
+
 /** Test helper / researcher wipe. */
 export function clearLedger(): void {
   memory = { since: 0, handoffs: [] };
@@ -126,6 +142,38 @@ export function consumedToday(orders: PlacedOrder[], meta: LedgerMeta, now = Dat
     .reduce((acc, m) => ({ calories: acc.calories + m.nutrition.calories, protein: acc.protein + m.nutrition.protein, carbs: acc.carbs + m.nutrition.carbs, fat: acc.fat + m.nutrition.fat }), { ...ZERO });
 }
 
+/** One line of today's food log, newest first. */
+export interface TodayEntry {
+  id: string;
+  at: number;
+  nutrition: Macros;
+  source: "order" | NonNullable<CounterHandoff["source"]>;
+  /** For orders: the ordered meal (the screen resolves its name). */
+  mealId?: string;
+  name?: string;
+  provenance?: Provenance;
+  removable: boolean;
+}
+
+/** Today's confirmed meals and entries since the reset boundary, as the food log shows them. */
+export function todayEntries(orders: PlacedOrder[], meta: LedgerMeta, now = Date.now()): TodayEntry[] {
+  const today = localDay(now);
+  const counts = (at: number) => at >= meta.since && localDay(at) === today;
+  const seen = new Set<string>();
+  const out: TodayEntry[] = [];
+  for (const o of orders) {
+    if (o.sessionId || !o.nutrition || seen.has(o.orderNumber) || !counts(o.placedAt)) continue;
+    seen.add(o.orderNumber);
+    out.push({ id: o.orderNumber, at: o.placedAt, nutrition: pick(o.nutrition), source: "order", mealId: o.mealId, removable: false });
+  }
+  for (const h of meta.handoffs) {
+    if (seen.has(h.id) || !counts(h.at)) continue;
+    seen.add(h.id);
+    out.push({ id: h.id, at: h.at, nutrition: pick(h.nutrition), source: h.source ?? "counter-handoff", name: h.name, provenance: h.provenance, removable: REMOVABLE_SOURCES.includes(h.source) });
+  }
+  return out.sort((a, b) => b.at - a.at);
+}
+
 export interface DailyLedger {
   /** The daily target the user set (Preferences). */
   base: UserTarget;
@@ -138,6 +186,8 @@ export interface DailyLedger {
 
 export function dailyLedger(base: UserTarget, consumed: Macros): DailyLedger {
   const r = (x: number) => Math.round(x);
+  // Subtractions ("Adjust totals") can lower today's total, never below nothing eaten.
+  consumed = { calories: Math.max(0, consumed.calories), protein: Math.max(0, consumed.protein), carbs: Math.max(0, consumed.carbs), fat: Math.max(0, consumed.fat) };
   const remaining = { ...base };
   const over = { ...ZERO };
   for (const k of MACRO_KEYS) {

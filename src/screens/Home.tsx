@@ -1,12 +1,14 @@
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { AskAgentButton } from "../components/AskAgentButton";
 import { BrandMark } from "../components/BrandMark";
+import { AddFoodPanel, TodayLogPanel } from "../components/FoodLog";
 import { Icon } from "../components/Icon";
 import { MacroSummary } from "../components/MacroSummary";
 import { TrialMacroSummary } from "../components/TrialMacroSummary";
 import { Plate } from "../components/Plate";
 import { approx } from "../components/ProvenanceBadge";
 import { Screen } from "../components/Screen";
+import { useSheet } from "../components/Sheet";
 import { Button, Card, Eyebrow } from "../components/ui";
 import { distanceFromUser, formatDistance } from "../data/geo";
 import { getMeal } from "../data/restaurants";
@@ -71,8 +73,9 @@ export function Home() {
         {/* Locked trial: the frozen pre-repair presentation (trial targets, no ledger). Otherwise the real ledger. */}
         {ledger ? <MacroSummary ledger={ledger} /> : <TrialMacroSummary target={target} />}
         <p className="mt-3 text-[11.5px] text-ink-3">
-          {ledger ? "Your daily target minus the meals you confirmed in MacroTable today." : "Sample day — food logging is simulated in this prototype."}
+          {ledger ? "Your daily target minus the meals you confirmed in MacroTable today and food you added." : "Sample day — food logging is simulated in this prototype."}
         </p>
+        {ledger && <FoodLogActions />}
       </Card>
 
       <div className="mt-4 space-y-2.5">
@@ -206,5 +209,30 @@ function NearbyBody({ c }: { c: ScoredConfiguration }) {
         {c.meets ? "Fits your target" : "Closest option"}
       </span>
     </>
+  );
+}
+
+/** Normal mode: see/edit today's log, or add food eaten elsewhere (no tracking app needed). */
+function FoodLogActions() {
+  const { todayLog } = useAppState();
+  const { openCustom, close } = useSheet();
+  return (
+    <div className="mt-3 grid grid-cols-2 gap-2" data-food-log-actions>
+      <button
+        type="button"
+        onClick={() => openCustom("Today's log", <TodayLogPanel />, { stickyHeader: true })}
+        className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-line text-[13.5px] font-semibold text-ink-2 hover:bg-sunken"
+      >
+        <Icon name="receipt" size={15} /> Today's log
+        <span className="tnum text-ink-3">{todayLog.length}</span>
+      </button>
+      <button
+        type="button"
+        onClick={() => openCustom("Add food", <AddFoodPanel onDone={close} />, { stickyHeader: true })}
+        className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl bg-brand-soft text-[13.5px] font-semibold text-brand hover:bg-brand-soft/70"
+      >
+        <Icon name="plus" size={15} /> Add food
+      </button>
+    </div>
   );
 }
