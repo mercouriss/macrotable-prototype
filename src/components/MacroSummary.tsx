@@ -81,7 +81,7 @@ export function MacroSummary({ ledger }: { ledger: DailyLedger }) {
 export function TargetStrip({ target }: { target: UserTarget }) {
   const items = [
     `${target.calories} kcal`,
-    `≥${target.protein} g protein`,
+    target.protein > 0 ? `≥${target.protein} g protein` : "Protein goal met", // nothing left to reach after today's meals
     `${target.carbs} g carbs`,
     `${target.fat} g fat`,
     `≤ €${target.maxBudget}`,

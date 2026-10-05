@@ -36,7 +36,7 @@ export function Failure() {
     food: `Nothing on the menus${r.scope ? ` at ${r.scope.name}` : ""} matches ${want}`,
     diet: `No ${dietLabel || "matching"} meals${r.scope ? ` at ${r.scope.name}` : ""}`,
     budget: `Nothing fits ${euroShort(target.maxBudget)}`,
-    match: "No exact configuration available",
+    match: target.calories > 0 ? "No exact configuration available" : "You've reached today's calorie target",
   }[kind];
   const body = {
     food: `None of the restaurants with menu data${r.scope ? ` (${r.scope.name})` : ""} has a dish matching ${want}. MacroTable only uses their own menus, so it won't suggest a different kind of food instead.`,
@@ -46,7 +46,11 @@ export function Failure() {
     budget: cheapest
       ? `Every supported configuration${r.scope ? ` at ${r.scope.name}` : ""} costs more than ${euroShort(target.maxBudget)}. The cheapest is ${cheapest.meal.name} at ${euro(cheapest.price)}.`
       : `Nothing is available within ${euroShort(target.maxBudget)}.`,
-    match: `No supported configuration at ${where} reaches ${target.calories} kcal (±10%) with at least ${target.protein} g protein within ${euroShort(target.maxBudget)}. MacroTable won't invent modifications to get there.`,
+    match:
+      target.calories > 0
+        ? `No supported configuration at ${where} reaches ${target.calories} kcal (±10%) with at least ${target.protein} g protein within ${euroShort(target.maxBudget)}. MacroTable won't invent modifications to get there.`
+        : // After today's confirmed meals nothing is left to fit; say so instead of "reaches 0 kcal".
+          `The meals you confirmed today already use your calories${target.protein > 0 ? `, with ${target.protein} g protein still to go` : ""}, so no meal fits what's left.${c ? " The closest option is shown for reference only." : ""}`,
   }[kind];
   const showAllFood = () => {
     setDiscovery({ food: NO_FOOD_FILTER });

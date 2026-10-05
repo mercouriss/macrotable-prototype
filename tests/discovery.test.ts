@@ -4,11 +4,12 @@ import { renderToString } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FoodFiltersPanel } from "../src/components/FoodFilters";
+import { hasFoodIcon } from "../src/components/FoodIcon";
 import { SheetProvider } from "../src/components/Sheet";
 import { catalog } from "../src/data/restaurants";
 import { SCENARIOS } from "../src/data/scenarios";
 import { STORAGE_KEYS, writeJSON } from "../src/lib/experiment";
-import { cleanDiscovery, CUISINES, cuisinesOf, dishTypesOf, foodPredicate, matchReason, matchRestaurant, NO_DISCOVERY, type Discovery, type FoodFilter } from "../src/lib/discovery";
+import { cleanDiscovery, CUISINES, cuisinesOf, DISH_TYPES, dishTypesOf, foodPredicate, matchReason, matchRestaurant, NO_DISCOVERY, type Discovery, type FoodFilter } from "../src/lib/discovery";
 import { runSearch } from "../src/lib/optimizer";
 import { discover, Explore } from "../src/screens/Explore";
 import { Failure } from "../src/screens/Failure";
@@ -286,6 +287,40 @@ describe("Find My Next Meal: the food choice narrows candidates; the optimizer s
   });
 });
 
+describe("Food icons (dish types only, normal mode only)", () => {
+  const icons = (html: string) => [...html.matchAll(/data-food-icon="([a-z]+)"/g)].map((m) => m[1]);
+
+  it("every dish type has an offline illustration; nothing is fetched", () => {
+    expect(DISH_TYPES.every((t) => hasFoodIcon(t.id))).toBe(true);
+    expect(hasFoodIcon("italian")).toBe(false); // cuisines are restaurant labels, not foods
+    expect(hasFoodIcon("toString")).toBe(false);
+    expect(readFileSync("src/components/FoodIcon.tsx", "utf8")).not.toMatch(/https?:|<image|href=|url\(/);
+  });
+
+  it("the Filters sheets show a picture on each dish-type chip, never on cuisine or Show chips", () => {
+    for (const mode of ["explore", "meal"] as const) {
+      const html = render(h(FoodFiltersPanel, { mode, count: () => 0, onDone: () => {} }));
+      const dish = html.slice(html.indexOf('id="ff-dish"'), html.indexOf('id="ff-cuisine"'));
+      expect(icons(dish)).toEqual(mode === "explore" ? DISH_TYPES.map((t) => t.id) : DISH_TYPES.filter((t) => t.id !== "burgers").map((t) => t.id));
+      expect(icons(html.slice(html.indexOf('id="ff-cuisine"')))).toEqual([]);
+      expect(html).toMatch(/aria-hidden="true" data-food-icon="pasta"/); // decorative: the label is the name
+    }
+  });
+
+  it("the chosen dish types are pictured in Preferences, Results and the Explore summary — not on restaurant cards", () => {
+    withSettings();
+    expect(icons(render(h(Preferences)))).toEqual(["pasta", "bowls", "salads"]); // "Anything": a hint of the choices
+    persist({ discovery: { food: F(["italian"], ["pasta", "bowls"]), show: "all" } });
+    expect(icons(render(h(Preferences)))).toEqual(["pasta", "bowls"]);
+    expect(icons(render(h(Results)))).toEqual(["pasta", "bowls"]);
+    const explore = render(h(Explore));
+    expect(icons(explore)).toEqual(["pasta", "bowls"]);
+    expect(explore.slice(explore.indexOf("data-discovery-summary"), explore.indexOf("Clear</button>"))).toContain('data-food-icon="pasta"');
+    persist({ discovery: { food: F(["italian"]), show: "all" } }); // cuisine only: no food picture
+    expect(icons(render(h(Preferences)))).toEqual([]);
+  });
+});
+
 describe("Research isolation", () => {
   it("a locked trial ignores a stored food filter and keeps the original Explore, Preferences and search", () => {
     withSettings();
@@ -299,5 +334,6 @@ describe("Research isolation", () => {
     expect(explore).not.toMatch(/Filters \(|data-match-reason|data-discovery-summary/);
     expect(render(h(Preferences))).not.toContain("What do you feel like?");
     expect(render(h(Results))).not.toContain("data-food-results");
+    expect([explore, render(h(Preferences)), render(h(Results))].join("")).not.toContain("data-food-icon");
   });
 });

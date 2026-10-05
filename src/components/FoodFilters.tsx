@@ -1,6 +1,7 @@
 import { catalog, menuRestaurants } from "../data/restaurants";
 import { activeCount, CUISINES, DISH_TYPES, matchRestaurant, NO_FOOD_FILTER, type Discovery, type ExploreShow, type FoodFilter } from "../lib/discovery";
 import { useAppState } from "../state/AppState";
+import { FoodIcon } from "./FoodIcon";
 import { Icon } from "./Icon";
 import { Button, Eyebrow } from "./ui";
 
@@ -30,17 +31,18 @@ function chipCounts(mode: "explore" | "meal") {
   };
 }
 
-function Chip({ on, label, n, onClick, role }: { on: boolean; label: string; n?: number; onClick: () => void; role: "radio" | "checkbox" }) {
+function Chip({ on, label, n, onClick, role, icon }: { on: boolean; label: string; n?: number; onClick: () => void; role: "radio" | "checkbox"; icon?: string }) {
   return (
     <button
       type="button"
       role={role}
       aria-checked={on}
       onClick={onClick}
-      className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border px-4 text-[14px] font-medium transition-colors ${
+      className={`inline-flex min-h-11 items-center gap-1.5 rounded-full border ${icon ? "pl-1.5" : "pl-4"} pr-4 text-[14px] font-medium transition-colors ${
         on ? "border-ink bg-ink text-white" : "border-line bg-surface text-ink-2 hover:bg-sunken"
       }`}
     >
+      {icon && <FoodIcon id={icon} size={32} />}
       {on && <Icon name="check" size={14} stroke={2.6} />}
       {label}
       {n !== undefined && <span className={`tnum text-[12px] ${on ? "text-white/70" : "text-ink-3"}`}>{n}</span>}
@@ -71,7 +73,7 @@ export function FoodFiltersPanel({ mode, count, onDone, hideReal }: { mode: "exp
         </Eyebrow>
         <div role="group" aria-labelledby="ff-dish" className="mt-2 flex flex-wrap gap-2">
           {chips.dishes.map((t) => (
-            <Chip key={t.id} role="checkbox" on={food.dishes.includes(t.id)} label={t.label} n={t.n} onClick={() => toggle("dishes", t.id)} />
+            <Chip key={t.id} role="checkbox" on={food.dishes.includes(t.id)} label={t.label} n={t.n} icon={t.id} onClick={() => toggle("dishes", t.id)} />
           ))}
         </div>
       </section>

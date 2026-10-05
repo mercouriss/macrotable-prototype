@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { FoodIcons } from "../components/FoodIcon";
 import { Icon } from "../components/Icon";
 import { TargetStrip } from "../components/MacroSummary";
 import { MealCard } from "../components/MealCard";
@@ -56,7 +57,7 @@ export function Results() {
       </p>
       {food && (
         <p data-food-results className="mt-2 flex min-h-9 items-center gap-2 rounded-xl bg-sunken/70 px-3 text-[13px] text-ink-2">
-          <Icon name="search" size={14} className="shrink-0 text-ink-3" />
+          {food.dishes.length ? <FoodIcons ids={food.dishes} size={26} /> : <Icon name="search" size={14} className="shrink-0 text-ink-3" />}
           <span className="min-w-0 flex-1">
             Only: <span className="font-semibold text-ink">{foodLabel(food)}</span>
           </span>

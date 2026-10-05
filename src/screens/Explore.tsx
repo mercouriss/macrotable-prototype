@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { AskAgentButton } from "../components/AskAgentButton";
 import { FoodFiltersPanel, SHOW_LABELS } from "../components/FoodFilters";
 import { BrandMark } from "../components/BrandMark";
+import { FoodIcons } from "../components/FoodIcon";
 import { Icon } from "../components/Icon";
 import { approx } from "../components/ProvenanceBadge";
 import { RestaurantBadge } from "../components/RestaurantBadge";
@@ -179,12 +180,19 @@ export function Explore() {
           </div>
         )}
         {!legacy && (activeSummary || query.trim()) && (
-          <p className="mt-2 flex min-h-8 flex-wrap items-center gap-x-2 text-[13px] text-ink-2" data-discovery-summary>
-            <span className="tnum font-semibold text-ink">
+          <p className="mt-2 flex min-h-8 items-center gap-x-2 text-[13px] text-ink-2" data-discovery-summary>
+            <span className="tnum shrink-0 font-semibold text-ink">
               {visible.length} {visible.length === 1 ? "place" : "places"}
             </span>
-            {activeSummary && <span className="min-w-0 text-ink-3">· {activeSummary}</span>}
-            <button type="button" onClick={clearAll} className="ml-auto min-h-8 rounded-full px-2 text-[13px] font-semibold text-brand hover:bg-brand-soft">
+            {activeSummary && (
+              // One row: a long choice wraps to two lines at most (the Filters sheet lists it in full).
+              <span className="flex min-w-0 items-center gap-1.5 text-ink-3">
+                <span className="shrink-0">·</span>
+                <FoodIcons ids={discovery.food.dishes} size={22} />
+                <span className="line-clamp-2 min-w-0 leading-snug">{activeSummary}</span>
+              </span>
+            )}
+            <button type="button" onClick={clearAll} className="ml-auto min-h-8 shrink-0 rounded-full px-2 text-[13px] font-semibold text-brand hover:bg-brand-soft">
               Clear
             </button>
           </p>

@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { FoodFiltersPanel } from "../components/FoodFilters";
+import { FoodIcons } from "../components/FoodIcon";
 import { Icon, type IconName } from "../components/Icon";
 import { useSheet } from "../components/Sheet";
 import { Screen } from "../components/Screen";
@@ -140,7 +141,14 @@ export function Preferences() {
                 activeCount(food) ? "border-ink bg-surface" : "border-line bg-surface hover:bg-sunken/60"
               }`}
             >
-              <Icon name="search" size={18} className="shrink-0 text-ink-3" />
+              {/* The chosen dish types' pictures; with no choice yet, a hint of what can be picked. */}
+              {food.dishes.length ? (
+                <FoodIcons ids={food.dishes} size={34} />
+              ) : activeCount(food) ? (
+                <Icon name="search" size={18} className="shrink-0 text-ink-3" />
+              ) : (
+                <FoodIcons ids={["pasta", "bowls", "salads"]} size={30} max={3} />
+              )}
               <span className="min-w-0 flex-1">
                 <span className="block text-[15px] font-semibold">{activeCount(food) ? foodLabel(food) : "Anything"}</span>
                 <span className="block text-[12.5px] text-ink-3">{activeCount(food) ? "Only matching dishes are considered" : "Pasta, bowls, salads or a cuisine"}</span>

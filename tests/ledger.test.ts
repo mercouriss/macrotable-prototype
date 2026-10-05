@@ -14,7 +14,9 @@ import { SCENARIOS } from "../src/data/scenarios";
 import { clearOrders, getOrders, STORAGE_KEYS, writeJSON } from "../src/lib/experiment";
 import { clearLedger, consumedToday, dailyLedger, readLedger } from "../src/lib/ledger";
 import { defaultSelections } from "../src/lib/nutrition";
+import { Failure } from "../src/screens/Failure";
 import { Home } from "../src/screens/Home";
+import { Results } from "../src/screens/Results";
 import { Review } from "../src/screens/Review";
 import { Success } from "../src/screens/Success";
 import { AppStateProvider, useAppState, type MealSelection } from "../src/state/AppState";
@@ -332,5 +334,35 @@ describe("C: protein is a minimum — reaching it reads as a goal met, not 'over
     load().placeOrder("pickup", bowl());
     writeJSON(STORAGE_KEYS.settings, { v: 2, onboardingDone: true });
     expect(renderToString(h(MemoryRouter, null, h(AppStateProvider, null, h(Home))))).toMatch(/Goal met<\/span>(<!-- -->)? · \+4 g/);
+  });
+});
+
+describe("C: once today's target is used up, recommendation screens say so plainly", () => {
+  const page = (C: () => unknown) => renderToString(h(MemoryRouter, null, h(AppStateProvider, null, h(SheetProvider, null, h(C as never)))));
+  beforeEach(() => writeJSON(STORAGE_KEYS.settings, { v: 2, onboardingDone: true }));
+
+  it("results' target chips: '≥45 g protein' before any meal, 'Protein goal met' once it's reached (never '≥0 g')", () => {
+    expect(page(Results)).toContain("≥45 g protein");
+    load().placeOrder("pickup", bowl()); // 682 kcal · 49 g → 18 kcal, 0 g protein left
+    const html = page(Results);
+    expect(html).toContain("Protein goal met");
+    expect(html).not.toContain("≥0 g protein");
+  });
+
+  it("no calories left: 'You've reached today's calorie target', not 'reaches 0 kcal'", () => {
+    const meal = getMeal("fk-chicken-power-bowl")!.meal;
+    load().placeOrder("pickup", bowl(defaultSelections(meal))); // 890 kcal · 39 g → 0 kcal, 6 g protein left
+    expect(load().target).toMatchObject({ calories: 0, protein: 6 });
+    const html = page(Failure);
+    expect(html).toContain("You&#x27;ve reached today&#x27;s calorie target");
+    expect(html).toMatch(/already use your calories, with 6(<!-- -->)? g protein still to go/);
+    expect(html).not.toMatch(/reaches 0(<!-- -->)? kcal/);
+  });
+
+  it("with calories still left, the original wording is unchanged", () => {
+    load().placeOrder("pickup", bowl()); // 18 kcal left
+    const html = page(Failure);
+    expect(html).toContain("No exact configuration available");
+    expect(html).toMatch(/reaches 18(<!-- -->)? kcal \(±10%\)/);
   });
 });
