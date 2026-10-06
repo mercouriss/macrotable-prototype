@@ -1,4 +1,4 @@
-import type { DailyLedger } from "../lib/ledger";
+import type { DailyLedger, Macros } from "../lib/ledger";
 import type { UserTarget } from "../types";
 
 const MACROS = [
@@ -16,9 +16,12 @@ const share = (consumed: number, base: number) => (base > 0 ? Math.min(1, consum
  * like the optimizer's "over your calorie range"; protein is a minimum, so reaching it reads "Goal met".
  * Locked research trials don't use this component (see TrialMacroSummary).
  */
-export function MacroSummary({ ledger }: { ledger: DailyLedger }) {
+export function MacroSummary({ ledger, earlier }: { ledger: DailyLedger; earlier?: Macros }) {
   const { base, consumed, remaining, over } = ledger;
-  const eatenFrac = share(consumed.calories, base.calories);
+  // `earlier` (normal mode: the scenario's demo day) only widens the ring and bars to the whole day; every number,
+  // "left"/"over" and "Goal met" still comes from the ledger exactly as before.
+  const filled = (k: keyof Macros) => share(consumed[k] + (earlier?.[k] ?? 0), base[k] + (earlier?.[k] ?? 0));
+  const eatenFrac = filled("calories");
   const r = 52;
   const c = 2 * Math.PI * r;
   return (
@@ -68,7 +71,7 @@ export function MacroSummary({ ledger }: { ledger: DailyLedger }) {
                 )}
               </div>
               <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-sunken" aria-hidden="true">
-                <div className="h-full rounded-full" style={{ width: `${share(consumed[m.key], base[m.key]) * 100}%`, background: m.color }} />
+                <div className="h-full rounded-full" style={{ width: `${filled(m.key) * 100}%`, background: m.color }} />
               </div>
             </li>
           );

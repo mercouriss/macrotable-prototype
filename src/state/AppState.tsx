@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useReducer,
 import { getMeal, setStudyScope, STUDY_RESTAURANT_IDS } from "../data/restaurants";
 import { PROXY_URL } from "../agent/gemini";
 import { APP_COMMIT, TREATMENT_VERSION } from "../lib/version";
+import { demoDayFor, type DemoDay } from "../data/demoDays";
 import { SCENARIOS } from "../data/scenarios";
 import { meetsTarget } from "../lib/feasibility";
 import { getOrders, nextOrderNumber, readJSON, saveOrder, STORAGE_KEYS, writeJSON } from "../lib/experiment";
@@ -91,6 +92,12 @@ interface AppStateValue extends PersistedState {
   baseTarget: UserTarget;
   /** Today's ledger (base, consumed, remaining, over). Null during a research trial: trials never use it. */
   ledger: DailyLedger | null;
+  /**
+   * Normal mode: the scenario's demo day — what was eaten earlier today and the full-day target it implies
+   * (scenario target + earlier meals). Display only: never part of the ledger, targets, optimizer, agent or
+   * research. Null during a research trial.
+   */
+  demoDay: DemoDay | null;
   /** Log a confirmed counter hand-off that has no order record (a scanned-menu dish). Ignored in trials. */
   recordCounterHandoff: (h: CounterHandoff) => void;
   settings: Settings;
@@ -327,6 +334,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           if (stateRef.current.lock) return;
           if (recordCounterHandoff(h)) bumpLedger();
         },
+        demoDay: state.lock ? null : demoDayFor(state.scenarioId, state.target),
         todayLog: state.lock ? [] : todayEntries(getOrders(), readLedger()),
         addFood: (e) => {
           if (stateRef.current.lock) return false;

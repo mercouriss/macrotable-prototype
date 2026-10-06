@@ -24,7 +24,7 @@ import { useRememberScroll } from "../state/useRememberScroll";
 
 /** Product home: what can MacroTable do for me right now? */
 export function Home() {
-  const { target, ledger, settings, lock, log, selectMeal } = useAppState();
+  const { target, ledger, demoDay, settings, lock, log, selectMeal } = useAppState();
   const navigate = useNavigate();
   const search = useSearch();
   const saved = useSavedMeals();
@@ -71,9 +71,13 @@ export function Home() {
           </button>
         </div>
         {/* Locked trial: the frozen pre-repair presentation (trial targets, no ledger). Otherwise the real ledger. */}
-        {ledger ? <MacroSummary ledger={ledger} /> : <TrialMacroSummary target={target} />}
+        {ledger ? <MacroSummary ledger={ledger} earlier={demoDay?.earlier} /> : <TrialMacroSummary target={target} />}
         <p className="mt-3 text-[11.5px] text-ink-3">
-          {ledger ? "Your daily target minus the meals you confirmed in MacroTable today and food you added." : "Sample day — food logging is simulated in this prototype."}
+          {ledger
+            ? demoDay
+              ? `Your ${demoDay.day.calories.toLocaleString("en-US")} kcal day minus what you've eaten: earlier meals (demo day), the meals you confirmed in MacroTable today and food you added.`
+              : "Your daily target minus the meals you confirmed in MacroTable today and food you added."
+            : "Sample day — food logging is simulated in this prototype."}
         </p>
         {ledger && <FoodLogActions />}
       </Card>
@@ -214,7 +218,7 @@ function NearbyBody({ c }: { c: ScoredConfiguration }) {
 
 /** Normal mode: see/edit today's log, or add food eaten elsewhere (no tracking app needed). */
 function FoodLogActions() {
-  const { todayLog } = useAppState();
+  const { todayLog, demoDay } = useAppState();
   const { openCustom, close } = useSheet();
   return (
     <div className="mt-3 grid grid-cols-2 gap-2" data-food-log-actions>
@@ -224,7 +228,7 @@ function FoodLogActions() {
         className="inline-flex min-h-11 items-center justify-center gap-1.5 rounded-xl border border-line text-[13.5px] font-semibold text-ink-2 hover:bg-sunken"
       >
         <Icon name="receipt" size={15} /> Today's log
-        <span className="tnum text-ink-3">{todayLog.length}</span>
+        <span className="tnum text-ink-3">{todayLog.length + (demoDay?.meals.length ?? 0)}</span>
       </button>
       <button
         type="button"

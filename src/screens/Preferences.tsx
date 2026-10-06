@@ -26,7 +26,7 @@ const DIETS: { id: Diet; label: string }[] = [
 
 export function Preferences() {
   // Preferences edit the daily BASE target; what is left today is derived from it (lib/ledger).
-  const { baseTarget: target, prefs, setTarget, setPrefs, resetTargets, scenarioId, lock, log, discovery, ledger } = useAppState();
+  const { baseTarget: target, prefs, setTarget, setPrefs, resetTargets, scenarioId, lock, log, discovery, ledger, demoDay } = useAppState();
   const { openCustom, close } = useSheet();
   const food = discovery.food;
   const [params] = useSearchParams();
@@ -230,8 +230,9 @@ export function Preferences() {
 
       <Card as="section" className="mt-6 mb-6 p-5">
         <div className="flex items-center justify-between gap-2">
-          {/* In a trial this IS what's left for the task; in normal mode it's the daily target the food log is subtracted from. */}
-          <Eyebrow>{lock ? "Remaining today" : "Daily target"}</Eyebrow>
+          {/* Trial: what's left for the task. Normal mode: what's left after the demo day's earlier meals (the fields keep
+              their meaning; the full day is shown below for context only), which today's food log is subtracted from. */}
+          <Eyebrow>{lock ? "Remaining today" : demoDay ? "For the rest of today" : "Daily target"}</Eyebrow>
           <button
             type="button"
             onClick={resetTargets}
@@ -249,6 +250,13 @@ export function Preferences() {
         {/* One child slot either way: an extra sibling here would renumber the fields' generated ids in trials. */}
         {ledger ? (
           <>
+            {demoDay && (
+              <p className="tnum mt-3 text-[12.5px] leading-snug text-ink-2" data-full-day>
+                Your full day: <span className="font-semibold text-ink">{demoDay.day.calories.toLocaleString("en-US")} kcal</span> · ≥{demoDay.day.protein} g protein ·{" "}
+                {demoDay.day.carbs} g carbs · {demoDay.day.fat} g fat. You ate {demoDay.earlier.calories.toLocaleString("en-US")} kcal earlier today (demo day), which
+                leaves the values above.
+              </p>
+            )}
             {fitNote}
             <p className="tnum mt-3 rounded-xl bg-sunken px-3 py-2 text-[12.5px] text-ink-2" data-left-today>
               Left today after your food log: <span className="font-semibold text-ink">{ledger.remaining.calories} kcal</span> ·{" "}

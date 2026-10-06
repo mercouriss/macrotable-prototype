@@ -191,7 +191,7 @@ const SOURCE_LABEL: Record<TodayEntry["source"], string> = {
 
 /** Today's log: everything counted today, with Add food. The user's own entries can be removed. */
 export function TodayLogPanel() {
-  const { todayLog, removeFood } = useAppState();
+  const { todayLog, removeFood, demoDay } = useAppState();
   const { openCustom, close } = useSheet();
   const addFood = () => openCustom("Add food", <AddFoodPanel onDone={close} />, { stickyHeader: true });
 
@@ -205,8 +205,33 @@ export function TodayLogPanel() {
         {todayLog.map((e) => (
           <EntryRow key={e.id} e={e} onRemove={e.removable ? () => removeFood(e.id) : undefined} />
         ))}
-        {!todayLog.length && <li className="py-6 text-center text-[13.5px] text-ink-3">Nothing logged today yet.</li>}
+        {!todayLog.length && (
+          <li className="py-6 text-center text-[13.5px] text-ink-3">{demoDay ? "Nothing logged in MacroTable yet today." : "Nothing logged today yet."}</li>
+        )}
       </ul>
+      {demoDay && (
+        // The scenario's demo day: what was eaten before the demo started. Fixed scenario facts — not entries,
+        // orders or scans — so they can't be removed and carry no source or provenance label.
+        <section className="mt-5" aria-labelledby="earlier-h" data-demo-day>
+          <h3 id="earlier-h" className="text-[12px] font-semibold tracking-[0.06em] text-ink-3 uppercase">
+            Earlier today · Demo day
+          </h3>
+          <p className="tnum mt-1 text-[12.5px] text-ink-3">
+            {demoDay.earlier.calories.toLocaleString("en-US")} kcal · {demoDay.earlier.protein} g protein · {demoDay.earlier.carbs} g carbs · {demoDay.earlier.fat} g fat
+          </p>
+          <ul className="mt-2 divide-y divide-line-2">
+            {[...demoDay.meals].reverse().map((m) => (
+              <li key={m.time + m.name} className="py-3" data-entry-source="demo-day">
+                <p className="flex items-baseline gap-2">
+                  <span className="min-w-0 flex-1 text-[14px] font-semibold">{m.name}</span>
+                  <span className="tnum shrink-0 text-[12px] text-ink-3">{m.time}</span>
+                </p>
+                <p className="tnum mt-0.5 text-[12.5px] text-ink-2">{fmt(m.nutrition)}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

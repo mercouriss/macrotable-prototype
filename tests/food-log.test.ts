@@ -152,15 +152,16 @@ describe("Adjust totals and removal", () => {
 });
 
 describe("Where it shows", () => {
-  it("Home: Today's log + Add food under 'Remaining today'; Preferences: 'Daily target' and what's left", () => {
+  it("Home: Today's log + Add food under 'Remaining today'; Preferences: the rest of today, the full day, and what's left", () => {
     persist();
     load().addFood({ name: "Banana", nutrition: food(105, 1, 27, 0), source: "manual-food" });
     const home = page(h(Home));
     expect(home).toContain("data-food-log-actions");
-    expect(home).toMatch(/Today&#x27;s log<span[^>]*>1</);
+    expect(home).toMatch(/Today&#x27;s log<span[^>]*>5</); // the banana + Scenario A's 4 earlier meals (demo day)
     expect(home).toMatch(/meals you confirmed in MacroTable today and food you added/);
     const prefs = page(h(Preferences));
-    expect(prefs).toContain(">Daily target<");
+    expect(prefs).toContain(">For the rest of today<"); // the fields keep their meaning: what's left after earlier meals
+    expect(prefs).toMatch(/data-full-day[^>]*>Your full day: <span[^>]*>2,200<!-- --> kcal/);
     expect(prefs).toMatch(/data-left-today[^>]*>Left today after your food log: <span[^>]*>595<!-- --> kcal/);
   });
 });
