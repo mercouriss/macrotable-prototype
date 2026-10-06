@@ -58,7 +58,7 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       injectRegister: false, // registered from main.tsx, production only
-      includeAssets: ["favicon.png", "apple-touch-icon.png", "brand/macrotable-wordmark.png"],
+      includeAssets: ["icons/*.png", "brand/macrotable-wordmark.png"],
       manifest: {
         name: "MacroTable — research prototype",
         short_name: "MacroTable",
@@ -70,9 +70,9 @@ export default defineConfig({
         start_url: `${base}macrotable`,
         scope: base,
         icons: [
-          { src: "pwa-192.png", sizes: "192x192", type: "image/png" },
-          { src: "pwa-512.png", sizes: "512x512", type: "image/png" },
-          { src: "pwa-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+          { src: "icons/macrotable-192.png", sizes: "192x192", type: "image/png" },
+          { src: "icons/macrotable-512.png", sizes: "512x512", type: "image/png" },
+          { src: "icons/macrotable-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         ],
       },
       workbox: {
