@@ -4,9 +4,11 @@ import type { ServiceMode } from "../types";
 import { BrandMark } from "../components/BrandMark";
 import { Icon } from "../components/Icon";
 import { MacroFit } from "../components/MacroFit";
+import { PaymentSheet, type PaymentMethod } from "../components/PaymentSheet";
 import { Plate } from "../components/Plate";
 import { approx, ProvenanceBadge } from "../components/ProvenanceBadge";
 import { Screen } from "../components/Screen";
+import { useSheet } from "../components/Sheet";
 import { Button, Callout, Card } from "../components/ui";
 import { euro } from "../lib/format";
 import { fulfilmentLabel, needsTable, normalizeTable, offersDineIn, TABLES } from "../lib/fulfillment";
@@ -18,6 +20,7 @@ import { useMealSelection } from "../state/useMealSelection";
 export function Review() {
   const { selection, placeOrder, target, prefs, lock, dining, setDining } = useAppState();
   const navigate = useNavigate();
+  const { openCustom, close } = useSheet();
   const { found, config, inBudget } = useMealSelection(selection?.mealId);
   const [mode, setMode] = useState<ServiceMode>("pickup");
 
@@ -36,12 +39,31 @@ export function Review() {
   const tableMissing = needsTable(restaurant, orderMode, !!lock) && !table;
 
   const placed = selection?.placedOrderNumber;
-  const confirm = () => {
+  const confirm = (payment?: PaymentMethod) => {
     const result = placeOrder(orderMode, undefined, { table });
     if (!result) return;
     if (result.research) navigate("/experiment/done", { replace: true, state: { completed: true } });
-    else navigate(`/macrotable/success/${result.order.orderNumber}`, { replace: true, state: { fresh: true } });
+    else navigate(`/macrotable/success/${result.order.orderNumber}`, { replace: true, state: payment ? { fresh: true, payment } : { fresh: true } });
   };
+  // Normal mode: choose a (simulated) payment method first; nothing is ordered until "Place simulated order".
+  // Research trials and hand-offs approve directly, exactly as before.
+  const approve =
+    lock || handoff
+      ? () => confirm()
+      : () =>
+          openCustom(
+            "Payment",
+            <PaymentSheet
+              mode={orderMode}
+              total={config.price}
+              onBack={close}
+              onConfirm={(m) => {
+                close();
+                confirm(m);
+              }}
+            />,
+            { stickyHeader: true },
+          );
 
   return (
     <Screen
@@ -59,7 +81,7 @@ export function Review() {
               </Link>
             </>
           ) : (
-            <Button disabled={!inBudget || tableMissing} onClick={confirm} icon={handoff ? "handoff" : "check"}>
+            <Button disabled={!inBudget || tableMissing} onClick={approve} icon={handoff ? "handoff" : "check"}>
               {handoff ? "Approve hand-off summary" : tableMissing ? "Choose your table to approve" : "Approve order"}
             </Button>
           )}

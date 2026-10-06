@@ -14,6 +14,7 @@ import { BrandMark } from "../BrandMark";
 import { MacroFit } from "../MacroFit";
 import { euro } from "../../lib/format";
 import { Icon } from "../Icon";
+import { PaymentSheet, paymentLabel, type PaymentMethod } from "../PaymentSheet";
 import { approx, ProvenanceBadge } from "../ProvenanceBadge";
 import { useSheet } from "../Sheet";
 import { useAppState } from "../../state/AppState";
@@ -237,6 +238,8 @@ function OrderCard({ draftId }: { draftId: string }) {
   const navigate = useNavigate();
   const { lock, dining, setDining } = useAppState();
   const [justApproved, setJustApproved] = useState(false);
+  const [paidWith, setPaidWith] = useState<PaymentMethod | null>(null); // display only; never stored
+  const sheet = useSheet();
   const d = state.orderDrafts.find((x) => x.id === draftId);
   if (!d) return null;
   const handoff = d.mode === "handoff";
@@ -292,9 +295,23 @@ function OrderCard({ draftId }: { draftId: string }) {
             <button
               {...(dineIn ? { disabled: !table } : {})}
               onClick={() => {
-                const r = approveDraft(d.id, table);
-                if (r?.research) navigate("/experiment/done", { replace: true, state: { completed: true } });
-                else if (r) setJustApproved(true);
+                const approve = (payment?: PaymentMethod) => {
+                  const r = approveDraft(d.id, table);
+                  if (r?.research) navigate("/experiment/done", { replace: true, state: { completed: true } });
+                  else if (r) (setJustApproved(true), payment && setPaidWith(payment));
+                };
+                // Normal mode: the same simulated payment step as Review before the existing approval; trials and hand-offs unchanged.
+                if (lock || handoff) return approve();
+                sheet.openCustom(
+                  "Payment",
+                  <PaymentSheet
+                    mode={d.mode === "in-store" ? "in-store" : "pickup"}
+                    total={d.price}
+                    onBack={sheet.close}
+                    onConfirm={(m) => (sheet.close(), approve(m))}
+                  />,
+                  { stickyHeader: true },
+                );
               }}
               className={`min-h-11 rounded-xl bg-brand px-4 text-[14px] font-semibold text-white hover:bg-brand-hover${dineIn ? " disabled:opacity-50" : ""}`}
             >
@@ -320,6 +337,11 @@ function OrderCard({ draftId }: { draftId: string }) {
               </Link>
             </div>
           </AcceptanceSequence>
+          {paidWith && (
+            <p data-payment-line className="mt-1.5 text-[12px] text-ink-3">
+              Payment · {paymentLabel(paidWith, d.mode === "in-store" ? "in-store" : "pickup")}
+            </p>
+          )}
         </div>
       ) : d.status === "approved" ? (
         <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-brand-soft px-3 py-2">

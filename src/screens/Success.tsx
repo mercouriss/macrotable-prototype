@@ -3,6 +3,7 @@ import { AcceptanceSequence } from "../components/AcceptanceSequence";
 import { BrandMark } from "../components/BrandMark";
 import { Icon } from "../components/Icon";
 import { KitchenTicket } from "../components/KitchenTicket";
+import { paymentLabel, readPaymentMethod } from "../components/PaymentSheet";
 import { SaveMealButton } from "../components/SaveMealButton";
 import { Screen } from "../components/Screen";
 import { ButtonLink, Card } from "../components/ui";
@@ -59,6 +60,8 @@ export function Success() {
   }
 
   const fresh = !!(location.state as { fresh?: boolean } | null)?.fresh;
+  // The simulated payment choice comes only from navigation state (never stored): absent after a refresh.
+  const payment = readPaymentMethod(location.state);
   return (
     <Screen
       footer={
@@ -93,7 +96,12 @@ export function Success() {
             </div>
           </AcceptanceSequence>
         </div>
-        <p className="mt-8 mb-6 text-center text-[12.5px] text-ink-3">Simulated order — no real kitchen received it and nothing was charged.</p>
+        {payment && (
+          <p data-payment-line className="mt-6 text-center text-[13px] font-medium text-ink-2">
+            Payment · {paymentLabel(payment, order.serviceMode === "in-store" ? "in-store" : "pickup")}
+          </p>
+        )}
+        <p className={`${payment ? "mt-2" : "mt-8"} mb-6 text-center text-[12.5px] text-ink-3`}>Simulated order — no real kitchen received it and nothing was charged.</p>
       </div>
     </Screen>
   );
