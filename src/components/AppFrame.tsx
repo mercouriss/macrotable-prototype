@@ -74,12 +74,11 @@ function ShowcasePanel() {
   const mode = pathname.startsWith("/research") ? "research" : "macrotable";
   return (
     <aside className="flex max-h-[min(844px,calc(100dvh-48px))] w-full max-w-[640px] min-w-[420px] flex-col gap-5 overflow-y-auto py-1 text-ink-2" aria-label="Product showcase and presenter controls">
-      <header className="flex items-center gap-3">
-        <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="h-10 w-10" />
-        <div>
-          <h1 className="font-display text-[26px] leading-tight font-semibold tracking-[-0.02em] text-ink">MacroTable</h1>
-          <p className="text-[13.5px] text-ink-3">Nutrition-aware restaurant ordering agent · Team 44 research prototype</p>
-        </div>
+      <header>
+        <h1>
+          <img src={`${import.meta.env.BASE_URL}brand/macrotable-wordmark.png`} alt="MacroTable" width={210} height={56} className="h-14 w-auto" />
+        </h1>
+        <p className="mt-1.5 text-[13.5px] text-ink-3">Nutrition-aware restaurant ordering agent · Team 44 research prototype</p>
       </header>
 
       <ShowcaseVideo />

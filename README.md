@@ -1,3 +1,5 @@
+<p align="center"><img src="brand/MacroTable_logo.png" alt="MacroTable" width="360" /></p>
+
 # MacroTable — V3.5 research prototype (product candidate)
 
 > **MacroTable is a university research prototype. Restaurant integrations, nutrition values, health synchronization, commerce actions and orders are simulated unless explicitly stated otherwise.**

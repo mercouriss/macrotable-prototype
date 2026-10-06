@@ -58,7 +58,7 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       injectRegister: false, // registered from main.tsx, production only
-      includeAssets: ["favicon.svg", "apple-touch-icon.png"],
+      includeAssets: ["favicon.png", "apple-touch-icon.png", "brand/macrotable-wordmark.png"],
       manifest: {
         name: "MacroTable — research prototype",
         short_name: "MacroTable",
