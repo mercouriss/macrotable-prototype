@@ -12,7 +12,7 @@ import { AskAgentButton } from "../components/AskAgentButton";
 import { deleteScan, listScans, newScanRecord, saveScan, updateScanStatus, type ScanRecord } from "../scan/imageStore";
 import { extractMenuFromImage, simulatedExtraction } from "../scan/menuExtraction";
 import { CAMERA_PROBLEM_TEXT, parseRestaurantQR, type CameraProblem } from "../lib/camera";
-import { useAppState } from "../state/AppState";
+import { useAppState, useInTrial } from "../state/AppState";
 
 const PHOTO_NOTE = "Your photo stays on this device in this prototype.";
 const PROBLEMS: CameraStatus[] = ["denied", "unavailable", "in-use", "insecure", "unsupported", "error"];
@@ -43,7 +43,7 @@ export function Scan() {
 /** Scan tab: choose menu photo or restaurant QR (the camera opens only after the tap), plus the current temporary scan. */
 function ScanHub() {
   const navigate = useNavigate();
-  const { log } = useAppState();
+  const { log, lock } = useAppState();
   const agent = useAgent();
   const [scan, setScan] = useState<ScanRecord | null>(null);
   const [thumb, setThumb] = useState<string | null>(null);
@@ -71,7 +71,7 @@ function ScanHub() {
       <div className="mt-5 grid gap-3">
         {(
           [
-            ["menu", "camera", "Scan a menu", "Photograph a paper menu. MacroAgent reads it and finds what fits — lower confidence, nothing verified."],
+            ["menu", "camera", "Scan a menu", lock ? "Photograph a paper menu. MacroAgent reads it and finds what fits — lower confidence, nothing verified." : "Photograph a paper menu. MacroAgent reads it and finds what fits (lower confidence, nothing verified)."],
             ["qr", "qr", "Scan a restaurant QR", "At a MacroTable restaurant: loads its verified menu and opens MacroAgent there."],
           ] as const
         ).map(([t, icon, title, body]) => (
@@ -176,10 +176,11 @@ function Viewfinder({
 }
 
 function CameraProblemCallout({ status }: { status: CameraProblem }) {
+  const trial = useInTrial();
   const t = CAMERA_PROBLEM_TEXT[status];
   return (
     <Callout tone="warn" title={t.title} icon="camera">
-      {t.body}
+      {trial && t.trialBody ? t.trialBody : t.body}
     </Callout>
   );
 }
@@ -224,7 +225,7 @@ type MenuPhase = "camera" | "captured" | "consent" | "analyzing" | "error";
 function MenuScan({ autoStart, at }: { autoStart: boolean; at?: Restaurant }) {
   const cam = useCamera();
   const navigate = useNavigate();
-  const { log, agentEngine } = useAppState();
+  const { log, agentEngine, lock } = useAppState();
   const agent = useAgent();
   const [phase, setPhase] = useState<MenuPhase>("camera");
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
@@ -273,7 +274,8 @@ function MenuScan({ autoStart, at }: { autoStart: boolean; at?: Restaurant }) {
       let menu = useLive ? await extractMenuFromImage(record.imageBlob, record.scanSessionId, agentEngine) : simulatedExtraction(record.scanSessionId);
       // A real photo of this restaurant's menu may carry its name; the offline SAMPLE never does.
       if (at && menu.source === "gemini" && !menu.restaurantName) menu = { ...menu, restaurantName: at.name };
-      if (at && menu.source === "simulated") menu = { ...menu, uncertainties: [`Sample data — not ${at.name}'s menu and not read from your photo`] };
+      if (at && menu.source === "simulated") menu = { ...menu, uncertainties: [lock ? `Sample data — not ${at.name}'s menu and not read from your photo` : `Sample data: not ${at.name}'s menu and not read from your photo`] };
+      else if (!lock && menu.source === "simulated") menu = { ...menu, uncertainties: ["Sample data: not read from your photo"] };
       if (useLive) log("scan_image_sent_to_model", { detail: { items: menu.items.length } });
       await updateScanStatus(record.scanSessionId, "extracted");
       agent.setScannedMenu(menu);
@@ -370,15 +372,17 @@ function MenuScan({ autoStart, at }: { autoStart: boolean; at?: Restaurant }) {
           {phase === "captured" && !live && (
             <div className="mt-4">
               <Callout tone="info" title="Offline demo mode">
-                No live vision model is connected, so "Analyze" shows a <strong>sample</strong> extraction — it is not read from your photo.
+                No live vision model is connected, so "Analyze" shows a <strong>sample</strong>
+                {lock ? " extraction — it is not read from your photo." : " extraction. It is not read from your photo."}
               </Callout>
             </div>
           )}
           {phase === "consent" && (
             <div className="mt-4">
               <Callout tone="estimated" title="Send this photo to Google Gemini?" icon="info">
-                To read the menu, the photo is sent once via MacroTable's proxy to Google's Gemini model. MacroTable doesn't store it; Google may
-                keep it for a limited time to detect misuse of its service. Avoid photos with people or personal details.
+                {lock
+                  ? "To read the menu, the photo is sent once via MacroTable's proxy to Google's Gemini model. MacroTable doesn't store it; Google may keep it for a limited time to detect misuse of its service. Avoid photos with people or personal details."
+                  : "To read the menu, the photo is sent once via MacroTable's proxy to Google's Gemini model. MacroTable doesn't store it. Google may keep it for a limited time to detect misuse of its service. Avoid photos with people or personal details."}
               </Callout>
             </div>
           )}
@@ -405,7 +409,7 @@ function MenuScan({ autoStart, at }: { autoStart: boolean; at?: Restaurant }) {
 function QrScan({ autoStart }: { autoStart: boolean }) {
   const cam = useCamera();
   const navigate = useNavigate();
-  const { log } = useAppState();
+  const { log, lock } = useAppState();
   const [unknown, setUnknown] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const busy = useRef(false);
@@ -481,7 +485,9 @@ function QrScan({ autoStart }: { autoStart: boolean }) {
           </p>
           <div className="mt-4">
             <Callout tone="estimated" title="Try estimated mode" icon="info">
-              Photograph the menu instead. MacroTable can then only estimate nutrition and hand you off — it can't modify dishes.
+              {lock
+                ? "Photograph the menu instead. MacroTable can then only estimate nutrition and hand you off — it can't modify dishes."
+                : "Photograph the menu instead. MacroTable can then only estimate nutrition and hand you off. It can't modify dishes."}
             </Callout>
           </div>
         </div>

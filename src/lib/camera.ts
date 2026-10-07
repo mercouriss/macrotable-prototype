@@ -49,10 +49,12 @@ export function classifyCameraError(err: unknown): CameraProblem {
   }
 }
 
-export const CAMERA_PROBLEM_TEXT: Record<CameraProblem, { title: string; body: string }> = {
+/** `trialBody`: the frozen research-trial wording, where it differs. */
+export const CAMERA_PROBLEM_TEXT: Record<CameraProblem, { title: string; body: string; trialBody?: string }> = {
   denied: {
     title: "Camera permission denied",
-    body: "You can allow camera access in your browser's site settings and try again — or upload a photo instead.",
+    body: "You can allow camera access in your browser's site settings and try again, or upload a photo instead.",
+    trialBody: "You can allow camera access in your browser's site settings and try again — or upload a photo instead.",
   },
   unavailable: {
     title: "No camera available",

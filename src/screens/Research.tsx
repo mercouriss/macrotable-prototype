@@ -29,8 +29,8 @@ import { agentConfigDocument, FALLBACK_POLICY, sha256Hex } from "../lib/freeze";
 import type { Mode, ScenarioId } from "../types";
 
 const COND_LABEL: Record<Mode, string> = { baseline: "Baseline", macrotable: "MacroTable" };
-const pct = (v?: number) => (v === undefined ? "—" : `${Math.round(v * 100)}%`);
-const kcal = (v?: number) => (v === undefined ? "—" : `${Math.round(v)} kcal`);
+const pct = (v?: number) => (v === undefined ? "n/a" : `${Math.round(v * 100)}%`);
+const kcal = (v?: number) => (v === undefined ? "n/a" : `${Math.round(v)} kcal`);
 
 /** Researcher dashboard: participant links, trials, descriptive summaries, export/reset. */
 export function Research() {
@@ -54,7 +54,7 @@ export function Research() {
     <Screen title="Research" back="/macrotable/profile">
       <LinkBuilder sessions={sessions} disabled={!!lock} />
 
-      <Section title="Summary" note="Descriptive only — no significance testing. Completed trials only.">
+      <Section title="Summary" note="Descriptive only. No significance testing. Completed trials only.">
         <div className="grid grid-cols-2 gap-2">
           {summary.map((s) => (
             <SummaryCard key={s.condition} s={s} />
@@ -88,7 +88,7 @@ export function Research() {
           className="mt-1"
           disabled={!!lock}
           onClick={() => {
-            if (window.confirm(`Delete all ${sessions.length} research sessions and simulated orders stored on this device? Export first — this can't be undone.`)) {
+            if (window.confirm(`Delete all ${sessions.length} research sessions and simulated orders stored on this device? Export first. This can't be undone.`)) {
               researchStore.clear();
               clearOrders();
               refresh();
@@ -145,7 +145,7 @@ export function Research() {
       <details className="mt-4 rounded-2xl border border-line bg-surface p-4">
         <summary className="cursor-pointer text-[14px] font-semibold">Printable demo QR codes</summary>
         <p className="mt-2 text-[12.5px] text-ink-3">
-          Each code opens the restaurant's page in the app — scan with the in-app scanner or the phone's own camera.
+          Each code opens the restaurant's page in the app. Scan with the in-app scanner or the phone's own camera.
         </p>
         <div className="mt-3 grid grid-cols-2 gap-3">
           {STUDY_RESTAURANTS.map((r) => (
@@ -166,7 +166,7 @@ export function Research() {
         <p className="mt-2 text-ink-2">
           D = {w.calories}·|kcal error| + {w.proteinShortfall}·protein shortfall + {w.carbs}·|carb error| + {w.fat}·
           {w.fatExcessOnly ? "fat excess" : "|fat error|"} (each relative to target). Configurations reaching the target range (kcal ±10%,
-          protein ≥ target) rank first. Prototype heuristic — not a validated nutrition model; never shown to participants.
+          protein ≥ target) rank first. Prototype heuristic, not a validated nutrition model. Never shown to participants.
         </p>
       </details>
 
@@ -289,7 +289,7 @@ function LinkBuilder({ sessions, disabled }: { sessions: ParticipantSession[]; d
             </select>
           </label>
         </div>
-        {!valid && <p className="mt-1 text-[12px] font-medium text-warn">Use a code like P001 — never a name, email or student number.</p>}
+        {!valid && <p className="mt-1 text-[12px] font-medium text-warn">Use a code like P001. Never a name, email or student number.</p>}
         <div role="radiogroup" aria-label="Condition" className="mt-3 grid grid-cols-2 gap-1 rounded-xl bg-sunken p-1">
           {(["baseline", "macrotable"] as Mode[]).map((c) => (
             <button
@@ -371,7 +371,7 @@ function LinkBuilder({ sessions, disabled }: { sessions: ParticipantSession[]; d
 function SummaryCard({ s }: { s: ConditionSummary }) {
   const rows: [string, string][] = [
     ["Completed", `${s.completed} / ${s.started}`],
-    ["Median time", s.medianTimeMs === undefined ? "—" : duration(s.medianTimeMs)],
+    ["Median time", s.medianTimeMs === undefined ? "n/a" : duration(s.medianTimeMs)],
     ["Mean |kcal dev|", kcal(s.meanAbsCalorieDeviation)],
     ["Median |kcal dev|", kcal(s.medianAbsCalorieDeviation)],
     ["Protein met", pct(s.proteinSuccessRate)],
@@ -456,7 +456,7 @@ function FreezeInfo() {
   // Ask the proxy which model it runs only when these values are opened (no background proxy traffic).
   const loadModel = () => {
     if (model !== "checking…") return;
-    if (!PROXY_URL) setModel("none — offline demo agent only");
+    if (!PROXY_URL) setModel("none (offline demo agent only)");
     else void proxyHealth().then((r) => setModel(r.ok ? (r.model ?? "unknown") : `proxy unreachable (${PROXY_URL})`));
   };
   const rows: [string, string][] = [
@@ -466,7 +466,7 @@ function FreezeInfo() {
     ["Prompt + tools + settings SHA-256", hash],
     ["Generation settings", `temperature ${GENERATION_CONFIG.temperature} · max ${GENERATION_CONFIG.maxOutputTokens} tokens · ≤${MAX_TOOL_ROUNDS} tool rounds`],
     ["Fallback policy", FALLBACK_POLICY],
-    ["Live AI on this device (normal mode only)", settings.agentMode === "auto" ? "on — live when available" : "off — offline agent only"],
+    ["Live AI on this device (normal mode only)", settings.agentMode === "auto" ? "on (live when available)" : "off (offline agent only)"],
     ["Trial agent engine", "set per participant link (engine=live|offline), recorded per session as agent_mode"],
     ["Baseline nutrition on this device", settings.baselineShowNutrition ? "visible" : "hidden"],
   ];

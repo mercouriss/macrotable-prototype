@@ -27,6 +27,8 @@ export interface ToolContext {
   prefs: Preferences;
   /** Working copy for this turn; tools may mutate it (committed by the orchestrator). */
   state: AgentSessionState;
+  /** Research trial: the agent's replies keep their frozen trial wording. Tools ignore it. */
+  inTrial?: boolean;
 }
 
 type JsonSchema = Record<string, unknown>;

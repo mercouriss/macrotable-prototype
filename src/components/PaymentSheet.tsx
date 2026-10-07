@@ -10,18 +10,18 @@ import { Button } from "./ui";
  * only handed back to the caller (and shown on the confirmation). Research trials and hand-offs never see it.
  */
 
-export type PaymentMethod = "apple-pay" | "pay-in-store";
+export type PaymentMethod = "ideal" | "pay-in-store";
 
-/** The confirmation line: "Apple Pay (simulated)", "Pay at pickup" or "Pay at restaurant". */
+/** The confirmation line: "iDEAL (simulated)", "Pay at pickup" or "Pay at restaurant". */
 export function paymentLabel(method: PaymentMethod, mode: ServiceMode): string {
-  if (method === "apple-pay") return "Apple Pay (simulated)";
+  if (method === "ideal") return "iDEAL (simulated)";
   return mode === "in-store" ? "Pay at restaurant" : "Pay at pickup";
 }
 
 /** A payment method from navigation state, or undefined when it's absent or not one of ours. */
 export function readPaymentMethod(state: unknown): PaymentMethod | undefined {
   const m = (state as { payment?: unknown } | null)?.payment;
-  return m === "apple-pay" || m === "pay-in-store" ? m : undefined;
+  return m === "ideal" || m === "pay-in-store" ? m : undefined;
 }
 
 export function PaymentSheet({
@@ -35,12 +35,12 @@ export function PaymentSheet({
   onBack: () => void;
   onConfirm: (method: PaymentMethod) => void;
 }) {
-  const [method, setMethod] = useState<PaymentMethod>("apple-pay");
+  const [method, setMethod] = useState<PaymentMethod>("ideal");
   const [submitting, setSubmitting] = useState(false);
   const sent = useRef(false); // a rapid second tap can't complete the order twice
 
   const options: [PaymentMethod, IconName, string, string][] = [
-    ["apple-pay", "wallet", "Apple Pay", "Simulated"],
+    ["ideal", "wallet", "iDEAL", "Simulated"],
     ["pay-in-store", "building", mode === "in-store" ? "Pay at restaurant" : "Pay at pickup", mode === "in-store" ? "Pay at the restaurant" : "Pay when you collect"],
   ];
 
@@ -80,7 +80,7 @@ export function PaymentSheet({
       <p className="tnum mt-4 flex items-baseline justify-between px-1 text-[15px] font-semibold">
         <span>Total</span> <span data-payment-total>{euro(total)}</span>
       </p>
-      <p className="mt-1 px-1 text-[12.5px] text-ink-3">Demo only — no payment will be charged.</p>
+      <p className="mt-1 px-1 text-[12.5px] text-ink-3">Demo only. No payment will be charged.</p>
       {/* Pinned to the bottom of the sheet (like the Add food footer), so it stays reachable on small phones. */}
       <div className="sticky -bottom-8 -mx-6 mt-4 -mb-8 space-y-2 border-t border-line-2 bg-surface px-6 pt-3 pb-8">
         <Button onClick={place} disabled={submitting} className="min-h-12">

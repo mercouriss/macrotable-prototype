@@ -21,7 +21,7 @@ Use a laptop browser window ≥1280 px wide. The app appears in a phone frame, w
    → filters: Best macro fit / High protein / Within budget / Vegetarian / MacroTable Demo / Real restaurants
    → a real place (e.g. Toko Smoor): "What MacroTable knows" → Scan the menu here
 5. Agent → "What should I eat near me?" → Nearby card (demo stores + 3 nearest real, "+16 more") → recommendation card → Configure order
-6. Profile → MacroTable Premium (concept: €7.99/month, €59.99/year, no billing; built vs concept features; how MacroTable earns)
+6. Profile → MacroTable Premium (concept: €4.99/month, €39.99/year, no billing; built vs concept features; how MacroTable earns)
 ```
 
 The public demo shows every brand. **Research trials and `/baseline` only ever show the three calibrated study brands** (FitKitchen, Urban Bowl, Local Grill), so don't be surprised when Explore shows "3 places" during a trial.

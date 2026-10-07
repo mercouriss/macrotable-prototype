@@ -175,7 +175,7 @@ describe("Dine in or Pickup (normal mode)", () => {
     expect(ticket).toContain("€16.50");
     const success = render(h(Routes, null, h(Route, { path: "/macrotable/success/:orderNumber", element: h(Success) })), `/macrotable/success/${order.orderNumber}`);
     expect(success).toContain("Dine in · Table 12 · ");
-    expect(success).toContain("Simulated order — no real kitchen received it and nothing was charged.");
+    expect(success).toContain("Simulated order. No real kitchen received it and nothing was charged.");
     const pickup = load().placeOrder("pickup", { mealId: "fk-chicken-power-bowl", selections: { ...BOWL, veg: "veg-std" } })!.order;
     expect(renderToString(h(KitchenTicket, { order: pickup }))).toMatch(/data-fulfilment[^>]*>PICKUP</);
     expect(fulfilmentLabel(pickup)).toBe("PICKUP");

@@ -101,7 +101,7 @@ export function Success() {
             Payment · {paymentLabel(payment, order.serviceMode === "in-store" ? "in-store" : "pickup")}
           </p>
         )}
-        <p className={`${payment ? "mt-2" : "mt-8"} mb-6 text-center text-[12.5px] text-ink-3`}>Simulated order — no real kitchen received it and nothing was charged.</p>
+        <p className={`${payment ? "mt-2" : "mt-8"} mb-6 text-center text-[12.5px] text-ink-3`}>Simulated order. No real kitchen received it and nothing was charged.</p>
       </div>
     </Screen>
   );

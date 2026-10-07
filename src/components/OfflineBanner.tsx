@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { useInTrial } from "../state/AppState";
 import { Icon } from "./Icon";
 
 /** The prototype needs no network after first load; this just tells people that's fine. */
 export function OfflineBanner() {
+  const trial = useInTrial();
   const [offline, setOffline] = useState(() => typeof navigator !== "undefined" && navigator.onLine === false);
   const [recovered, setRecovered] = useState(false);
   useEffect(() => {
@@ -31,7 +33,7 @@ export function OfflineBanner() {
       }`}
     >
       <Icon name={offline ? "info" : "check"} size={16} />
-      {offline ? "You're offline — the prototype keeps working from saved files." : "Back online."}
+      {offline ? (trial ? "You're offline — the prototype keeps working from saved files." : "You're offline. The prototype keeps working from saved files.") : "Back online."}
     </div>
   );
 }

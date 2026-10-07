@@ -188,7 +188,9 @@ function MessageView({ m, last, onAction }: { m: AgentMessage; last: boolean; on
   return (
     <li className="space-y-2">
       {m.fallbackReason && (
-        <p className="text-[11.5px] text-estimated">Live model unavailable — answered by the offline demo agent.</p>
+        <p className="text-[11.5px] text-estimated">
+          {lock ? "Live model unavailable — answered by the offline demo agent." : "Live model unavailable, so the offline demo agent answered."}
+        </p>
       )}
       {!!m.steps?.length && (
         <ol className="flex flex-wrap gap-x-3 gap-y-1" aria-label="What MacroAgent did">

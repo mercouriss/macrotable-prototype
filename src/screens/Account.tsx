@@ -126,7 +126,9 @@ export function Saved() {
               );
             })}
           </ul>
-          <p className="mt-4 mb-6 px-1 text-[12px] leading-snug text-ink-3">Saved only in this browser — never sent anywhere or included in research exports.</p>
+          <p className="mt-4 mb-6 px-1 text-[12px] leading-snug text-ink-3">
+            {lock ? "Saved only in this browser — never sent anywhere or included in research exports." : "Saved only in this browser. Never sent anywhere or included in research exports."}
+          </p>
         </>
       )}
     </Screen>
@@ -182,7 +184,7 @@ export function Profile() {
             <span className="rounded-full bg-white/12 px-2 py-0.5 text-[10.5px] font-bold tracking-[0.06em] text-white/80">CONCEPT</span>
           </span>
           <span className="mt-2 block text-[17px] leading-snug font-semibold">Your nutrition goals, turned into restaurant orders.</span>
-          <span className="mt-1 block text-[13px] text-white/70">€7.99/month · included free in this beta</span>
+          <span className="mt-1 block text-[13px] text-white/70">€4.99/month · included free in this beta</span>
         </Link>
       )}
 

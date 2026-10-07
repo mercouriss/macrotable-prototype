@@ -177,12 +177,12 @@ const ordersInLedger = () => load().todayLog.filter((e) => e.source === "order")
 
 // ── The sheet itself ───────────────────────────────────────────────────────────────────────────────────
 describe("PaymentSheet", () => {
-  it("pickup: Apple Pay (default) or Pay at pickup, the total, the demo note, Place simulated order / Back", () => {
+  it("pickup: iDEAL (default) or Pay at pickup, the total, the demo note, Place simulated order / Back", () => {
     const { html } = paymentTree({ mode: "pickup", total: 16.5 });
     const t = visibleText(html);
-    expect(checked(html, "apple-pay")).toBe(true);
+    expect(checked(html, "ideal")).toBe(true);
     expect(checked(html, "pay-in-store")).toBe(false);
-    for (const s of ["Apple Pay", "Pay at pickup", "Pay when you collect", "Total", "€16.50", "Demo only — no payment will be charged.", "Place simulated order", "Back"]) expect(t).toContain(s);
+    for (const s of ["iDEAL", "Pay at pickup", "Pay when you collect", "Total", "€16.50", "Demo only. No payment will be charged.", "Place simulated order", "Back"]) expect(t).toContain(s);
     expect(t).not.toContain("Pay at restaurant");
     expect(html.match(/role="radio"/g)).toHaveLength(2); // no other methods
   });
@@ -198,12 +198,12 @@ describe("PaymentSheet", () => {
     const got: PaymentMethod[] = [];
     const s = paymentTree({ mode: "pickup", total: 16.5, onConfirm: (m) => got.push(m) }, ["pay-in-store"]);
     expect(checked(s.html, "pay-in-store")).toBe(true);
-    expect(checked(s.html, "apple-pay")).toBe(false);
+    expect(checked(s.html, "ideal")).toBe(false);
     click(buttonIn(s.tree, "Place simulated order"));
-    const back = paymentTree({ mode: "pickup", total: 16.5, onConfirm: (m) => got.push(m) }, ["pay-in-store", "apple-pay"]);
-    expect(checked(back.html, "apple-pay")).toBe(true);
+    const back = paymentTree({ mode: "pickup", total: 16.5, onConfirm: (m) => got.push(m) }, ["pay-in-store", "ideal"]);
+    expect(checked(back.html, "ideal")).toBe(true);
     click(buttonIn(back.tree, "Place simulated order"));
-    expect(got).toEqual(["pay-in-store", "apple-pay"]);
+    expect(got).toEqual(["pay-in-store", "ideal"]);
   });
 
   it("rapid taps on Place simulated order confirm once; Back never confirms", () => {
@@ -217,7 +217,7 @@ describe("PaymentSheet", () => {
     click(place);
     click(place);
     expect(onConfirm).toHaveBeenCalledTimes(1);
-    expect(onConfirm).toHaveBeenCalledWith("apple-pay");
+    expect(onConfirm).toHaveBeenCalledWith("ideal");
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
@@ -233,7 +233,7 @@ describe("PaymentSheet", () => {
 
 // ── Review path ────────────────────────────────────────────────────────────────────────────────────────
 describe("Review → Payment → Place simulated order", () => {
-  it("Approve order opens Payment (Apple Pay default, €16.50) and places nothing", () => {
+  it("Approve order opens Payment (iDEAL default, €16.50) and places nothing", () => {
     persist({ selection: bowl() });
     click(buttonIn(reviewTree(), "Approve order"));
     expect(opened).toHaveLength(1);
@@ -256,17 +256,17 @@ describe("Review → Payment → Place simulated order", () => {
 
     click(buttonIn(reviewTree(), "Approve order")); // reopen
     const { onConfirm } = opened[1].body.props;
-    onConfirm("apple-pay");
-    onConfirm("apple-pay"); // even a second completion call can't duplicate (existing idempotency)
+    onConfirm("ideal");
+    onConfirm("ideal"); // even a second completion call can't duplicate (existing idempotency)
     expect(getOrders()).toHaveLength(1);
     expect(ordersInLedger()).toBe(1);
     const n = getOrders()[0].orderNumber;
     expect(nav).toHaveBeenCalledTimes(1);
-    expect(nav).toHaveBeenCalledWith(`/macrotable/success/${n}`, { replace: true, state: { fresh: true, payment: "apple-pay" } });
+    expect(nav).toHaveBeenCalledWith(`/macrotable/success/${n}`, { replace: true, state: { fresh: true, payment: "ideal" } });
     // Never stored: not on the order, the ledger, the selection or anywhere else in storage.
     expect(Object.keys(getOrders()[0])).not.toContain("payment");
-    expect(JSON.stringify([...Array(local.length)].map((_, i) => local.getItem(local.key(i)!)))).not.toMatch(/apple-pay|pay-in-store|payment/i);
-    expect(JSON.stringify([...Array(session.length)].map((_, i) => session.getItem(session.key(i)!)))).not.toMatch(/apple-pay|pay-in-store|payment/i);
+    expect(JSON.stringify([...Array(local.length)].map((_, i) => local.getItem(local.key(i)!)))).not.toMatch(/ideal|pay-in-store|payment/i);
+    expect(JSON.stringify([...Array(session.length)].map((_, i) => session.getItem(session.key(i)!)))).not.toMatch(/ideal|pay-in-store|payment/i);
   });
 
   it("dine-in: the table survives the payment step; Pay at restaurant", () => {
@@ -301,13 +301,13 @@ describe("Review → Payment → Place simulated order", () => {
     persist({ selection: bowl(), lock: lockOf });
     const html = renderToString(h(MemoryRouter, null, h(AppStateProvider, null, h(Review))));
     expect(html).toContain(">Approve order<");
-    expect(html).not.toMatch(/Payment|Apple Pay|Place simulated order/);
+    expect(html).not.toMatch(/Payment|iDEAL|Apple Pay|Place simulated order/);
     click(buttonIn(reviewTree(), "Approve order"));
     expect(opened).toHaveLength(0);
     expect(getOrders()).toHaveLength(1);
     expect(nav).toHaveBeenCalledTimes(1);
     expect(nav).toHaveBeenCalledWith("/experiment/done", { replace: true, state: { completed: true } });
-    expect(JSON.stringify([...Array(local.length)].map((_, i) => local.getItem(local.key(i)!)))).not.toMatch(/apple-pay|pay-in-store|payment/i);
+    expect(JSON.stringify([...Array(local.length)].map((_, i) => local.getItem(local.key(i)!)))).not.toMatch(/ideal|pay-in-store|payment/i);
   });
 });
 
@@ -333,16 +333,16 @@ describe("MacroAgent: Approve & send order → Payment → Place simulated order
     seedAgent(draft());
     click(buttonIn(orderCardTree(), "Approve & send order"));
     const { onConfirm } = opened[0].body.props;
-    onConfirm("apple-pay");
+    onConfirm("ideal");
     expect(agentCalls).toEqual([["approveDraft", ["d1", undefined]]]);
-    onConfirm("apple-pay"); // a direct second call: the existing approveDraft refuses it
+    onConfirm("ideal"); // a direct second call: the existing approveDraft refuses it
     expect(agentCalls.map(([k]) => k)).toEqual(["approveDraft", "approveDraft"]);
     expect(getOrders()).toHaveLength(1);
     expect(ordersInLedger()).toBe(1);
     expect(getOrders()[0]).toMatchObject({ mealId: "fk-chicken-power-bowl", selections: BOWL, price: 16.5, serviceMode: "pickup" });
     expect(Object.keys(getOrders()[0])).not.toContain("payment");
     expect(nav).not.toHaveBeenCalled(); // normal mode stays in the chat (the card shows the acceptance)
-    expect(JSON.stringify([...Array(session.length)].map((_, i) => session.getItem(session.key(i)!)))).not.toMatch(/apple-pay|pay-in-store|payment/i);
+    expect(JSON.stringify([...Array(session.length)].map((_, i) => session.getItem(session.key(i)!)))).not.toMatch(/ideal|pay-in-store|payment/i);
   });
 
   it("through the sheet's own button, rapid taps approve once", () => {
@@ -367,11 +367,11 @@ describe("MacroAgent: Approve & send order → Payment → Place simulated order
     expect(getOrders()[0]).toMatchObject({ serviceMode: "in-store", table: "12" });
   });
 
-  it("hand-off draft: Done — I'll order at the counter goes straight through, no sheet", () => {
+  it("hand-off draft: Done, I'll order at the counter goes straight through, no sheet", () => {
     persist({});
     const grill = getRestaurant("localgrill")!;
     seedAgent(draft({ restaurantId: grill.id, restaurantName: grill.name, mealId: grill.meals[0].id, mealName: grill.meals[0].name, selections: {}, mode: "handoff" }));
-    click(buttonIn(orderCardTree(), "Done — I'll order at the counter"));
+    click(buttonIn(orderCardTree(), "Done, I'll order at the counter"));
     expect(opened).toHaveLength(0);
     expect(agentCalls.map(([k]) => k)).toEqual(["approveDraft"]);
   });
@@ -397,9 +397,9 @@ describe("Success: the payment line comes only from navigation state", () => {
     return load().placeOrder(mode, bowl(), table ? { table } : undefined)!.order.orderNumber;
   };
 
-  it("Apple Pay · Pay at pickup · Pay at restaurant", () => {
+  it("iDEAL · Pay at pickup · Pay at restaurant", () => {
     const p = place("pickup");
-    expect(success(p, { fresh: true, payment: "apple-pay" })).toMatch(/data-payment-line[^>]*>Payment · <!-- -->Apple Pay \(simulated\)</);
+    expect(success(p, { fresh: true, payment: "ideal" })).toMatch(/data-payment-line[^>]*>Payment · <!-- -->iDEAL \(simulated\)</);
     expect(success(p, { fresh: true, payment: "pay-in-store" })).toMatch(/>Payment · <!-- -->Pay at pickup</);
     clearOrders();
     const d = place("in-store", "12");
@@ -408,7 +408,7 @@ describe("Success: the payment line comes only from navigation state", () => {
 
   it("no state (refresh / direct link) or an unknown value: renders normally, no line", () => {
     const p = place("pickup");
-    for (const state of [undefined, null, { fresh: true }, { payment: "visa" }, { payment: { method: "apple-pay" } }]) {
+    for (const state of [undefined, null, { fresh: true }, { payment: "visa" }, { payment: { method: "ideal" } }]) {
       const html = success(p, state);
       expect(html).toContain("Order approved");
       expect(html).not.toContain("data-payment-line");
@@ -418,13 +418,13 @@ describe("Success: the payment line comes only from navigation state", () => {
   });
 
   it("labels and state parsing", () => {
-    expect(paymentLabel("apple-pay", "pickup")).toBe("Apple Pay (simulated)");
-    expect(paymentLabel("apple-pay", "in-store")).toBe("Apple Pay (simulated)");
+    expect(paymentLabel("ideal", "pickup")).toBe("iDEAL (simulated)");
+    expect(paymentLabel("ideal", "in-store")).toBe("iDEAL (simulated)");
     expect(paymentLabel("pay-in-store", "pickup")).toBe("Pay at pickup");
     expect(paymentLabel("pay-in-store", "in-store")).toBe("Pay at restaurant");
-    expect(readPaymentMethod({ payment: "apple-pay" })).toBe("apple-pay");
+    expect(readPaymentMethod({ payment: "ideal" })).toBe("ideal");
     expect(readPaymentMethod({ payment: "card" })).toBeUndefined();
     expect(readPaymentMethod(null)).toBeUndefined();
-    expect(readPaymentMethod("apple-pay")).toBeUndefined();
+    expect(readPaymentMethod("ideal")).toBeUndefined();
   });
 });

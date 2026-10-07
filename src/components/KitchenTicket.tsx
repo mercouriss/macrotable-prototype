@@ -38,7 +38,7 @@ export function KitchenTicket({ order }: { order: PlacedOrder }) {
             ))}
           </ul>
         ) : (
-          <p className="mt-1.5">AS LISTED — NO MODIFICATIONS</p>
+          <p className="mt-1.5">AS LISTED, NO MODIFICATIONS</p>
         )}
         <div className="my-4 border-t border-dashed border-[#bdbab0]" />
         <p className="text-[11.5px] text-[#4a4943]">

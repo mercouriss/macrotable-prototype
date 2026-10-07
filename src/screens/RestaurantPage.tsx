@@ -73,13 +73,13 @@ function RealRestaurantPage({ r }: { r: Restaurant }) {
               <Icon name={yes ? "check" : "minus"} size={16} stroke={2.4} className={yes ? "text-brand" : "text-ink-3"} />
               <span className={yes ? "text-ink" : "text-ink-3"}>
                 {text}
-                {!yes && <span className="sr-only"> — not available</span>}
+                {!yes && <span className="sr-only">, not available</span>}
               </span>
             </li>
           ))}
         </ul>
         <p className="mt-4 text-[13.5px] leading-snug text-ink-2">
-          Photograph the menu and MacroAgent reads it. Numbers printed on the menu are labelled MENU-READ; anything inferred is ESTIMATED.
+          Photograph the menu and MacroAgent reads it. Numbers printed on the menu are labelled MENU-READ. Anything inferred is ESTIMATED.
         </p>
       </Card>
       <div className="mt-3 mb-6 rounded-[22px] border border-line-2 bg-surface p-5 shadow-card">

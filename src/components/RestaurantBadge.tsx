@@ -97,7 +97,7 @@ export function RealRestaurantInfo({ restaurant }: { restaurant: Restaurant }) {
   return (
     <div className="space-y-3 text-[14px] leading-relaxed">
       <p>
-        <strong>Real:</strong> the name and location ({r.addressLine}), verified on {r.verifiedOn} ({r.sources.join("; ")}).
+        <strong>Real:</strong> the name and location ({r.addressLine}), verified on {r.verifiedOn} ({r.sources.join(", ")}).
       </p>
       <p>
         <strong>Not claimed:</strong> {restaurant.name} is <strong>not affiliated with MacroTable</strong>. This prototype has no menu, prices,

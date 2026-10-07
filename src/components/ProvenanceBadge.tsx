@@ -11,7 +11,8 @@ export const PROVENANCE_META: Record<
     icon: IconName;
     chip: string;
     sheetTitle: string;
-    sheetBody: (restaurant?: string) => string[];
+    /** `trial`: research trials keep their frozen wording. */
+    sheetBody: (restaurant?: string, trial?: boolean) => string[];
   }
 > = {
   verified: {
@@ -20,9 +21,11 @@ export const PROVENANCE_META: Record<
     icon: "check",
     chip: "bg-verified-soft text-verified",
     sheetTitle: "Demo verified data (simulated)",
-    sheetBody: (r) => [
+    sheetBody: (r, trial) => [
       `${r ?? "This restaurant"} is a fictional demo partner. Its recipes, modifications and nutrition are simulated to show what recipe-level data from a verified MacroTable partner would look like.`,
-      "MacroTable calculates nutrition from the configured ingredients — no restaurant has verified these numbers.",
+      trial
+        ? "MacroTable calculates nutrition from the configured ingredients — no restaurant has verified these numbers."
+        : "MacroTable calculates nutrition from the configured ingredients. No restaurant has verified these numbers.",
       "In a real product, verified data would still vary with actual preparation.",
     ],
   },
@@ -44,10 +47,12 @@ export const PROVENANCE_META: Record<
     icon: "camera",
     chip: "bg-menuread-soft text-menuread",
     sheetTitle: "Read from the menu",
-    sheetBody: () => [
+    sheetBody: (_r, trial) => [
       "These values were printed on the menu you photographed and read by the MacroAgent's vision model.",
-      "They are what the menu states — not verified by the restaurant or MacroTable. Reading errors are possible, so check the menu itself.",
-      "MacroTable can't request modifications here; order at the counter.",
+      trial
+        ? "They are what the menu states — not verified by the restaurant or MacroTable. Reading errors are possible, so check the menu itself."
+        : "They are what the menu states, not verified by the restaurant or MacroTable. Reading errors are possible, so check the menu itself.",
+      trial ? "MacroTable can't request modifications here; order at the counter." : "MacroTable can't request modifications here, so order at the counter.",
     ],
   },
   estimated: {
@@ -56,10 +61,14 @@ export const PROVENANCE_META: Record<
     icon: "alert",
     chip: "bg-estimated-soft text-estimated",
     sheetTitle: "Estimated nutrition",
-    sheetBody: (r) => [
-      "Nutrition was estimated — from a public menu, or inferred by the vision model from a scanned dish description. It was not printed on the menu or verified.",
+    sheetBody: (r, trial) => [
+      trial
+        ? "Nutrition was estimated — from a public menu, or inferred by the vision model from a scanned dish description. It was not printed on the menu or verified."
+        : "Nutrition was estimated from a public menu, or inferred by the vision model from a scanned dish description. It was not printed on the menu or verified.",
       `It is not verified by ${r ?? "the restaurant"} and may differ from the actual meal.`,
-      "Because the restaurant isn't integrated, MacroTable can't request modifications here — only recommend and hand off.",
+      trial
+        ? "Because the restaurant isn't integrated, MacroTable can't request modifications here — only recommend and hand off."
+        : "Because the restaurant isn't integrated, MacroTable can't request modifications here. It can only recommend and hand off.",
     ],
   },
   insufficient: {

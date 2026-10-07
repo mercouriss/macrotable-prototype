@@ -69,14 +69,20 @@ export function parseIntent(raw: string): ParsedIntent {
 
 const provWord = (p: string) => provenanceLabel(p as Provenance);
 
-function recText(rec: RecommendationCardData, lead: string): string {
+/** Research trials keep their frozen wording (`trial`); normal mode avoids em dashes and semicolons. */
+function recText(rec: RecommendationCardData, lead: string, trial = false): string {
   const n = rec.nutrition;
   const lines = [
     lead,
     `${rec.mealName} at ${rec.restaurantName}: ${n.calories} kcal · ${n.protein} g protein · ${euro(rec.price)} (${provWord(rec.provenance)} data).`,
   ];
-  if (rec.changes.length) lines.push(`I'd configure it with: ${rec.changes.join(", ").toLowerCase()} — all supported by ${rec.restaurantName}.`);
-  if (rec.gaps.length) lines.push(`Heads-up: ${rec.gaps.join("; ").toLowerCase()}.`);
+  if (rec.changes.length)
+    lines.push(
+      trial
+        ? `I'd configure it with: ${rec.changes.join(", ").toLowerCase()} — all supported by ${rec.restaurantName}.`
+        : `I'd configure it with: ${rec.changes.join(", ").toLowerCase()}. All supported by ${rec.restaurantName}.`,
+    );
+  if (rec.gaps.length) lines.push(`Heads-up: ${rec.gaps.join(trial ? "; " : ", ").toLowerCase()}.`);
   else lines.push("It reaches your calorie range and protein minimum within budget.");
   if (rec.rejectedRequests.length) lines.push(rec.rejectedRequests[0]);
   return lines.join("\n");
@@ -151,7 +157,7 @@ export function runMockTurn(userText: string, ctx: ToolContext): MockTurn {
       const why = ((r.result as { notPossible?: string[] }).notPossible ?? [])[0];
       if (why) return { text: why, toolRuns: runs }; // the restaurant doesn't support it: say so
       searchInstead = true;
-    } else return { text: recText(rec, "Done — re-optimised with your change using only supported options:"), toolRuns: runs };
+    } else return { text: recText(rec, ctx.inTrial ? "Done — re-optimised with your change using only supported options:" : "Done, re-optimised with your change using only supported options:", ctx.inTrial), toolRuns: runs };
   }
 
   // 3. Why / confidence.
@@ -159,9 +165,10 @@ export function runMockTurn(userText: string, ctx: ToolContext): MockTurn {
     call("explainProvenance", { mealId: cur.mealId });
     const r = call("optimizeMeal", { mealId: cur.mealId });
     const e = (r.result as { explanation?: { meets: string[]; tradeoffs: string[]; confidence: string } }).explanation;
+    const sep = ctx.inTrial ? "; " : ", ";
     return {
       text: e
-        ? [`Why ${cur.mealName}:`, `• Meets: ${e.meets.join("; ").toLowerCase()}.`, e.tradeoffs.length ? `• Trade-offs: ${e.tradeoffs.join("; ").toLowerCase()}.` : "", `• Confidence: ${e.confidence}`].filter(Boolean).join("\n")
+        ? [`Why ${cur.mealName}:`, `• Meets: ${e.meets.join(sep).toLowerCase()}.`, e.tradeoffs.length ? `• Trade-offs: ${e.tradeoffs.join(sep).toLowerCase()}.` : "", `• Confidence: ${e.confidence}`].filter(Boolean).join("\n")
         : "I couldn't recompute the explanation for that dish.",
       toolRuns: runs,
     };
@@ -183,14 +190,14 @@ export function runMockTurn(userText: string, ctx: ToolContext): MockTurn {
     const r = call("optimizeMeal", { restaurantId: SCAN_RESTAURANT_ID, ...overrides });
     const rec = ctx.state.currentRecommendation;
     if (!r.ok || !rec) return { text: "None of the scanned dishes has enough information and a known price to recommend. You could ask the staff for nutrition details.", toolRuns: runs };
-    return { text: recText(rec, "From the scanned menu, lower confidence — nothing here is verified:"), toolRuns: runs };
+    return { text: recText(rec, ctx.inTrial ? "From the scanned menu, lower confidence — nothing here is verified:" : "From the scanned menu (lower confidence, nothing here is verified):", ctx.inTrial), toolRuns: runs };
   }
 
   // 5b. A real (unaffiliated) restaurant: no menu data — offer the scan path, never invent a menu.
   const realR = i.restaurantId ? getRestaurant(i.restaurantId) : undefined;
   if (realR?.identity === "real") {
     call("getMenu", { restaurantId: realR.id });
-    return { text: `${realR.name} is a real restaurant that isn't affiliated with MacroTable, so I have no menu, prices or nutrition for it. Scan its menu and I'll read it and find what fits — with lower confidence.`, toolRuns: runs };
+    return { text: `${realR.name} is a real restaurant that isn't affiliated with MacroTable, so I have no menu, prices or nutrition for it. Scan its menu and I'll read it and find what fits${ctx.inTrial ? " —" : ","} with lower confidence.`, toolRuns: runs };
   }
 
   // 6. Compare stores / find something nearby / specific restaurant.
@@ -217,7 +224,7 @@ export function runMockTurn(userText: string, ctx: ToolContext): MockTurn {
     const lead = stores.length
       ? `I compared ${demo} nearby restaurants with MacroTable demo menus${real ? ` (${real} real restaurants nearby aren't affiliated, so I'd need a menu scan there)` : ""}. ${rec.restaurantName} has the strongest ${provWord(rec.provenance)} match:`
       : `At ${rec.restaurantName}, the best fit is:`;
-    return { text: recText(rec, lead), toolRuns: runs };
+    return { text: recText(rec, lead, ctx.inTrial), toolRuns: runs };
   }
 
   call("getUserContext");

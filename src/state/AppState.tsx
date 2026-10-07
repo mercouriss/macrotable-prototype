@@ -410,6 +410,11 @@ export function useAppState(): AppStateValue {
   return v;
 }
 
+/** True during a research trial: shared screens keep their frozen trial wording. False outside the provider. */
+export function useInTrial(): boolean {
+  return !!useContext(Ctx)?.lock;
+}
+
 /** Wipe only the app's UI state (never research data) — used by the error boundary. */
 export function hardResetUiState(): void {
   try {

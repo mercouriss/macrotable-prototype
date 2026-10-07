@@ -99,7 +99,7 @@ export function AgentStateProvider({ children }: { children: ReactNode }) {
     setState(next);
   }
 
-  const ctxFor = (): ToolContext => ({ target: appRef.current.target, prefs: appRef.current.prefs, state: structuredClone(ref.current) });
+  const ctxFor = (): ToolContext => ({ target: appRef.current.target, prefs: appRef.current.prefs, state: structuredClone(ref.current), inTrial: !!appRef.current.lock });
 
   const record = (o: TurnOutcome, extraMessages: AgentMessage[] = []) => {
     const { log } = appRef.current;

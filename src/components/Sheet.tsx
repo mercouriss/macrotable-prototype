@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { IntegrationLevel, Provenance } from "../types";
+import { useInTrial } from "../state/AppState";
 import { Icon } from "./Icon";
 import { PROVENANCE_META } from "./ProvenanceBadge";
 import { LEVEL_META } from "./RestaurantBadge";
@@ -88,6 +89,7 @@ export function SheetProvider({ children, onOpen }: { children: ReactNode; onOpe
 }
 
 function SheetBody({ content, close }: { content: SheetContent; close: () => void }) {
+  const trial = useInTrial();
   if (content.kind === "custom" && content.stickyHeader) {
     // Pinned to the top of the scrolling panel (offsets cancel the panel's pt-3 / px-6).
     return (
@@ -144,7 +146,11 @@ function SheetBody({ content, close }: { content: SheetContent; close: () => voi
             </ul>
           </div>
         </div>
-        <p className="mt-5 text-[13px] text-ink-3">Integration depth affects data confidence and what can be ordered — never how a meal is ranked.</p>
+        <p className="mt-5 text-[13px] text-ink-3">
+          {trial
+            ? "Integration depth affects data confidence and what can be ordered — never how a meal is ranked."
+            : "Integration depth affects data confidence and what can be ordered, but never how a meal is ranked."}
+        </p>
       </>
     );
   }
@@ -159,7 +165,7 @@ function SheetBody({ content, close }: { content: SheetContent; close: () => voi
         {m.sheetTitle}
       </h2>
       <div className="mt-3 space-y-3 text-[15px] leading-relaxed text-ink-2">
-        {m.sheetBody(content.restaurantName).map((p) => (
+        {m.sheetBody(content.restaurantName, trial).map((p) => (
           <p key={p}>{p}</p>
         ))}
       </div>

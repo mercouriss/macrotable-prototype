@@ -43,7 +43,7 @@ This is the last productization pass before the pilot and freeze. The audit, inc
 - **MacroAgent cards** show fit bars, "why this fits", "MacroTable changed" and a *Configure order* button. The store list shows the demo brands plus the 3 nearest real places.
 - **Saved meals and order again**, stored in this browser only.
 - **MacroTable Premium concept** (Profile).
-  - €7.99/month or €59.99/year, labelled *prototype pricing / concept — no billing*.
+  - €4.99/month or €39.99/year, labelled *prototype pricing / concept — no billing*.
   - Built features are marked apart from concept-only ones.
   - Everything that exists stays unlocked, so Free is never crippled and the experiment is untouched.
   - It shows how MacroTable would earn money, with a no-paid-placement rule.

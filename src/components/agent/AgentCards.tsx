@@ -315,14 +315,20 @@ function OrderCard({ draftId }: { draftId: string }) {
               }}
               className={`min-h-11 rounded-xl bg-brand px-4 text-[14px] font-semibold text-white hover:bg-brand-hover${dineIn ? " disabled:opacity-50" : ""}`}
             >
-              {handoff ? "Done — I'll order at the counter" : dineIn && !table ? "Choose your table" : "Approve & send order"}
+              {handoff ? (lock ? "Done — I'll order at the counter" : "Done, I'll order at the counter") : dineIn && !table ? "Choose your table" : "Approve & send order"}
             </button>
             <button onClick={() => cancelDraft(d.id)} className="min-h-11 rounded-xl border border-line px-4 text-[14px] font-medium text-ink-2">
               Cancel
             </button>
           </div>
           <p className="mt-2 text-[12px] text-ink-3">
-            {handoff ? "This restaurant isn't connected — nothing is sent." : "Nothing is ordered until you approve. Simulated — no payment."}
+            {handoff
+              ? lock
+                ? "This restaurant isn't connected — nothing is sent."
+                : "This restaurant isn't connected, so nothing is sent."
+              : lock
+                ? "Nothing is ordered until you approve. Simulated — no payment."
+                : "Nothing is ordered until you approve. Simulated, no payment."}
           </p>
         </>
       ) : d.status === "approved" && placed && restaurant && !handoff && !lock ? (
@@ -471,7 +477,7 @@ export function AddToTodayConfirm({ item, onCancel, onAdd }: { item: ScannedItem
 
 const SCAN_NOTE: Record<ScannedItem["provenance"], string> = {
   "menu-read": "All four values are printed on the menu. Not verified by the restaurant.",
-  estimated: "Values marked ≈ are estimated from the menu text and may differ; unmarked values are printed on the menu.",
+  estimated: "Values marked ≈ are estimated from the menu text and may differ. Unmarked values are printed on the menu.",
   insufficient: "Not enough information to estimate nutrition, so MacroTable won't recommend this dish.",
 };
 
@@ -544,7 +550,7 @@ export function FullScannedMenu({ menu, best }: { menu: ScannedMenu; best?: { id
                     </dl>
                   )}
                   {i.markedDietary.length > 0 && <p className="mt-1.5">Marked on the menu: {i.markedDietary.join(", ")}</p>}
-                  {i.visibleModifiers.length > 0 && <p className="mt-1.5">Options listed on the menu: {i.visibleModifiers.join("; ")}</p>}
+                  {i.visibleModifiers.length > 0 && <p className="mt-1.5">Options listed on the menu: {i.visibleModifiers.join(" · ")}</p>}
                   <p className="mt-1.5 text-[12px] text-ink-3">{SCAN_NOTE[i.provenance]}</p>
                 </div>
               )}
@@ -552,7 +558,7 @@ export function FullScannedMenu({ menu, best }: { menu: ScannedMenu; best?: { id
           );
         })}
       </ul>
-      {menu.uncertainties.length > 0 && <p className="border-t border-line-2 px-4 py-2 text-[12px] text-ink-3">Uncertain: {menu.uncertainties.join("; ")}</p>}
+      {menu.uncertainties.length > 0 && <p className="border-t border-line-2 px-4 py-2 text-[12px] text-ink-3">Uncertain: {menu.uncertainties.join(" · ")}</p>}
     </section>
   );
 }

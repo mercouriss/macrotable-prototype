@@ -18,7 +18,7 @@ export function signedEuro(v: number): string {
 }
 
 export function duration(ms: number | undefined): string {
-  if (ms === undefined) return "—";
+  if (ms === undefined) return "n/a";
   const s = Math.round(ms / 1000);
   return s < 60 ? `${s}s` : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`;
 }

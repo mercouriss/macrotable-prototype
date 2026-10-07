@@ -107,7 +107,7 @@ export function Preferences() {
             ))}
           </div>
         </div>
-        <p className="mt-2 text-[12.5px] text-ink-3">A hard limit — nothing above it is recommended.</p>
+        <p className="mt-2 text-[12.5px] text-ink-3">{lock ? "A hard limit — nothing above it is recommended." : "A hard limit. Nothing above it is recommended."}</p>
       </Card>
 
       <section className="mt-6" aria-labelledby="diet-h">

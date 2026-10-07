@@ -2,6 +2,7 @@ import { useState } from "react";
 import { signed, signedEuro } from "../lib/format";
 import { getOption, supportedOptions } from "../lib/nutrition";
 import type { Meal, ModifierGroup, Selections } from "../types";
+import { useInTrial } from "../state/AppState";
 import { Icon } from "./Icon";
 
 /**
@@ -61,6 +62,7 @@ function GroupRow({
   showNutrition: boolean;
   compareTo: "default" | "none";
 }) {
+  const trial = useInTrial();
   const supported = supportedOptions(group);
   const locked = group.options.filter((o) => !o.supported);
   const selected = getOption(group, selectedId)!;
@@ -151,7 +153,8 @@ function GroupRow({
                 <li key={o.id} className="flex items-center gap-2 rounded-xl bg-sunken px-3 py-2 text-[12.5px] text-ink-3">
                   <Icon name="lock" size={14} />
                   <span>
-                    <span className="font-medium text-ink-2">{o.label}</span> — not offered by the restaurant
+                    <span className="font-medium text-ink-2">{o.label}</span>
+                    {trial ? " — not offered by the restaurant" : ", not offered by the restaurant"}
                   </span>
                 </li>
               ))}

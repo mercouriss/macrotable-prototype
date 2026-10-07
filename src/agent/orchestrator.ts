@@ -313,7 +313,7 @@ export async function runAgentTurn(
     if (bad.length)
       cards.unshift({ kind: "notice", tone: "warn", text: `Check: ${bad.join(", ")} in this reply wasn't produced by MacroTable's tools. The card values are authoritative.` });
     const over = overstatedConfidence(text, runs, ctx);
-    if (over.length) cards.unshift({ kind: "notice", tone: "warn", text: `Check: ${over.join("; ")}. The labels on the cards are authoritative.` });
+    if (over.length) cards.unshift({ kind: "notice", tone: "warn", text: `Check: ${over.join(ctx.inTrial ? "; " : ", ")}. The labels on the cards are authoritative.` });
   }
   return {
     message: {
@@ -350,7 +350,13 @@ export function runContextTurn(kind: "restaurant" | "meal" | "scan" | "prepare",
   if (kind === "prepare") {
     call("prepareOrder", { mode: arg === "in-store" ? "in-store" : "pickup" });
     const d = ctx.state.orderDrafts.at(-1);
-    text = d?.mode === "handoff" ? `Here's a summary to show at the counter — ${d.restaurantName} isn't connected, so nothing is sent.` : d ? `Order prepared for ${d.mode}. Review it and tap Approve to send it — nothing is ordered until you do.` : "There's no recommendation to order yet.";
+    const dash = ctx.inTrial ? " —" : "."; // research trials keep their frozen wording
+    text =
+      d?.mode === "handoff"
+        ? `Here's a summary to show at the counter${dash} ${d.restaurantName} isn't connected, so nothing is sent.`
+        : d
+          ? `Order prepared for ${d.mode}. Review it and tap Approve to send it${dash} ${ctx.inTrial ? "nothing" : "Nothing"} is ordered until you do.`
+          : "There's no recommendation to order yet.";
   } else if (kind === "scan") {
     setPresence(ctx.state, SCAN_RESTAURANT_ID);
     call("analyzeMenuImage");
@@ -358,7 +364,7 @@ export function runContextTurn(kind: "restaurant" | "meal" | "scan" | "prepare",
     const rec = ctx.state.currentRecommendation;
     const src = ctx.state.scannedMenu?.source === "simulated" ? " (offline demo: a sample extraction, not read from your photo)" : "";
     text = r.ok && rec
-      ? `I read ${ctx.state.scannedMenu?.items.length ?? 0} dishes from the menu${src}. Best fit for ${t.calories} kcal / ≥${t.protein} g protein: ${rec.mealName} — ${rec.nutrition.calories} kcal · ${rec.nutrition.protein} g protein (${provenanceLabel(rec.provenance)}). This isn't verified by the restaurant, so treat it as lower confidence.`
+      ? `I read ${ctx.state.scannedMenu?.items.length ?? 0} dishes from the menu${src}. Best fit for ${t.calories} kcal / ≥${t.protein} g protein: ${rec.mealName}${ctx.inTrial ? " —" : ","} ${rec.nutrition.calories} kcal · ${rec.nutrition.protein} g protein (${provenanceLabel(rec.provenance)}). This isn't verified by the restaurant, so treat it as lower confidence.`
       : `I read the menu${src}, but no dish has enough information and a known price to recommend. You could ask staff for nutrition details.`;
   } else if (kind === "restaurant" && getRestaurant(arg)?.identity === "real") {
     const r = getRestaurant(arg)!;
@@ -396,8 +402,10 @@ export function runContextTurn(kind: "restaurant" | "meal" | "scan" | "prepare",
       const n = rec.nutrition;
       text = [
         kind === "restaurant" ? `You're at ${rec.restaurantName}. You have ${t.calories} kcal and need ≥${t.protein} g protein.` : `Looking at ${rec.mealName} for your ${t.calories} kcal / ≥${t.protein} g protein.`,
-        `Best ${provenanceLabel(rec.provenance)} fit: ${rec.mealName}${rec.changes.length ? ` with ${rec.changes.join(", ").toLowerCase()}` : ""} — ${n.calories} kcal · ${n.protein} g protein · €${rec.price.toFixed(2)}.`,
-        rec.gaps.length ? `Heads-up: ${rec.gaps.join("; ").toLowerCase()}.` : "It fits your calorie range and protein minimum.",
+        ctx.inTrial
+          ? `Best ${provenanceLabel(rec.provenance)} fit: ${rec.mealName}${rec.changes.length ? ` with ${rec.changes.join(", ").toLowerCase()}` : ""} — ${n.calories} kcal · ${n.protein} g protein · €${rec.price.toFixed(2)}.`
+          : `Best ${provenanceLabel(rec.provenance)} fit: ${rec.mealName}${rec.changes.length ? ` with ${rec.changes.join(", ").toLowerCase()}` : ""} (${n.calories} kcal · ${n.protein} g protein · €${rec.price.toFixed(2)}).`,
+        rec.gaps.length ? `Heads-up: ${rec.gaps.join(ctx.inTrial ? "; " : ", ").toLowerCase()}.` : "It fits your calorie range and protein minimum.",
       ].join("\n");
     }
   }

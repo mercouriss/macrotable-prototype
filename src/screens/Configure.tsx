@@ -17,7 +17,7 @@ export function Configure() {
   const [params] = useSearchParams();
   const editing = params.get("edit") === "1";
   const navigate = useNavigate();
-  const { target, setOption, resetSelection, log } = useAppState();
+  const { target, setOption, resetSelection, log, lock } = useAppState();
   const { openProvenance } = useSheet();
   const { found, config, selections, isRecommended, meets, inBudget } = useMealSelection(mealId);
 
@@ -55,7 +55,7 @@ export function Configure() {
         <div className="space-y-2">
           {!inBudget && (
             <p role="alert" className="flex items-center gap-1.5 text-[13px] font-medium text-warn">
-              <Icon name="alert" size={15} /> {euro(config.price)} is over your {euroShort(target.maxBudget)} budget — adjust a modifier.
+              <Icon name="alert" size={15} /> {euro(config.price)} is over your {euroShort(target.maxBudget)}{lock ? " budget — adjust a modifier." : " budget. Adjust a modifier."}
             </p>
           )}
           <Button disabled={!inBudget} onClick={() => navigate("/macrotable/review")}>
@@ -122,7 +122,7 @@ export function Configure() {
         <ul className="mt-3 space-y-1.5 text-[13.5px]">
           <li className="flex items-center gap-2 text-ink-2">
             <Icon name="check" size={15} stroke={2.4} className="text-brand" />
-            {changes.length ? `All ${changes.length} modifications supported by ${restaurant.name}` : "No modifications — dish as listed"}
+            {changes.length ? `All ${changes.length} modifications supported by ${restaurant.name}` : lock ? "No modifications — dish as listed" : "No modifications, dish as listed"}
           </li>
           <li className={`flex items-center gap-2 ${meets ? "text-ink-2" : "text-warn"}`}>
             <Icon name={meets ? "check" : "alert"} size={15} stroke={2.4} className={meets ? "text-brand" : ""} />

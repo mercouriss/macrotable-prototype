@@ -113,7 +113,7 @@ export function Review() {
             ))}
           </ul>
         ) : (
-          <p className="mt-4 border-t border-line-2 pt-4 text-[14px] text-ink-2">As listed — no modifications.</p>
+          <p className="mt-4 border-t border-line-2 pt-4 text-[14px] text-ink-2">{lock ? "As listed — no modifications." : "As listed, no modifications."}</p>
         )}
 
         <div className="mt-4 flex items-end justify-between border-t border-line-2 pt-4">

@@ -13,7 +13,8 @@ import type { IntegrationLevel, ServiceMode } from "../types";
 import { useAppState } from "../state/AppState";
 import { NotFound } from "./NotFound";
 
-const CHECKS: Record<IntegrationLevel, { ok: boolean; text: string }[]> = {
+// `trialText`: the frozen research-trial wording, where it differs.
+const CHECKS: Record<IntegrationLevel, { ok: boolean; text: string; trialText?: string }[]> = {
   3: [
     { ok: true, text: "Menu loaded" },
     { ok: true, text: "Nutrition available · verified recipes" },
@@ -27,7 +28,7 @@ const CHECKS: Record<IntegrationLevel, { ok: boolean; text: string }[]> = {
   1: [
     { ok: true, text: "Public menu found" },
     { ok: false, text: "Nutrition estimated from menu text" },
-    { ok: false, text: "Not integrated — hand-off only" },
+    { ok: false, text: "Not integrated, hand-off only", trialText: "Not integrated — hand-off only" },
   ],
 };
 
@@ -92,7 +93,7 @@ export function RestaurantEntry() {
           {(real
             ? [
                 { ok: true, text: "Real restaurant found" },
-                { ok: false, text: "Not affiliated with MacroTable — no menu data" },
+                { ok: false, text: "Not affiliated with MacroTable, no menu data", trialText: "Not affiliated with MacroTable — no menu data" },
                 { ok: false, text: "Scan the menu to continue" },
               ]
             : CHECKS[r.integrationLevel]
@@ -104,7 +105,7 @@ export function RestaurantEntry() {
               >
                 <Icon name={c.ok ? "check" : "alert"} size={15} stroke={2.6} />
               </span>
-              <span className="text-[15px] font-medium">{c.text}</span>
+              <span className="text-[15px] font-medium">{lock && "trialText" in c && c.trialText ? c.trialText : c.text}</span>
               <span className="sr-only">{c.ok ? "(yes)" : "(limited)"}</span>
             </div>
           ))}
@@ -158,7 +159,9 @@ export function RestaurantEntry() {
           </fieldset>
         )}
         <p className="mt-4 text-[12.5px] leading-snug text-ink-3">
-          {real ? "Only this restaurant's name and location are real. MacroTable has no relationship with it." : "Demo restaurant — its integration, menu, nutrition and ordering are simulated."}
+          {real ? "Only this restaurant's name and location are real. MacroTable has no relationship with it." : lock
+              ? "Demo restaurant — its integration, menu, nutrition and ordering are simulated."
+              : "Demo restaurant. Its integration, menu, nutrition and ordering are simulated."}
         </p>
       </div>
     </Screen>

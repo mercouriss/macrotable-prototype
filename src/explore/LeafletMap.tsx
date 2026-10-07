@@ -2,6 +2,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useEffect, useRef, useState } from "react";
 import { DEMO_AREA, distanceKm } from "../data/geo";
+import { useInTrial } from "../state/AppState";
 import type { Restaurant } from "../types";
 import { IllustratedMap } from "./IllustratedMap";
 
@@ -24,6 +25,7 @@ export default function LeafletMap({
   selected: string | null;
   onSelect: (id: string) => void;
 }) {
+  const trial = useInTrial();
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const markers = useRef<Record<string, L.Marker>>({});
@@ -124,7 +126,7 @@ export default function LeafletMap({
     }
   }
 
-  if (failed) return <IllustratedMap restaurants={restaurants} selected={selected} onSelect={onSelect} note="Map tiles unavailable — showing the illustrated demo map." />;
+  if (failed) return <IllustratedMap restaurants={restaurants} selected={selected} onSelect={onSelect} note={trial ? "Map tiles unavailable — showing the illustrated demo map." : "Map tiles unavailable. Showing the illustrated demo map."} />;
   return <div ref={el} className="h-full w-full" role="region" aria-label="Map of nearby real and demo restaurants" />;
 }
 

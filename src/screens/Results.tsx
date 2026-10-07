@@ -91,8 +91,9 @@ export function Results() {
 
       {!r.scope && (
         <p className="mt-4 px-1 text-[12.5px] leading-snug text-ink-3">
-          Showing the best option from each restaurant. Ranking reflects fit to your targets — not how deeply a restaurant is
-          integrated.
+          {lock
+            ? "Showing the best option from each restaurant. Ranking reflects fit to your targets — not how deeply a restaurant is integrated."
+            : "Showing the best option from each restaurant. Ranking reflects fit to your targets, not how deeply a restaurant is integrated."}
         </p>
       )}
 
@@ -138,12 +139,14 @@ export function Results() {
                 <ul className="space-y-1 text-[12.5px] text-ink-3">
                   {excluded.map((m) => (
                     <li key={m.meal.id}>
-                      <span className="font-medium text-ink-2">{m.meal.name}</span> — {EXCLUSION_TEXT[m.exclusion!]}
+                      <span className="font-medium text-ink-2">{m.meal.name}</span>{lock ? " — " : ": "}{EXCLUSION_TEXT[m.exclusion!]}
                     </li>
                   ))}
                   {overBudget.map((m) => (
                     <li key={m.meal.id}>
-                      <span className="font-medium text-ink-2">{m.meal.name}</span> — Over your €{target.maxBudget} budget in every
+                      <span className="font-medium text-ink-2">{m.meal.name}</span>
+                      {lock ? " — Over your €" : ": over your €"}
+                      {target.maxBudget} budget in every
                       supported configuration
                     </li>
                   ))}

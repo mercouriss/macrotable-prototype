@@ -79,7 +79,7 @@ export function Search() {
                 <span>
                   <span className="block text-[15.5px] font-semibold">
                     {st.label}
-                    <span className="sr-only">{complete ? " — done" : ""}</span>
+                    <span className="sr-only">{complete ? (lock ? " — done" : ", done") : ""}</span>
                   </span>
                   {complete && <span className="tnum block animate-fade-in text-[13px] text-ink-3">{st.detail}</span>}
                 </span>

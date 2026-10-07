@@ -23,9 +23,10 @@ const FREE: [string, Status][] = [
   ["Basic tracking of what's left today", "sample"],
 ];
 
-const PREMIUM: [string, string, Status][] = [
+// Optional 4th entry: the frozen research-trial wording.
+const PREMIUM: [string, string, Status, string?][] = [
   ["MacroAgent across restaurants", "Compares nearby places, configures a dish and prepares the order for your approval.", "built"],
-  ["Camera menu reading", "Photograph any menu; MacroAgent reads it (MENU-READ / ESTIMATED).", "built"],
+  ["Camera menu reading", "Photograph any menu and MacroAgent reads it (MENU-READ / ESTIMATED).", "built", "Photograph any menu; MacroAgent reads it (MENU-READ / ESTIMATED)."],
   ["Saved meals & order again", "Keep exact configurations and reorder in two taps.", "built"],
   ["Food photo recognition", "Recognise a plate you're served.", "concept"],
   ["Personalised meal plans", "Plan the week's restaurant meals around your goals.", "concept"],
@@ -48,7 +49,7 @@ export function Premium() {
           {(
             [
               ["month", "Monthly"],
-              ["year", "Yearly · save 37%"],
+              ["year", "Yearly · save 33%"],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -63,10 +64,10 @@ export function Premium() {
           ))}
         </div>
         <p className="tnum mt-4 text-[34px] leading-none font-semibold tracking-tight">
-          {plan === "month" ? "€7.99" : "€59.99"}
+          {plan === "month" ? "€4.99" : "€39.99"}
           <span className="ml-1 text-[15px] font-medium text-white/70">/ {plan}</span>
         </p>
-        {plan === "year" && <p className="tnum mt-1 text-[12.5px] text-white/65">≈ €5.00 a month</p>}
+        {plan === "year" && <p className="tnum mt-1 text-[12.5px] text-white/65">≈ €3.33 a month</p>}
         <p className="mt-4 rounded-xl bg-white/10 px-3 py-2.5 text-[12.5px] leading-snug text-white/85">
           Beta: every Premium feature that exists is unlocked for free. There is no billing and MacroTable never asks for payment details.
         </p>
@@ -92,12 +93,12 @@ export function Premium() {
           Premium <span className="font-normal text-ink-3">· everything in Free, plus</span>
         </h3>
         <Card className="mt-2 divide-y divide-line-2 overflow-hidden">
-          {PREMIUM.map(([t, d, st]) => (
+          {PREMIUM.map(([t, d, st, trialD]) => (
             <div key={t} className="flex items-start gap-3 px-4 py-3">
               <Icon name={st === "concept" ? "clock" : "sparkle"} size={16} className={`mt-0.5 shrink-0 ${st === "concept" ? "text-ink-3" : "text-brand"}`} />
               <span className="flex-1">
                 <span className={`block text-[14px] font-medium ${st === "concept" ? "text-ink-2" : ""}`}>{t}</span>
-                <span className="block text-[12.5px] leading-snug text-ink-3">{d}</span>
+                <span className="block text-[12.5px] leading-snug text-ink-3">{lock && trialD ? trialD : d}</span>
               </span>
               <StatusTag s={st} />
             </div>
@@ -113,7 +114,11 @@ export function Premium() {
           Premium subscriptions from users, plus integration or transaction fees from restaurants that connect their menus. Restaurants can never pay for
           placement: recommendations are ranked only by fit to your targets.
         </p>
-        <p className="mt-2 text-[12px] text-ink-3">Prototype pricing / concept — no billing. Prices are a hypothesis we're testing, not an offer.</p>
+        <p className="mt-2 text-[12px] text-ink-3">
+          {lock
+            ? "Prototype pricing / concept — no billing. Prices are a hypothesis we're testing, not an offer."
+            : "Prototype pricing / concept, no billing. Prices are a hypothesis we're testing, not an offer."}
+        </p>
       </section>
     </Screen>
   );
