@@ -31,7 +31,7 @@ export function Onboarding() {
   const { setSettings } = useAppState();
   const navigate = useNavigate();
   const finish = () => {
-    setSettings({ onboardingDone: true });
+    setSettings({ onboardingDone: true, liveAiTipPending: true }); // Home then offers the Live AI tip once (phones)
     navigate("/macrotable", { replace: true });
   };
   const step = STEPS[i];

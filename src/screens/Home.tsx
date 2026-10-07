@@ -21,6 +21,7 @@ import { useSavedMeals } from "../lib/saved";
 import { useAppState } from "../state/AppState";
 import { useSearch } from "../state/useMealSelection";
 import { useRememberScroll } from "../state/useRememberScroll";
+import { LiveAiTip } from "../components/LiveAiTip";
 
 /** Product home: what can MacroTable do for me right now? */
 export function Home() {
@@ -189,6 +190,8 @@ export function Home() {
           </button>
         </div>
       </section>
+      {/* Last on purpose: a new slot here can't shift anything above it (research renders stay identical). */}
+      {!lock && <LiveAiTip />}
     </Screen>
   );
 }

@@ -55,6 +55,8 @@ export interface Settings {
   agentMode: "auto" | "offline";
   /** The user acknowledged that live-agent messages are sent to Google Gemini. */
   agentDisclosureSeen: boolean;
+  /** Set when the intro finishes: Home shows the "Turn on Live AI" tip once (phones only, never in a trial). */
+  liveAiTipPending?: boolean;
 }
 
 interface PersistedState {
@@ -163,6 +165,7 @@ export function loadSettings(raw: unknown): Settings {
     onboardingDone: s.onboardingDone === true,
     agentMode: s.v === SETTINGS_VERSION && s.agentMode === "auto" ? "auto" : "offline",
     agentDisclosureSeen: s.agentDisclosureSeen === true,
+    ...(s.liveAiTipPending === true ? { liveAiTipPending: true } : {}),
   };
 }
 

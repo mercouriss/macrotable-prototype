@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, Navigate, useLocation, useNavigate } from "react-router-dom";
 import { PROXY_URL } from "../agent/gemini";
 import { BrandMark } from "../components/BrandMark";
 import { Icon, type IconName } from "../components/Icon";
@@ -155,6 +155,11 @@ function EmptyState({ icon, title, text, cta, to }: { icon: IconName; title: str
 export function Profile() {
   const { scenarioId, baseTarget: target, lock, resetDemo } = useAppState();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Opened from the Live AI tip: bring the switch into view.
+  useEffect(() => {
+    if ((location.state as { focus?: string } | null)?.focus === "live-ai") document.querySelector("[data-live-ai]")?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [location.state]);
   const saved = useSavedMeals();
   const [note, setNote] = useState<string | null>(null);
   const row = (to: string, icon: IconName, label: string, sub?: string) => (
