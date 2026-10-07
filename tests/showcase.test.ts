@@ -13,38 +13,34 @@ describe("freeze fingerprint", () => {
   });
 });
 
-describe("desktop showcase: QR + live agent guide", () => {
+describe("desktop showcase: QR code + presenter Live AI switch", () => {
   afterEach(() => vi.unstubAllGlobals());
-  it("shows a QR code to open the app, and the silent, looping 'For live agent use' screen recording", async () => {
-    const { existsSync } = await import("node:fs");
+  const visible = (html: string) => html.replace(/<!-- -->/g, "").replace(/<[^>]+>/g, " ").replace(/&#x27;/g, "'").replace(/&amp;/g, "&").replace(/\s+/g, " ");
+
+  it("shows only the QR code to open the app on a phone (no video or steps on desktop)", async () => {
+    vi.stubGlobal("window", { location: { origin: "https://mercouriss.github.io" }, matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }) });
     const { createElement: h } = await import("react");
     const { renderToString } = await import("react-dom/server");
-    vi.stubGlobal("window", { location: { origin: "https://mercouriss.github.io" }, matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }) });
-    const { LIVE_AI_GUIDE, ShowcaseQuickStart } = await import("../src/components/ShowcaseQuickStart");
+    const { ShowcaseQuickStart } = await import("../src/components/ShowcaseQuickStart");
     const html = renderToString(h(ShowcaseQuickStart)).replace(/<!-- -->/g, "");
     expect(html).toContain('aria-label="QR code that opens MacroTable on your phone"');
     expect(html).toContain("Scan to open MacroTable on your phone");
     expect(html).toContain("mercouriss.github.io"); // the link the QR code encodes, printed under it
-    expect(html).toContain(">For live agent use<");
-    expect(html).toContain("Turn on Live AI in 3 taps");
-    expect(html).toMatch(/<video[^>]*src="\/guide\/live-ai-guide\.mp4"[^>]*>/);
-    expect(html).toMatch(/<video[^>]*muted=""/);
-    expect(html).not.toMatch(/<video[^>]*loop/); // plays once, then stops: not a distracting loop
-    expect(html).toContain('data-guide-video="playing"'); // starts on its own (no play button yet)
-    expect(html).not.toContain("Play the Live AI guide");
-    for (const step of ["Home.", "Profile.", "Use Gemini API."]) expect(html).toContain(step);
-    const visible = html.replace(/<[^>]+>/g, " ").replace(/&#x27;/g, "'").replace(/&amp;/g, "&");
-    expect(visible).not.toMatch(/—|;/); // normal-mode copy rule
-    for (const f of [LIVE_AI_GUIDE.video, LIVE_AI_GUIDE.poster]) expect(existsSync(`public/${f}`)).toBe(true);
+    expect(html).not.toMatch(/<video|Turn on Live AI/);
+    expect(visible(html)).not.toMatch(/—|;/); // normal-mode copy rule
   });
 
-  it("with reduced motion it doesn't start by itself: it waits behind a play button", async () => {
-    vi.stubGlobal("window", { location: { origin: "https://mercouriss.github.io" }, matchMedia: (q: string) => ({ matches: q.includes("reduce"), addEventListener() {}, removeEventListener() {} }) });
+  it("the presenter Live AI switch is large and labelled; off by default; unavailable without the agent proxy", async () => {
     const { createElement: h } = await import("react");
     const { renderToString } = await import("react-dom/server");
-    const { ShowcaseQuickStart } = await import("../src/components/ShowcaseQuickStart");
-    const html = renderToString(h(ShowcaseQuickStart));
-    expect(html).toContain('data-guide-video="paused"');
-    expect(html).toContain('aria-label="Play the Live AI guide"');
+    const { PresenterLiveAiToggle } = await import("../src/components/ShowcaseQuickStart");
+    const { AppStateProvider } = await import("../src/state/AppState");
+    const html = renderToString(h(AppStateProvider, null, h(PresenterLiveAiToggle)));
+    expect(html).toMatch(/<button[^>]*role="switch"[^>]*aria-checked="false"[^>]*aria-label="Use Gemini API \(Live AI\)"/);
+    expect(html).toMatch(/class="relative h-9 w-16/); // 64×36 px, not a small checkbox
+    expect(html).toContain('data-presenter-live-ai="off"');
+    expect(visible(html)).toContain("Live AI OFF");
+    expect(visible(html)).toContain("Not available in this build"); // tests run without VITE_AGENT_PROXY_URL
+    expect(html).toMatch(/<button[^>]*disabled=""/);
   });
 });

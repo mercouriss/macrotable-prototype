@@ -5,7 +5,7 @@ import { lockedRedirect } from "../lib/research";
 import { useAppState } from "../state/AppState";
 import type { ScenarioId } from "../types";
 import { Icon } from "./Icon";
-import { ShowcaseQuickStart } from "./ShowcaseQuickStart";
+import { PresenterLiveAiToggle, ShowcaseQuickStart } from "./ShowcaseQuickStart";
 import { useMediaQuery } from "./useMediaQuery";
 import { REALISM_DISCLOSURE } from "../lib/provenance";
 import { OfflineBanner } from "./OfflineBanner";
@@ -41,7 +41,7 @@ export function DemoReset() {
 /**
  * < 1024 px (phones, small tablets): ONLY the app, full height — no desktop shell, no video.
  * ≥ 1024 px: presentation layout — interactive phone on the left, showcase column on the right
- * (brand, QR code + Live AI video guide, presenter controls). The showcase is never shown to study
+ * (brand, QR code to open the app on a phone, presenter controls with the Live AI switch). The showcase is never shown to study
  * participants (trials, /experiment, /baseline) so the baseline can't be contaminated.
  */
 export function AppFrame() {
@@ -68,7 +68,7 @@ export function AppFrame() {
 }
 
 function ShowcasePanel() {
-  const { scenarioId, setScenario, resetDemo, settings, setSettings } = useAppState();
+  const { scenarioId, setScenario, resetDemo } = useAppState();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const mode = pathname.startsWith("/research") ? "research" : "macrotable";
@@ -89,18 +89,8 @@ function ShowcasePanel() {
       </p>
 
       <section className="rounded-[20px] border border-line bg-surface/70 p-4" aria-label="Presenter controls">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-3">Presenter</p>
-          <label className="flex items-center gap-2 text-[12.5px]">
-            <input
-              type="checkbox"
-              className="h-4 w-4 accent-[var(--color-brand)]"
-              checked={settings.agentMode === "auto"}
-              onChange={(e) => setSettings({ agentMode: e.target.checked ? "auto" : "offline" })}
-            />
-            Use Gemini API (Live AI)
-          </label>
-        </div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.09em] text-ink-3">Presenter</p>
+        <PresenterLiveAiToggle />
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <button
             onClick={() => {

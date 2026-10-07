@@ -53,4 +53,10 @@ describe("the popup", () => {
     const html = renderToString(h(LiveAiTipBody, { autoPlay: false, onOpenProfile: () => {}, onSkip: () => {} }));
     expect(html).toContain('aria-label="Play the Live AI guide"');
   });
+
+  it("the recording and its poster ship with the app", async () => {
+    const { existsSync } = await import("node:fs");
+    const { LIVE_AI_GUIDE } = await import("../src/components/LiveAiTip");
+    for (const f of [LIVE_AI_GUIDE.video, LIVE_AI_GUIDE.poster]) expect(existsSync(`public/${f}`)).toBe(true);
+  });
 });

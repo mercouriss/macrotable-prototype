@@ -1,18 +1,77 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState, type Settings } from "../state/AppState";
 import { useSheet } from "./Sheet";
-import { GuideVideo, LIVE_AI_STEPS } from "./ShowcaseQuickStart";
 import { Button } from "./ui";
 import { useMediaQuery } from "./useMediaQuery";
 
 /*
- * Phones only: right after the intro, Home offers a skippable tip on turning on Live AI (the desktop
- * showcase has the same guide beside the phone). Shown once; never in a research trial, never after a
+ * Phones only: right after the intro, Home offers a skippable tip on turning on Live AI (on desktop the
+ * presenter panel has the Live AI switch itself). Shown once; never in a research trial, never after a
  * demo reset (no intro), and not when Live AI is already on.
  */
 
 export const LIVE_AI_TIP_TITLE = "Turn on Live AI in 3 steps";
+
+/** The team's screen recording (Home → Profile → Use Gemini API → MacroAgent "Live · Gemini"), silent, in public/guide/. */
+export const LIVE_AI_GUIDE = { video: "guide/live-ai-guide.mp4", poster: "guide/live-ai-guide-poster.jpg" } as const;
+
+export const LIVE_AI_STEPS: [string, string][] = [
+  ["Home", "Start on the Home tab."],
+  ["Profile", "Tap Profile, bottom right."],
+  ["Use Gemini API", "Under Settings, switch on Live AI. MacroAgent then shows Live · Gemini."],
+];
+
+/**
+ * Plays once, silently, then stops on its last frame with a play button (not a distracting loop).
+ * With reduced motion it waits on the first frame.
+ */
+export function GuideVideo({ base, autoPlay, className = "w-[132px]" }: { base: string; autoPlay: boolean; className?: string }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  const [state, setState] = useState<"playing" | "paused" | "ended">(autoPlay ? "playing" : "paused");
+  useEffect(() => {
+    if (!autoPlay) return;
+    ref.current?.play().catch(() => setState("paused")); // autoplay blocked: show the play button
+  }, [autoPlay]);
+  const play = () => {
+    const v = ref.current;
+    if (!v) return;
+    if (v.ended) v.currentTime = 0;
+    v.play().catch(() => setState("paused"));
+  };
+  return (
+    <div data-guide-video={state} className={`relative shrink-0 ${className}`}>
+      <video
+        ref={ref}
+        src={`${base}${LIVE_AI_GUIDE.video}`}
+        poster={`${base}${LIVE_AI_GUIDE.poster}`}
+        muted
+        playsInline
+        preload="metadata"
+        onPlay={() => setState("playing")}
+        onPause={(e) => setState(e.currentTarget.ended ? "ended" : "paused")}
+        onEnded={() => setState("ended")}
+        onClick={() => (state === "playing" ? ref.current?.pause() : play())}
+        aria-label="Screen recording: on a phone, Home, then Profile, then switching on Use Gemini API, after which MacroAgent shows Live, Gemini"
+        className="block aspect-[540/1170] w-full rounded-[18px] border border-line bg-ink object-cover"
+      />
+      {state !== "playing" && (
+        <button
+          type="button"
+          onClick={play}
+          aria-label={state === "ended" ? "Play the Live AI guide again" : "Play the Live AI guide"}
+          className="group absolute inset-0 grid place-items-center rounded-[18px] bg-ink/10 transition-colors hover:bg-ink/20"
+        >
+          <span className="grid h-12 w-12 place-items-center rounded-full bg-ink/80 text-white shadow-lift transition-transform group-hover:scale-105">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" className="ml-0.5">
+              <path d="M7 4.5v15l12.5-7.5z" fill="currentColor" />
+            </svg>
+          </span>
+        </button>
+      )}
+    </div>
+  );
+}
 
 export function liveAiTipDue(o: { lock: boolean; phone: boolean; settings: Settings }): boolean {
   return !o.lock && o.phone && o.settings.liveAiTipPending === true && o.settings.agentMode !== "auto";
