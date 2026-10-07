@@ -23,25 +23,46 @@ const Ctx = createContext<SheetApi | null>(null);
 /** Bottom sheet rendered inside the device frame (the provider must sit inside a `relative` container). */
 export function SheetProvider({ children, onOpen }: { children: ReactNode; onOpen?: (c: SheetContent) => void }) {
   const [content, setContent] = useState<SheetContent | null>(null);
+  // Normal mode: the sheet slides back down before it goes. Research trials keep the original instant close.
+  const [closing, setClosing] = useState(false);
+  const trial = useInTrial();
   const panelRef = useRef<HTMLDivElement>(null);
   const returnFocus = useRef<HTMLElement | null>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const live = useRef({ content, trial });
+  live.current = { content, trial };
 
   const open = useCallback(
     (c: SheetContent) => {
-      returnFocus.current = document.activeElement as HTMLElement | null;
+      if (closeTimer.current) clearTimeout(closeTimer.current); // reopened while closing: show the new sheet
+      closeTimer.current = null;
+      setClosing(false);
+      if (!live.current.content) returnFocus.current = document.activeElement as HTMLElement | null;
       setContent(c);
       onOpen?.(c);
     },
     [onOpen],
   );
   const close = useCallback(() => {
-    setContent(null);
-    returnFocus.current?.focus?.();
+    if (!live.current.content || closeTimer.current) return;
+    const finish = () => {
+      closeTimer.current = null;
+      setClosing(false);
+      setContent(null);
+      returnFocus.current?.focus?.({ preventScroll: true });
+    };
+    const reduced = typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (live.current.trial || reduced) return finish();
+    setClosing(true);
+    closeTimer.current = setTimeout(finish, 260); // matches --animate-sheet-down
   }, []);
+
+  useEffect(() => () => void (closeTimer.current && clearTimeout(closeTimer.current)), []);
 
   useEffect(() => {
     if (!content) return;
-    panelRef.current?.focus();
+    // preventScroll: focusing mid-animation must not make a phone jump-scroll the page behind the sheet.
+    panelRef.current?.focus({ preventScroll: true });
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -59,14 +80,20 @@ export function SheetProvider({ children, onOpen }: { children: ReactNode; onOpe
       {children}
       {content && (
         <div className="absolute inset-0 z-50 flex flex-col justify-end">
-          <button aria-label="Close" className="absolute inset-0 animate-fade-in bg-ink/35" onClick={close} />
+          <button
+            aria-label="Close"
+            className={`absolute inset-0 bg-ink/35 ${trial ? "animate-fade-in" : closing ? "pointer-events-none animate-backdrop-out" : "animate-backdrop-in"}`}
+            onClick={close}
+          />
           <div
             ref={panelRef}
             tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-labelledby="sheet-title"
-            className="relative max-h-[85%] animate-sheet-in overflow-y-auto rounded-t-[28px] bg-surface px-6 pt-3 pb-8 shadow-lift outline-none"
+            className={`relative max-h-[85%] overflow-y-auto rounded-t-[28px] bg-surface px-6 pt-3 pb-8 shadow-lift outline-none ${
+              trial ? "animate-sheet-in" : `overscroll-contain ${closing ? "animate-sheet-down" : "animate-sheet-up will-change-transform"}`
+            }`}
           >
             {!(content.kind === "custom" && content.stickyHeader) && (
               <>

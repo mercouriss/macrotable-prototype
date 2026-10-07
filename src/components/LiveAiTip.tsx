@@ -26,13 +26,15 @@ export const LIVE_AI_STEPS: [string, string][] = [
  * Plays once, silently, then stops on its last frame with a play button (not a distracting loop).
  * With reduced motion it waits on the first frame.
  */
-export function GuideVideo({ base, autoPlay, className = "w-[132px]" }: { base: string; autoPlay: boolean; className?: string }) {
+export function GuideVideo({ base, autoPlay, startDelay = 0, className = "w-[132px]" }: { base: string; autoPlay: boolean; startDelay?: number; className?: string }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [state, setState] = useState<"playing" | "paused" | "ended">(autoPlay ? "playing" : "paused");
   useEffect(() => {
     if (!autoPlay) return;
-    ref.current?.play().catch(() => setState("paused")); // autoplay blocked: show the play button
-  }, [autoPlay]);
+    // `startDelay`: let a sheet finish sliding in first, so decoding video doesn't make the motion stutter.
+    const t = setTimeout(() => ref.current?.play().catch(() => setState("paused")), startDelay); // blocked: show the play button
+    return () => clearTimeout(t);
+  }, [autoPlay, startDelay]);
   const play = () => {
     const v = ref.current;
     if (!v) return;
@@ -94,7 +96,9 @@ export function LiveAiTip() {
 
   useEffect(() => {
     if (!due || shown.current) return;
-    // A short pause so Home has drawn before the sheet slides up.
+    // Warm the recording's first frame now, so it's already there when the sheet slides in.
+    new Image().src = `${import.meta.env.BASE_URL}${LIVE_AI_GUIDE.poster}`;
+    // A beat after Home settles, so the sheet arrives on a still screen rather than mid-render.
     const t = setTimeout(() => {
       shown.current = true;
       setSettings({ liveAiTipPending: false }); // once, whatever they choose
@@ -109,7 +113,7 @@ export function LiveAiTip() {
           onSkip={close}
         />,
       );
-    }, 450);
+    }, 650);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [due]);
@@ -124,7 +128,7 @@ export function LiveAiTipBody({ autoPlay, onOpenProfile, onSkip }: { autoPlay: b
         Want MacroAgent to answer with the live AI model? It's off by default, and switching it on takes three taps.
       </p>
       <div className="mt-4 flex items-start gap-4">
-        <GuideVideo base={import.meta.env.BASE_URL} autoPlay={autoPlay} className="w-[112px]" />
+        <GuideVideo base={import.meta.env.BASE_URL} autoPlay={autoPlay} startDelay={520} className="w-[112px]" />
         <ol className="min-w-0 flex-1 space-y-2.5 text-[13.5px] text-ink-2">
           {LIVE_AI_STEPS.map(([step, text], i) => (
             <li key={step} className="flex gap-2.5">
