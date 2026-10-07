@@ -1,4 +1,5 @@
 import { getMeal } from "../data/restaurants";
+import { orderExtras, orderTotals } from "../lib/extras";
 import { euro } from "../lib/format";
 import { fulfilmentLabel } from "../lib/fulfillment";
 import { changesFromDefault, ticketLine } from "../lib/nutrition";
@@ -11,6 +12,8 @@ export function KitchenTicket({ order }: { order: PlacedOrder }) {
   const { meal, restaurant } = found;
   const lines = changesFromDefault(meal, order.selections).map(ticketLine);
   const placed = new Date(order.placedAt);
+  const extras = orderExtras(order);
+  const total = orderTotals(order);
   const edge = "radial-gradient(circle at 8px 0, transparent 7px, #FFFDF7 7.5px) 0 0 / 16px 100% repeat-x";
   return (
     <figure aria-label={`Kitchen ticket ${order.orderNumber}`} className="mx-auto w-full max-w-[320px] drop-shadow-[0_14px_22px_rgb(22_24_28/0.16)]">
@@ -40,16 +43,33 @@ export function KitchenTicket({ order }: { order: PlacedOrder }) {
         ) : (
           <p className="mt-1.5">AS LISTED, NO MODIFICATIONS</p>
         )}
+        {extras.length > 0 && (
+          <ul data-ticket-extras className="mt-3">
+            {extras.map((x) => (
+              <li key={x.id} className="flex justify-between gap-3 font-semibold">
+                <span>
+                  {x.qty}× {x.name.toUpperCase()}
+                </span>
+                <span className="font-normal">{euro(x.price * x.qty)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
         <div className="my-4 border-t border-dashed border-[#bdbab0]" />
         <p className="text-[11.5px] text-[#4a4943]">
           {meal.provenance === "verified" ? "RECIPE-CALCULATED" : "PUBLISHED VALUES"}: {order.nutrition.calories} KCAL · P{order.nutrition.protein} C
           {order.nutrition.carbs} F{order.nutrition.fat}
         </p>
         <p className="text-[11.5px] text-[#4a4943]">ALL MODIFIERS ON RESTAURANT'S SUPPORTED LIST</p>
+        {extras.length > 0 && (
+          <p className="mt-1 text-[11.5px] text-[#4a4943]">
+            WITH DRINKS &amp; DESSERTS: {total.nutrition.calories} KCAL · P{total.nutrition.protein} C{total.nutrition.carbs} F{total.nutrition.fat}
+          </p>
+        )}
         <div className="my-4 border-t border-dashed border-[#bdbab0]" />
         <div className="flex justify-between text-[12px]">
           <span>TOTAL (SIMULATED)</span>
-          <span>{euro(order.price)}</span>
+          <span>{euro(total.price)}</span>
         </div>
         <p className="mt-4 rounded border border-[#1d1d1b] py-1.5 text-center text-[11.5px] font-bold tracking-[0.1em]">
           CUSTOMER-APPROVED CONFIGURATION

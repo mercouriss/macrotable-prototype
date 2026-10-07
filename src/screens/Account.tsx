@@ -11,6 +11,7 @@ import { Button, ButtonLink, Card, Eyebrow } from "../components/ui";
 import { getMeal } from "../data/restaurants";
 import { PERSONA, SCENARIOS } from "../data/scenarios";
 import { getOrders } from "../lib/experiment";
+import { extraLabel, orderExtras, orderTotals } from "../lib/extras";
 import { clock, euro } from "../lib/format";
 import { changesFromDefault, computeConfiguration, describeChange, isSelectionSupported } from "../lib/nutrition";
 import { clearSaved, useSavedMeals } from "../lib/saved";
@@ -44,7 +45,8 @@ export function Orders() {
                       <p className="truncate text-[15.5px] font-semibold">{f?.meal.name}</p>
                       <p className="tnum text-[13px] text-ink-2">
                         {f?.restaurant.name} · {o.handoff ? "≈ " : ""}
-                        {o.nutrition.calories} kcal · {euro(o.price)}
+                        {orderTotals(o).nutrition.calories} kcal · {euro(orderTotals(o).price)}
+                        {orderExtras(o).length ? ` · with ${orderExtras(o).map(extraLabel).join(", ")}` : null}
                       </p>
                     </div>
                     <Icon name="chevronRight" size={18} className="text-ink-3" />

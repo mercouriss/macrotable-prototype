@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { getMeal } from "../data/restaurants";
 import { getOrders } from "../lib/experiment";
+import type { ExtraLine } from "../lib/extras";
 import { scanLedgerId } from "../lib/ledger";
 import { completedOrderFor } from "../lib/orderState";
 import { useAppState } from "../state/AppState";
@@ -44,7 +45,8 @@ interface AgentApi {
   openContext: (kind: "restaurant" | "meal" | "scan", id?: string, entry?: string) => void;
   prepare: (mode: ServiceMode | "handoff") => void;
   /** `table`: required when dining in at a table-service restaurant (normal mode). */
-  approveDraft: (draftId: string, table?: string) => { order: PlacedOrder; research: boolean } | null;
+  /** `extras`: drinks and desserts the user added on the card (normal mode; ignored during a research trial). */
+  approveDraft: (draftId: string, table?: string, extras?: ExtraLine[]) => { order: PlacedOrder; research: boolean } | null;
   cancelDraft: (draftId: string) => void;
   setScannedMenu: (m: ScannedMenu | null) => void;
   setCurrentRestaurant: (id: string | null) => void;
@@ -169,7 +171,7 @@ export function AgentStateProvider({ children }: { children: ReactNode }) {
         appRef.current.log("order_prepared", { detail: { mode } });
         runContext("prepare", mode === "handoff" ? "pickup" : mode);
       },
-      approveDraft: (draftId, table) => {
+      approveDraft: (draftId, table, extras) => {
         const d = ref.current.orderDrafts.find((x) => x.id === draftId);
         if (!d || d.status !== "awaiting-approval") return null;
         // Already ordered through another path after this draft was prepared → no duplicate.
@@ -194,7 +196,7 @@ export function AgentStateProvider({ children }: { children: ReactNode }) {
         appRef.current.selectMeal(selection);
         // Log before placing: placing an order completes (and unlocks) a research trial.
         appRef.current.log("order_approved_in_agent", { mealId: d.mealId, detail: { mode: d.mode } });
-        const result = appRef.current.placeOrder(d.mode === "in-store" ? "in-store" : "pickup", selection, { table });
+        const result = appRef.current.placeOrder(d.mode === "in-store" ? "in-store" : "pickup", selection, { table, ...(extras?.length ? { extras } : {}) });
         if (!result) return null;
         markDone({ orderNumber: result.order.orderNumber, pickupCode: result.order.pickupCode });
         return result;

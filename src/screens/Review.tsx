@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import type { ServiceMode } from "../types";
 import { BrandMark } from "../components/BrandMark";
+import { ExtrasPicker, OrderTotal } from "../components/Extras";
 import { Icon } from "../components/Icon";
 import { MacroFit } from "../components/MacroFit";
 import { PaymentSheet, type PaymentMethod } from "../components/PaymentSheet";
@@ -10,6 +11,7 @@ import { approx, ProvenanceBadge } from "../components/ProvenanceBadge";
 import { Screen } from "../components/Screen";
 import { useSheet } from "../components/Sheet";
 import { Button, Callout, Card } from "../components/ui";
+import { extrasTotals, resolveExtras, withExtras } from "../lib/extras";
 import { euro } from "../lib/format";
 import { fulfilmentLabel, needsTable, normalizeTable, offersDineIn, TABLES } from "../lib/fulfillment";
 import { changesFromDefault, describeChange } from "../lib/nutrition";
@@ -18,7 +20,7 @@ import { useMealSelection } from "../state/useMealSelection";
 
 /** Screen 8 — explicit approval. Nothing is ordered automatically. */
 export function Review() {
-  const { selection, placeOrder, target, prefs, lock, dining, setDining } = useAppState();
+  const { selection, placeOrder, target, prefs, lock, dining, setDining, setExtras } = useAppState();
   const navigate = useNavigate();
   const { openCustom, close } = useSheet();
   const { found, config, inBudget } = useMealSelection(selection?.mealId);
@@ -39,6 +41,9 @@ export function Review() {
   const tableMissing = needsTable(restaurant, orderMode, !!lock) && !table;
 
   const placed = selection?.placedOrderNumber;
+  // Drinks and desserts the user added (normal mode only): the whole order is the dish plus these.
+  const extras = lock ? [] : resolveExtras(restaurant.id, selection?.extras);
+  const total = withExtras(config, extras);
   const confirm = (payment?: PaymentMethod) => {
     const result = placeOrder(orderMode, undefined, { table });
     if (!result) return;
@@ -55,7 +60,7 @@ export function Review() {
             "Payment",
             <PaymentSheet
               mode={orderMode}
-              total={config.price}
+              total={total.price}
               onBack={close}
               onConfirm={(m) => {
                 close();
@@ -210,6 +215,13 @@ export function Review() {
               ))}
           </div>
         </fieldset>
+      )}
+
+      {!lock && !placed && (
+        <>
+          <ExtrasPicker restaurant={restaurant} lines={selection?.extras} onChange={setExtras} />
+          <OrderTotal total={total} extrasCount={extrasTotals(extras).count} remaining={target} approxValues={!!ap} />
+        </>
       )}
 
       <div className="mt-4 mb-6 space-y-3">

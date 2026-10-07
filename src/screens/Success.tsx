@@ -9,6 +9,7 @@ import { Screen } from "../components/Screen";
 import { ButtonLink, Card } from "../components/ui";
 import { getMeal } from "../data/restaurants";
 import { getOrders } from "../lib/experiment";
+import { extraLabel, orderExtras, orderTotals } from "../lib/extras";
 import { euro } from "../lib/format";
 import { changesFromDefault, describeChange } from "../lib/nutrition";
 import { useAppState } from "../state/AppState";
@@ -47,8 +48,9 @@ export function Success() {
           <p className="text-[13px] text-ink-3">{restaurant.name} · reference {order.orderNumber}</p>
           <p className="mt-1 text-[17px] font-semibold">{meal.name}</p>
           <p className="tnum mt-1 text-[14px] text-ink-2">
-            ≈ {order.nutrition.calories} kcal · ≈ {order.nutrition.protein} g protein · {euro(order.price)}
+            ≈ {orderTotals(order).nutrition.calories} kcal · ≈ {orderTotals(order).nutrition.protein} g protein · {euro(orderTotals(order).price)}
           </p>
+          {orderExtras(order).length > 0 && <p className="mt-1 text-[13px] text-ink-2">With {orderExtras(order).map(extraLabel).join(" · ")}</p>}
           {changes.length > 0 && <p className="mt-1 text-[13px] text-ink-3">{changes.map(describeChange).join(", ")}</p>}
           <p className="mt-3 text-[12.5px] text-ink-3">Estimate based on available menu information.</p>
         </Card>

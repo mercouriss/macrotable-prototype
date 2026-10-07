@@ -11,8 +11,10 @@ import { isLogged, scanMealEntry } from "../../lib/ledger";
 import { completedOrderFor } from "../../lib/orderState";
 import { AcceptanceSequence } from "../AcceptanceSequence";
 import { BrandMark } from "../BrandMark";
+import { ExtrasPicker, OrderTotal } from "../Extras";
 import { MacroFit } from "../MacroFit";
 import { euro } from "../../lib/format";
+import { extraLabel, extrasTotals, orderExtras, resolveExtras, withExtras, type ExtraLine } from "../../lib/extras";
 import { Icon } from "../Icon";
 import { PaymentSheet, paymentLabel, type PaymentMethod } from "../PaymentSheet";
 import { approx, ProvenanceBadge } from "../ProvenanceBadge";
@@ -236,9 +238,10 @@ function RecommendationCard({ rec, since, originId }: { rec: RecommendationCardD
 function OrderCard({ draftId }: { draftId: string }) {
   const { state, approveDraft, cancelDraft } = useAgent();
   const navigate = useNavigate();
-  const { lock, dining, setDining } = useAppState();
+  const { lock, dining, setDining, target } = useAppState();
   const [justApproved, setJustApproved] = useState(false);
   const [paidWith, setPaidWith] = useState<PaymentMethod | null>(null); // display only; never stored
+  const [extraLines, setExtraLines] = useState<ExtraLine[]>([]); // drinks and desserts added on this card
   const sheet = useSheet();
   const d = state.orderDrafts.find((x) => x.id === draftId);
   if (!d) return null;
@@ -250,6 +253,10 @@ function OrderCard({ draftId }: { draftId: string }) {
   // Normal mode, table-service restaurant: an in-store draft is dine-in and needs the user's table (trials unchanged).
   const dineIn = !!restaurant && needsTable(restaurant, d.mode === "in-store" ? "in-store" : "pickup", !!lock);
   const table = dineIn && dining?.restaurantId === d.restaurantId ? (normalizeTable(dining.table) ?? undefined) : undefined;
+  // Normal mode, a dish from a demo restaurant's menu: the user may add drinks and desserts (never in a trial).
+  const canAddExtras = !lock && !!restaurant && restaurant.meals.some((m) => m.id === d.mealId);
+  const extras = canAddExtras ? resolveExtras(d.restaurantId, extraLines) : [];
+  const total = withExtras({ nutrition: d.nutrition, price: d.price }, extras);
   return (
     <div className="rounded-2xl border border-ink/15 bg-surface p-4 shadow-card">
       <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-3">
@@ -291,12 +298,18 @@ function OrderCard({ draftId }: { draftId: string }) {
               </select>
             </label>
           )}
+          {canAddExtras && restaurant && (
+            <>
+              <ExtrasPicker restaurant={restaurant} lines={extraLines} onChange={setExtraLines} compact />
+              <OrderTotal total={total} extrasCount={extrasTotals(extras).count} remaining={target} approxValues={d.provenance === "estimated"} compact />
+            </>
+          )}
           <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
             <button
               {...(dineIn ? { disabled: !table } : {})}
               onClick={() => {
                 const approve = (payment?: PaymentMethod) => {
-                  const r = approveDraft(d.id, table);
+                  const r = extras.length ? approveDraft(d.id, table, extras.map((x) => ({ id: x.id, qty: x.qty }))) : approveDraft(d.id, table);
                   if (r?.research) navigate("/experiment/done", { replace: true, state: { completed: true } });
                   else if (r) (setJustApproved(true), payment && setPaidWith(payment));
                 };
@@ -306,7 +319,7 @@ function OrderCard({ draftId }: { draftId: string }) {
                   "Payment",
                   <PaymentSheet
                     mode={d.mode === "in-store" ? "in-store" : "pickup"}
-                    total={d.price}
+                    total={total.price}
                     onBack={sheet.close}
                     onConfirm={(m) => (sheet.close(), approve(m))}
                   />,
@@ -343,6 +356,11 @@ function OrderCard({ draftId }: { draftId: string }) {
               </Link>
             </div>
           </AcceptanceSequence>
+          {orderExtras(placed).length > 0 && (
+            <p data-order-extras className="mt-1.5 text-[12px] text-ink-2">
+              With {orderExtras(placed).map(extraLabel).join(" · ")}
+            </p>
+          )}
           {paidWith && (
             <p data-payment-line className="mt-1.5 text-[12px] text-ink-3">
               Payment · {paymentLabel(paidWith, d.mode === "in-store" ? "in-store" : "pickup")}

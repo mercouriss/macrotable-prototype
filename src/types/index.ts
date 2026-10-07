@@ -179,6 +179,16 @@ export interface ExperimentEvent {
   detail?: Record<string, unknown>;
 }
 
+/** A drink or dessert ordered with the dish (normal mode only), as it was when ordered. Prices and nutrition are per unit. */
+export interface OrderExtra {
+  id: string;
+  kind: "drink" | "dessert";
+  name: string;
+  qty: number;
+  price: number;
+  nutrition: Nutrition;
+}
+
 export interface PlacedOrder {
   orderNumber: string;
   placedAt: number;
@@ -202,4 +212,9 @@ export interface PlacedOrder {
   meetsTarget: boolean;
   /** Agent recommendation card the order came from, if any (drives that card's "Order completed" state). */
   origin?: string;
+  /**
+   * Drinks and desserts added to the dish (normal mode only; never in research trials). `nutrition`,
+   * `price` and `meetsTarget` stay the dish's own; orderTotals() adds these on top.
+   */
+  extras?: OrderExtra[];
 }

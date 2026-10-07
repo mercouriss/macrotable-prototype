@@ -247,6 +247,7 @@ function EntryRow({ e, onRemove }: { e: TodayEntry; onRemove?: () => void }) {
         </p>
         {/* A scanned dish keeps its own provenance: estimated values stay marked ≈. */}
         <p className="tnum mt-0.5 text-[12.5px] text-ink-2">{e.source === "adjustment" ? signed(e.nutrition) : fmt(e.nutrition, e.provenance === "estimated")}</p>
+        {!!e.extras?.length && <p className="mt-0.5 text-[12px] text-ink-2">With {e.extras.join(" · ")}</p>}
         <p className="mt-0.5 text-[11.5px] text-ink-3">{SOURCE_LABEL[e.source]}</p>
       </div>
       {onRemove && (

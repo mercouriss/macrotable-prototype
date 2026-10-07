@@ -24,6 +24,7 @@ import {
   type TodayEntry,
 } from "../lib/ledger";
 import { computeConfiguration, configurationId, isSelectionSupported } from "../lib/nutrition";
+import { resolveExtras, type ExtraLine } from "../lib/extras";
 import { canPlaceSelection } from "../lib/orderState";
 import { clearSaved } from "../lib/saved";
 import { researchStore, type Assignment, type ExperimentLock, type SessionBuild } from "../lib/research";
@@ -38,6 +39,8 @@ export interface MealSelection {
   origin?: string;
   /** Set once this exact attempt has been ordered: the attempt is immutable and can't be submitted again. */
   placedOrderNumber?: string;
+  /** Drinks and desserts added to the dish (normal mode only; research trials never have any). */
+  extras?: ExtraLine[];
 }
 
 export interface Settings {
@@ -109,6 +112,8 @@ interface AppStateValue extends PersistedState {
   /** Restore the current scenario's canonical targets and preferences. */
   resetTargets: () => void;
   selectMeal: (sel: MealSelection) => void;
+  /** Normal mode: the drinks and desserts added to the current dish. Ignored during a research trial or once ordered. */
+  setExtras: (extras: ExtraLine[]) => void;
   setOption: (groupId: string, optionId: string) => void;
   resetSelection: () => void;
   beginExperiment: (a: Assignment) => ExperimentLock;
@@ -119,7 +124,8 @@ interface AppStateValue extends PersistedState {
    * Places the current selection, or `selection` when given (the agent approves a specific draft). Dining in at a
    * table-service restaurant (normal mode) needs `table`; without a valid one nothing is placed.
    */
-  placeOrder: (mode?: ServiceMode, selection?: MealSelection, opts?: { table?: string }) => PlaceOrderResult | null;
+  /** `opts.extras` (else the selection's own) adds drinks and desserts; ignored during a research trial. */
+  placeOrder: (mode?: ServiceMode, selection?: MealSelection, opts?: { table?: string; extras?: ExtraLine[] }) => PlaceOrderResult | null;
   /** Remember the dining choice for a restaurant (normal mode; ignored during a research trial). */
   setDining: (choice: DiningChoice | null) => void;
   /** Normal mode: the food filter and Explore view (always the empty filter during a research trial). */
@@ -263,7 +269,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     commit({ ...initialFor(s.scenarioId), lock: null });
   }, []);
 
-  const placeOrder = useCallback((mode: ServiceMode = "pickup", explicit?: MealSelection, opts?: { table?: string }): PlaceOrderResult | null => {
+  const placeOrder = useCallback((mode: ServiceMode = "pickup", explicit?: MealSelection, opts?: { table?: string; extras?: ExtraLine[] }): PlaceOrderResult | null => {
     const s = explicit ? { ...stateRef.current, selection: explicit } : stateRef.current;
     if (!s.selection) return null;
     // Idempotent: an attempt that was already ordered can never be submitted again (double tap,
@@ -278,6 +284,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     const table = tableNeeded ? normalizeTable(opts?.table) : null;
     if (tableNeeded && !table) return null;
     const { nutrition, price } = computeConfiguration(found.meal, s.selection.selections);
+    // Drinks and desserts the user added: normal mode only, so a research trial's order never carries any.
+    const extras = s.lock ? [] : resolveExtras(found.restaurant.id, opts?.extras ?? s.selection.extras);
     // "Fits" is judged against what was left before this meal (the assigned target during a trial).
     const before = s.lock ? s.target : ledgerFor(s.target).remaining;
     const order: PlacedOrder = {
@@ -297,6 +305,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       sessionId: s.lock?.sessionId,
       ...(s.selection.origin ? { origin: s.selection.origin } : {}),
       ...(table ? { table } : {}),
+      ...(extras.length ? { extras } : {}),
       meetsTarget: meetsTarget(nutrition, before),
     };
     saveOrder(order);
@@ -372,6 +381,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         resetTargets: () =>
           setState((s) => ({ ...s, target: { ...SCENARIOS[s.scenarioId].target }, prefs: { ...SCENARIOS[s.scenarioId].preferences } })),
         selectMeal: (selection) => setState((s) => ({ ...s, selection })),
+        setExtras: (lines) => {
+          const s = stateRef.current;
+          if (s.lock || !s.selection || s.selection.placedOrderNumber) return;
+          const r = getMeal(s.selection.mealId)?.restaurant;
+          const clean = r ? resolveExtras(r.id, lines).map((x) => ({ id: x.id, qty: x.qty })) : [];
+          commit({ ...s, selection: { ...s.selection, extras: clean } });
+        },
         setOption: (groupId, optionId) =>
           setState((s) =>
             s.selection

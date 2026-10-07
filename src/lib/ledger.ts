@@ -1,5 +1,6 @@
 import type { Nutrition, PlacedOrder, Provenance, UserTarget } from "../types";
 import { readJSON, writeJSON } from "./experiment";
+import { extraLabel, orderExtras, orderTotals } from "./extras";
 
 /*
  * Daily nutrition ledger (normal/demo mode only).
@@ -128,7 +129,7 @@ export function confirmedMeals(orders: PlacedOrder[], meta: LedgerMeta): { id: s
   for (const o of orders) {
     if (o.sessionId || !o.nutrition || seen.has(o.orderNumber)) continue; // research orders never count
     seen.add(o.orderNumber);
-    out.push({ id: o.orderNumber, at: o.placedAt, nutrition: pick(o.nutrition) });
+    out.push({ id: o.orderNumber, at: o.placedAt, nutrition: pick(orderTotals(o).nutrition) }); // dish + any drinks and desserts
   }
   for (const h of meta.handoffs) if (!seen.has(h.id)) (seen.add(h.id), out.push(h));
   return out;
@@ -150,6 +151,8 @@ export interface TodayEntry {
   source: "order" | NonNullable<CounterHandoff["source"]>;
   /** For orders: the ordered meal (the screen resolves its name). */
   mealId?: string;
+  /** For orders: the drinks and desserts added to it ("2× Iced green tea"). */
+  extras?: string[];
   name?: string;
   provenance?: Provenance;
   removable: boolean;
@@ -164,7 +167,15 @@ export function todayEntries(orders: PlacedOrder[], meta: LedgerMeta, now = Date
   for (const o of orders) {
     if (o.sessionId || !o.nutrition || seen.has(o.orderNumber) || !counts(o.placedAt)) continue;
     seen.add(o.orderNumber);
-    out.push({ id: o.orderNumber, at: o.placedAt, nutrition: pick(o.nutrition), source: "order", mealId: o.mealId, removable: false });
+    out.push({
+      id: o.orderNumber,
+      at: o.placedAt,
+      nutrition: pick(orderTotals(o).nutrition),
+      source: "order",
+      mealId: o.mealId,
+      ...(orderExtras(o).length ? { extras: orderExtras(o).map(extraLabel) } : {}),
+      removable: false,
+    });
   }
   for (const h of meta.handoffs) {
     if (seen.has(h.id) || !counts(h.at)) continue;

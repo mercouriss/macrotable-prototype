@@ -1,6 +1,7 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { AskAgentButton } from "../components/AskAgentButton";
 import { BrandMark } from "../components/BrandMark";
+import { ExtrasPicker } from "../components/Extras";
 import { Icon } from "../components/Icon";
 import { MacroFit } from "../components/MacroFit";
 import { Plate } from "../components/Plate";
@@ -10,6 +11,7 @@ import { Screen } from "../components/Screen";
 import { useSheet } from "../components/Sheet";
 import { Button, Card, Eyebrow } from "../components/ui";
 import { getScopedRestaurant } from "../data/restaurants";
+import { extrasFor, type ExtraLine } from "../lib/extras";
 import { euro } from "../lib/format";
 import { readFromRecommendation, type FromRecommendation } from "../lib/menuNav";
 import { changesFromDefault, computeConfiguration, describeChange } from "../lib/nutrition";
@@ -93,7 +95,7 @@ function DemoRestaurantPage({ r }: { r: Restaurant }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { openLevel } = useSheet();
-  const { target, prefs, selectMeal, log, lock } = useAppState();
+  const { target, prefs, selectMeal, log, lock, selection, setExtras } = useAppState();
   const best = useSearch(r.id).ranked[0];
   // Normal mode: the full-menu layout, and the recommendation this page was opened from.
   // Research trials keep the frozen treatment layout below unchanged.
@@ -181,7 +183,32 @@ function DemoRestaurantPage({ r }: { r: Restaurant }) {
           </li>
         ))}
       </ul>
+      {extended && <MenuExtras r={r} selection={selection} onChange={setExtras} />}
     </Screen>
+  );
+}
+
+/**
+ * Normal mode: the restaurant's drinks and desserts. With a dish from this restaurant chosen (not yet
+ * ordered) they can be added here; otherwise they're listed so the menu reads like a real one.
+ */
+function MenuExtras({ r, selection, onChange }: { r: Restaurant; selection: ReturnType<typeof useAppState>["selection"]; onChange: (lines: ExtraLine[]) => void }) {
+  if (!extrasFor(r.id).length) return null;
+  const dish = selection && !selection.placedOrderNumber ? r.meals.find((m) => m.id === selection.mealId) : undefined;
+  return (
+    <div className="-mt-2 mb-6">
+      {dish ? (
+        <>
+          <ExtrasPicker restaurant={r} lines={selection?.extras} onChange={onChange} defaultOpen />
+          <p className="mt-1.5 px-1 text-[12px] text-ink-3">Added to your {dish.name} order. You approve everything at Review.</p>
+        </>
+      ) : (
+        <>
+          <ExtrasPicker restaurant={r} readOnly defaultOpen={false} />
+          <p className="mt-1.5 px-1 text-[12px] text-ink-3">Choose a dish first, then add drinks and desserts to your order.</p>
+        </>
+      )}
+    </div>
   );
 }
 
