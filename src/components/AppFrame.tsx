@@ -5,7 +5,7 @@ import { lockedRedirect } from "../lib/research";
 import { useAppState } from "../state/AppState";
 import type { ScenarioId } from "../types";
 import { Icon } from "./Icon";
-import { ShowcaseVideo } from "./Showcase";
+import { ShowcaseQuickStart } from "./ShowcaseQuickStart";
 import { useMediaQuery } from "./useMediaQuery";
 import { REALISM_DISCLOSURE } from "../lib/provenance";
 import { OfflineBanner } from "./OfflineBanner";
@@ -41,7 +41,7 @@ export function DemoReset() {
 /**
  * < 1024 px (phones, small tablets): ONLY the app, full height — no desktop shell, no video.
  * ≥ 1024 px: presentation layout — interactive phone on the left, showcase column on the right
- * (brand, product-demo video, presenter controls). The showcase is never shown to study
+ * (brand, QR code + Live AI video guide, presenter controls). The showcase is never shown to study
  * participants (trials, /experiment, /baseline) so the baseline can't be contaminated.
  */
 export function AppFrame() {
@@ -81,7 +81,7 @@ function ShowcasePanel() {
         <p className="mt-1.5 text-[13.5px] text-ink-3">Nutrition-aware restaurant ordering agent · Team 44 research prototype</p>
       </header>
 
-      <ShowcaseVideo />
+      <ShowcaseQuickStart />
 
       <p className="text-[13.5px] leading-relaxed">
         <strong className="text-ink">LLM interprets and orchestrates. Deterministic code calculates. Restaurant data defines what's possible. You approve.</strong>{" "}

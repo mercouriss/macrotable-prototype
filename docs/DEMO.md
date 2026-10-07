@@ -28,7 +28,7 @@ The public demo shows every brand. **Research trials and `/baseline` only ever s
 
 ## V3.1 desktop setup
 
-Open the app at ≥1024 px. The phone sits on the left and the showcase column on the right: a product-demo video (or its placeholder) and the presenter controls (Reset demo, scenarios, Offline agent only). Set the video with the repo variable `SHOWCASE_VIDEO_URL` and redeploy. In steps 2 and 14 below, point out the real restaurants (dashed pins, "Real · not affiliated"). Tap Mozza → Ask Agent to show the honest "no menu data → Scan the menu here" path.
+Open the app at ≥1024 px. The phone sits on the left and the showcase column on the right: a QR code for opening the app on a phone, the "For live agent use" screen recording (Home → Profile → Use Gemini API), and the presenter controls (Reset demo, scenarios, Live AI). In steps 2 and 14 below, point out the real restaurants (dashed pins, "Real · not affiliated"). Tap Mozza → Ask Agent to show the honest "no menu data → Scan the menu here" path.
 
 ## V3 Demo Day story (agent)
 

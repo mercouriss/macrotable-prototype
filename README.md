@@ -62,7 +62,7 @@ This is the last productization pass before the pilot and freeze. The audit, inc
 - **Labels:** simulated data is labelled **DEMO VERIFIED / DEMO OFFICIAL**. MENU-READ, ESTIMATED and INSUFFICIENT are unchanged.
 - **Agent step states** reflect real tool activity, never reasoning traces.
 - **Explore:** pin → card, stacked labels.
-- **Desktop showcase** (≥1024 px): the interactive phone sits beside a product-demo video. Configure the video with `VITE_SHOWCASE_VIDEO_URL`, or the repo variable `SHOWCASE_VIDEO_URL` in CI; it accepts a YouTube, Vimeo or https embed URL, or a `.mp4`/`.webm` URL or path in `public/`. Unset shows a placeholder.
+- **Desktop showcase** (≥1024 px): the interactive phone sits beside a QR code that opens the app on a phone and a short screen recording (`public/guide/live-ai-guide.mp4`) showing how to turn on Live AI for a live agent demo: Home → Profile → Use Gemini API.
   - Below 1024 px only the app renders, and the video is never mounted.
   - The showcase is hidden from study participants.
 - **Freeze fingerprint** on `/research`.
